@@ -72,7 +72,7 @@ test_that("extract_arguments handles positional arguments", {
 
   code <- "foo(123, 'test')"
   xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
-  call_node <- xml2::xml_find_first(xml, "//expr[SYMBOL_FUNCTION_CALL]")
+  call_node <- xml2::xml_find_first(xml, "//SYMBOL_FUNCTION_CALL/parent::expr/parent::expr")
 
   args <- extract_arguments(call_node)
 
@@ -88,7 +88,7 @@ test_that("extract_arguments handles named arguments", {
 
   code <- "foo(x = 123, y = 'test')"
   xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
-  call_node <- xml2::xml_find_first(xml, "//expr[SYMBOL_FUNCTION_CALL]")
+  call_node <- xml2::xml_find_first(xml, "//SYMBOL_FUNCTION_CALL/parent::expr/parent::expr")
 
   args <- extract_arguments(call_node)
 

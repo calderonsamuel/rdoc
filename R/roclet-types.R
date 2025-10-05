@@ -121,10 +121,10 @@ extract_type_info_from_block <- function(block) {
         description = tag$val$description
       )
     } else if (inherits(tag, "roxy_tag_typedReturn")) {
-      # For typedReturn, val is a character string with type as attribute
+      # For typedReturn, val is now a list with type and description
       return_type <- list(
-        type = attr(tag$val, "type"),
-        description = as.character(tag$val)
+        type = tag$val$type,
+        description = tag$val$description
       )
     }
   }

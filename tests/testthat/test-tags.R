@@ -53,7 +53,7 @@ test_that("@typed-param errors on invalid format", {
 
   expect_error(
     tag_parse_typed_param(tag),
-    "Invalid.*@typed-param.*format"
+    "Invalid.*@typedParam.*format"
   )
 })
 
@@ -89,7 +89,7 @@ test_that("@typed-return errors on invalid format", {
 
   expect_error(
     tag_parse_typed_return(tag),
-    "Invalid.*@typed-return.*format"
+    "Invalid.*@typedReturn.*format"
   )
 })
 

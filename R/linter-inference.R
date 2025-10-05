@@ -183,7 +183,7 @@ extract_arguments <- function(call_node, var_context = NULL, current_line = NULL
         node = child,
         type = arg_type,
         position = position,
-        name = NA_character_
+        name = NULL
       )
       position <- position + 1
     }
@@ -250,11 +250,18 @@ types_compatible <- function(actual, expected) {
     return(TRUE)
   }
 
-  # Handle union types
+  # Handle union types in expected
   if (grepl("\\|", expected)) {
     expected_types <- split_union_types(expected)
     expected_bases <- gsub("\\(.*\\)$", "", trimws(expected_types))
     return(actual_base %in% expected_bases)
+  }
+
+  # Handle union types in actual
+  if (grepl("\\|", actual)) {
+    actual_types <- split_union_types(actual)
+    actual_bases <- gsub("\\(.*\\)$", "", trimws(actual_types))
+    return(expected_base %in% actual_bases)
   }
 
   # Numeric compatibility

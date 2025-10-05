@@ -84,7 +84,7 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
     arg <- args[[i]]
 
     # Determine which parameter this argument corresponds to
-    if (!is.na(arg$name)) {
+    if (!is.null(arg$name) && !is.na(arg$name)) {
       # Named argument - match by name
       param_name <- arg$name
       if (!param_name %in% param_names) {
@@ -295,8 +295,9 @@ check_strict_mode_annotations <- function(fn_assign_node, type_info, source_expr
   fn_name <- if (!is.na(symbol_node)) xml2::xml_text(symbol_node) else "function"
 
   # Extract parameter names from function definition
-  # SYMBOL_FORMALS are the parameter names in the function signature
-  param_nodes <- xml2::xml_find_all(fn_node, ".//SYMBOL_FORMALS")
+  # SYMBOL_FORMALS are siblings of FUNCTION node, so search from parent
+  fn_expr <- xml2::xml_parent(fn_node)
+  param_nodes <- xml2::xml_find_all(fn_expr, ".//SYMBOL_FORMALS")
   param_names <- vapply(param_nodes, xml2::xml_text, character(1))
 
   # Check each parameter for type annotation
