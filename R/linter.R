@@ -674,6 +674,38 @@ extract_arguments <- function(call_node, var_context = NULL, current_line = NULL
 #' @return Character string with inferred type or "unknown"
 #' @keywords internal
 infer_argument_type <- function(arg_node, var_context = NULL, current_line = NULL) {
+  # Check for function calls FIRST (before checking their arguments/literals)
+
+  # Check for c() function calls
+  c_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL[text()='c']")
+  if (!is.na(c_call)) {
+    # Get the first argument to c() to infer type
+    first_arg <- xml2::xml_find_first(arg_node, ".//expr[SYMBOL_FUNCTION_CALL[text()='c']]/parent::expr/following-sibling::expr[1]")
+    if (!is.na(first_arg)) {
+      return(infer_argument_type(first_arg, var_context, current_line))
+    }
+  }
+
+  # Check for list() function calls
+  list_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL[text()='list']")
+  if (!is.na(list_call)) {
+    return("list")
+  }
+
+  # Check for data.frame() function calls
+  df_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL[text()='data.frame']")
+  if (!is.na(df_call)) {
+    return("data.frame")
+  }
+
+  # Check for matrix() function calls
+  matrix_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL[text()='matrix']")
+  if (!is.na(matrix_call)) {
+    return("matrix")
+  }
+
+  # Now check for literals (after ruling out function calls)
+
   # Check for string constant
   if (length(xml2::xml_find_all(arg_node, ".//STR_CONST")) > 0) {
     return("character")
@@ -692,16 +724,6 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
       return("logical")
     }
     return("numeric")
-  }
-
-  # Check for c() function calls
-  c_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL[text()='c']")
-  if (!is.na(c_call)) {
-    # Get the first argument to c() to infer type
-    first_arg <- xml2::xml_find_first(arg_node, ".//expr[SYMBOL_FUNCTION_CALL[text()='c']]/parent::expr/following-sibling::expr[1]")
-    if (!is.na(first_arg)) {
-      return(infer_argument_type(first_arg, var_context, current_line))
-    }
   }
 
   # Check for variable reference (SYMBOL)

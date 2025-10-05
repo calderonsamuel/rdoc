@@ -443,7 +443,6 @@ test_that("linter infers type from NULL assignment", {
 })
 
 test_that("linter infers type from list() call", {
-  skip("Variable type inference not yet implemented")
   skip_if_not_installed("lintr")
 
   code <- "
@@ -461,8 +460,42 @@ test_that("linter infers type from list() call", {
   expect_true(any(grepl("character.*list", vapply(lints, function(l) l$message, character(1)))))
 })
 
+test_that("linter infers type from empty list()", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {numeric} number
+    foo <- function(x) x
+
+    a <- list()
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect that 'a' is list
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("numeric.*list", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter passes when list matches list parameter", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {list} a list
+    foo <- function(x) length(x)
+
+    a <- list(1, 2, 3)
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should pass - list to list parameter
+  expect_equal(length(lints), 0)
+})
+
 test_that("linter infers type from data.frame() call", {
-  skip("Variable type inference not yet implemented")
   skip_if_not_installed("lintr")
 
   code <- "
@@ -478,6 +511,58 @@ test_that("linter infers type from data.frame() call", {
   # Should detect that 'a' is data.frame
   expect_equal(length(lints), 1)
   expect_true(any(grepl("character.*data.frame", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter passes when data.frame matches data.frame parameter", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam df {data.frame} a data frame
+    process <- function(df) nrow(df)
+
+    my_df <- data.frame(x = 1:3, y = 4:6)
+    process(my_df)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should pass - data.frame to data.frame parameter
+  expect_equal(length(lints), 0)
+})
+
+test_that("linter infers type from matrix() call", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {character} text
+    foo <- function(x) x
+
+    a <- matrix(1:9, 3, 3)
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect that 'a' is matrix
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("character.*matrix", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter passes when matrix matches matrix parameter", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam m {matrix} a matrix
+    foo <- function(m) nrow(m)
+
+    my_matrix <- matrix(1:12, nrow = 3)
+    foo(my_matrix)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should pass - matrix to matrix parameter
+  expect_equal(length(lints), 0)
 })
 
 test_that("linter passes when variable type matches", {
