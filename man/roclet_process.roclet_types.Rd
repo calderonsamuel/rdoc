@@ -4,7 +4,7 @@
 \alias{roclet_process.roclet_types}
 \title{Process blocks to extract type information}
 \usage{
-roclet_process.roclet_types(x, blocks, env, base_path)
+\method{roclet_process}{roclet_types}(x, blocks, env, base_path)
 }
 \arguments{
 \item{x}{The roclet}

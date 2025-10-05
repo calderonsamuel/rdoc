@@ -3,7 +3,8 @@
 #' Checks function calls against type annotations from @typedParam and @typedReturn tags.
 #' Works with both local function definitions and installed packages.
 #'
-#' @return A linter function
+#' @typedParam ... {any} Additional arguments (currently unused)
+#' @typedReturn {function} A linter function for use with lintr
 #' @export
 #' @examples
 #' \dontrun{

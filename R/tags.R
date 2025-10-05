@@ -2,7 +2,7 @@
 #'
 #' @param x A roxy_tag object
 #' @return A list with param, type, and description
-#' @export
+#' @exportS3Method roxygen2::roxy_tag_parse
 roxy_tag_parse.roxy_tag_typedParam <- function(x) {
   tag_parse_typed_param(x)
 }
@@ -11,7 +11,7 @@ roxy_tag_parse.roxy_tag_typedParam <- function(x) {
 #'
 #' @param x A roxy_tag object
 #' @return A list with type and description
-#' @export
+#' @exportS3Method roxygen2::roxy_tag_parse
 roxy_tag_parse.roxy_tag_typedReturn <- function(x) {
   tag_parse_typed_return(x)
 }

@@ -4,7 +4,7 @@
 \alias{roxy_tag_parse.roxy_tag_typedReturn}
 \title{Parse @typedReturn tag}
 \usage{
-roxy_tag_parse.roxy_tag_typedReturn(x)
+\method{roxy_tag_parse}{roxy_tag_typedReturn}(x)
 }
 \arguments{
 \item{x}{A roxy_tag object}

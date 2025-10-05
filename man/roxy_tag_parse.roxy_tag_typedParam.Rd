@@ -4,7 +4,7 @@
 \alias{roxy_tag_parse.roxy_tag_typedParam}
 \title{Parse @typedParam tag}
 \usage{
-roxy_tag_parse.roxy_tag_typedParam(x)
+\method{roxy_tag_parse}{roxy_tag_typedParam}(x)
 }
 \arguments{
 \item{x}{A roxy_tag object}

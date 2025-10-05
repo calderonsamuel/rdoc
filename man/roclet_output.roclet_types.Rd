@@ -4,7 +4,7 @@
 \alias{roclet_output.roclet_types}
 \title{Output type metadata to file}
 \usage{
-roclet_output.roclet_types(x, results, base_path, ..., is_first = TRUE)
+\method{roclet_output}{roclet_types}(x, results, base_path, ..., is_first = TRUE)
 }
 \arguments{
 \item{x}{The roclet}

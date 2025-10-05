@@ -6,9 +6,6 @@
 \usage{
 roclet_types()
 }
-\value{
-A roclet object
-}
 \description{
 This roclet generates type metadata from @typedParam and @typedReturn tags.
 The metadata is saved to inst/types.rds and gets installed with the package.

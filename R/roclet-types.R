@@ -3,7 +3,7 @@
 #' This roclet generates type metadata from @typedParam and @typedReturn tags.
 #' The metadata is saved to inst/types.rds and gets installed with the package.
 #'
-#' @return A roclet object
+#' @typedReturn {<roclet>} A roxygen2 roclet object for type metadata generation
 #' @export
 #' @examples
 #' \dontrun{
@@ -21,7 +21,7 @@ roclet_types <- function() {
 #' @param env Environment
 #' @param base_path Base path of the package
 #' @return List of type information per function
-#' @export
+#' @exportS3Method roxygen2::roclet_process
 roclet_process.roclet_types <- function(x, blocks, env, base_path) {
   results <- list()
 
@@ -56,7 +56,7 @@ roclet_process.roclet_types <- function(x, blocks, env, base_path) {
 #' @param ... Additional arguments
 #' @param is_first Whether this is the first roclet run
 #' @return Path to generated file
-#' @export
+#' @exportS3Method roxygen2::roclet_output
 roclet_output.roclet_types <- function(x, results, base_path, ..., is_first = TRUE) {
   # Don't create file if no types found
   if (length(results) == 0) {
@@ -143,7 +143,7 @@ extract_type_info_from_block <- function(block) {
   }
 }
 
-#' @export
+#' @exportS3Method roxygen2::roclet_tags
 roclet_tags.roclet_types <- function(x) {
   list(
     typedParam = roxygen2::tag_markdown(),

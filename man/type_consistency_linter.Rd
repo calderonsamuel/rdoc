@@ -6,9 +6,6 @@
 \usage{
 type_consistency_linter()
 }
-\value{
-A linter function
-}
 \description{
 Checks function calls against type annotations from @typedParam and @typedReturn tags.
 Works with both local function definitions and installed packages.
