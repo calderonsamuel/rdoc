@@ -603,3 +603,189 @@ test_that("linter handles variables from outer scope", {
   expect_equal(length(lints), 1)
   expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
 })
+
+# Phase 7: Function Return Type Inference ----
+
+test_that("linter infers types from function return values - simple case", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedReturn {numeric} a number
+    get_number <- function() 42
+
+    #' @typedParam x {character} text
+    process_text <- function(x) paste(x)
+
+    result <- get_number()
+    process_text(result)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect: process_text expects character but result is numeric
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("character.*numeric", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter infers types from function return values - matching types", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedReturn {numeric} a number
+    get_number <- function() 42
+
+    #' @typedParam x {numeric} number
+    process_number <- function(x) x * 2
+
+    result <- get_number()
+    process_number(result)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should pass - numeric return to numeric parameter
+  expect_equal(length(lints), 0)
+})
+
+test_that("linter handles function calls without @typedReturn", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    # No @typedReturn annotation
+    get_value <- function() 42
+
+    #' @typedParam x {character} text
+    process_text <- function(x) paste(x)
+
+    result <- get_value()
+    process_text(result)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should not error - result type is unknown, so no warning
+  expect_equal(length(lints), 0)
+})
+
+test_that("linter infers types from chained function calls", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedReturn {data.frame} a data frame
+    load_data <- function() data.frame(x = 1:3)
+
+    #' @typedParam df {data.frame} input data
+    #' @typedReturn {list} processed results
+    process_data <- function(df) list(df)
+
+    #' @typedParam x {list} input list
+    show_results <- function(x) print(x)
+
+    df <- load_data()
+    results <- process_data(df)
+    show_results(results)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # All types should match in the chain
+  expect_equal(length(lints), 0)
+})
+
+test_that("linter infers types from function calls with scalar returns", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedReturn {numeric(1)} scalar number
+    get_scalar <- function() 42
+
+    #' @typedParam x {numeric} vector
+    process_vector <- function(x) sum(x)
+
+    result <- get_scalar()
+    process_vector(result)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should pass - numeric(1) is compatible with numeric
+  expect_equal(length(lints), 0)
+})
+
+test_that("linter handles inline function calls as arguments", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedReturn {numeric} a number
+    get_number <- function() 42
+
+    #' @typedParam x {character} text
+    process_text <- function(x) paste(x)
+
+    process_text(get_number())
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect: expects character but get_number() returns numeric
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("character.*numeric", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter infers types from functions returning list, data.frame, matrix", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedReturn {list} a list
+    get_list <- function() list(1, 2)
+
+    #' @typedReturn {data.frame} a data frame
+    get_df <- function() data.frame(x = 1:3)
+
+    #' @typedReturn {matrix} a matrix
+    get_matrix <- function() matrix(1:9, 3, 3)
+
+    #' @typedParam x {list} list input
+    use_list <- function(x) x
+
+    #' @typedParam x {data.frame} df input
+    use_df <- function(x) x
+
+    #' @typedParam x {matrix} matrix input
+    use_matrix <- function(x) x
+
+    a <- get_list()
+    b <- get_df()
+    c <- get_matrix()
+
+    use_list(a)
+    use_df(b)
+    use_matrix(c)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # All should match correctly
+  expect_equal(length(lints), 0)
+})
+
+test_that("linter catches type mismatch with complex return types", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedReturn {data.frame} a data frame
+    get_df <- function() data.frame(x = 1:3)
+
+    #' @typedParam x {list} list input
+    use_list <- function(x) x
+
+    result <- get_df()
+    use_list(result)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect: expects list but get_df() returns data.frame
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("list.*data\\.frame", vapply(lints, function(l) l$message, character(1)))))
+})

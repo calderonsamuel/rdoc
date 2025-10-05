@@ -4,7 +4,12 @@
 \alias{infer_argument_type}
 \title{Infer type of an argument from its AST node}
 \usage{
-infer_argument_type(arg_node, var_context = NULL, current_line = NULL)
+infer_argument_type(
+  arg_node,
+  var_context = NULL,
+  current_line = NULL,
+  type_registry = NULL
+)
 }
 \arguments{
 \item{arg_node}{XML node of the argument}
@@ -12,6 +17,8 @@ infer_argument_type(arg_node, var_context = NULL, current_line = NULL)
 \item{var_context}{Optional list of variable assignments for lookup}
 
 \item{current_line}{Optional line number where argument is used (for variable lookup)}
+
+\item{type_registry}{Optional list of function type signatures for return type lookup}
 }
 \value{
 Character string with inferred type or "unknown"

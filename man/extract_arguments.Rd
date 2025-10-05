@@ -4,7 +4,12 @@
 \alias{extract_arguments}
 \title{Extract arguments from function call}
 \usage{
-extract_arguments(call_node, var_context = NULL, current_line = NULL)
+extract_arguments(
+  call_node,
+  var_context = NULL,
+  current_line = NULL,
+  type_registry = NULL
+)
 }
 \arguments{
 \item{call_node}{XML node of function call}
@@ -12,6 +17,8 @@ extract_arguments(call_node, var_context = NULL, current_line = NULL)
 \item{var_context}{Optional list of variable assignments for type inference}
 
 \item{current_line}{Optional line number for variable lookup}
+
+\item{type_registry}{Optional list of function type signatures for return type lookup}
 }
 \value{
 List of argument information

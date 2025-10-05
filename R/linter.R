@@ -48,26 +48,6 @@ type_consistency_linter <- function() {
       file_cache[[filename]] <- cache
     }
 
-    # Extract and accumulate variable assignments
-    assignments <- extract_variable_assignments(xml)
-    for (var_name in names(assignments)) {
-      for (assignment in assignments[[var_name]]) {
-        # Infer type from the assigned value
-        inferred_type <- infer_argument_type(assignment$value_node)
-
-        # Store in cache
-        if (!var_name %in% names(cache$variables)) {
-          cache$variables[[var_name]] <- list()
-        }
-
-        cache$variables[[var_name]][[length(cache$variables[[var_name]]) + 1]] <- list(
-          line = assignment$line,
-          type = inferred_type
-        )
-      }
-    }
-    file_cache[[filename]] <- cache
-
     # Check for function definitions
     fn_assigns <- xml2::xml_find_all(xml, "//expr[LEFT_ASSIGN and .//FUNCTION]")
     if (length(fn_assigns) > 0 && length(cache$comments) > 0) {
@@ -97,6 +77,27 @@ type_consistency_linter <- function() {
 
     # Combine local and package types
     all_types <- c(cache$types, package_types)
+
+    # Extract and accumulate variable assignments
+    # Do this AFTER type extraction so we can infer function return types
+    assignments <- extract_variable_assignments(xml)
+    for (var_name in names(assignments)) {
+      for (assignment in assignments[[var_name]]) {
+        # Infer type from the assigned value, passing type registry for function returns
+        inferred_type <- infer_argument_type(assignment$value_node, NULL, NULL, all_types)
+
+        # Store in cache
+        if (!var_name %in% names(cache$variables)) {
+          cache$variables[[var_name]] <- list()
+        }
+
+        cache$variables[[var_name]][[length(cache$variables[[var_name]]) + 1]] <- list(
+          line = assignment$line,
+          type = inferred_type
+        )
+      }
+    }
+    file_cache[[filename]] <- cache
 
     # If no types, nothing to lint
     if (length(all_types) == 0) {

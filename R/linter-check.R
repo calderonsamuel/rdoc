@@ -52,8 +52,8 @@ check_single_call <- function(call_node, all_types, var_context, source_expressi
   call_line <- as.integer(xml2::xml_attr(call_node, "line1"))
   if (is.na(call_line)) call_line <- 1L
 
-  # Get arguments
-  args <- extract_arguments(call_node, var_context, call_line)
+  # Get arguments - pass all_types as type_registry for return type inference
+  args <- extract_arguments(call_node, var_context, call_line, all_types)
 
   # Check each argument against type signature
   check_arguments(fn_name, args, type_info, call_node, source_expression)
