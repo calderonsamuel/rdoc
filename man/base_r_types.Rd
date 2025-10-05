@@ -12,3 +12,4 @@ Character vector of base R types
 \description{
 Get base R types
 }
+\keyword{internal}

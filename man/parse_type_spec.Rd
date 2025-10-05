@@ -15,7 +15,4 @@ A list with parsed type information
 \description{
 Parses type strings like "numeric(1)", "character | NULL", etc.
 }
-\examples{
-parse_type_spec("numeric(1)")
-parse_type_spec("character | NULL")
-}
+\keyword{internal}

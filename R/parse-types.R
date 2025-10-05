@@ -4,10 +4,7 @@
 #'
 #' @param type_string Character string with type specification
 #' @return A list with parsed type information
-#' @export
-#' @examples
-#' parse_type_spec("numeric(1)")
-#' parse_type_spec("character | NULL")
+#' @keywords internal
 parse_type_spec <- function(type_string) {
   type_string <- trimws(type_string)
 
@@ -113,10 +110,7 @@ parse_function_type <- function(type_string) {
 #'
 #' @param type_string Type specification string
 #' @return Logical
-#' @export
-#' @examples
-#' is_union_type("character | NULL")
-#' is_union_type("numeric")
+#' @keywords internal
 is_union_type <- function(type_string) {
   grepl("\\|", type_string)
 }
@@ -125,10 +119,7 @@ is_union_type <- function(type_string) {
 #'
 #' @param type_string Union type string
 #' @return Character vector of individual types
-#' @export
-#' @examples
-#' split_union_types("character | NULL")
-#' split_union_types("numeric | integer | complex")
+#' @keywords internal
 split_union_types <- function(type_string) {
   types <- strsplit(type_string, "\\|")[[1]]
   trimws(types)
@@ -140,11 +131,7 @@ split_union_types <- function(type_string) {
 #'
 #' @param type_string Type specification to validate
 #' @return Logical indicating if valid
-#' @export
-#' @examples
-#' validate_type_spec("numeric")
-#' validate_type_spec("numeric(1)")
-#' validate_type_spec("invalid{type}")
+#' @keywords internal
 validate_type_spec <- function(type_string) {
   tryCatch(
     {
@@ -158,7 +145,7 @@ validate_type_spec <- function(type_string) {
 #' Get base R types
 #'
 #' @return Character vector of base R types
-#' @export
+#' @keywords internal
 base_r_types <- function() {
   c(
     "numeric", "integer", "double", "character", "logical",
@@ -174,7 +161,7 @@ base_r_types <- function() {
 #'
 #' @param type_string Type to check
 #' @return Logical
-#' @export
+#' @keywords internal
 is_base_type <- function(type_string) {
   # Remove length constraint if present
   base <- gsub("\\(.*\\)$", "", type_string)

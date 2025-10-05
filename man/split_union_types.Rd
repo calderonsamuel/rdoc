@@ -15,7 +15,4 @@ Character vector of individual types
 \description{
 Split union type into components
 }
-\examples{
-split_union_types("character | NULL")
-split_union_types("numeric | integer | complex")
-}
+\keyword{internal}

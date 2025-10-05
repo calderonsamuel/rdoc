@@ -15,8 +15,4 @@ Logical indicating if valid
 \description{
 Checks if a type specification is valid
 }
-\examples{
-validate_type_spec("numeric")
-validate_type_spec("numeric(1)")
-validate_type_spec("invalid{type}")
-}
+\keyword{internal}

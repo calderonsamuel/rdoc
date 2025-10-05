@@ -15,7 +15,4 @@ Logical
 \description{
 Check if type is a union type
 }
-\examples{
-is_union_type("character | NULL")
-is_union_type("numeric")
-}
+\keyword{internal}

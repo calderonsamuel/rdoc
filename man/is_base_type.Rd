@@ -15,3 +15,4 @@ Logical
 \description{
 Check if type is a base R type
 }
+\keyword{internal}
