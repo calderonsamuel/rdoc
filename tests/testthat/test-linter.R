@@ -212,3 +212,119 @@ test_that("linter handles no type annotations gracefully", {
   # Should not lint if no type annotations
   expect_length(lints, 0)
 })
+
+test_that("linter handles named arguments", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Test function
+    #' @typedParam x {numeric} first
+    #' @typedParam y {logical} second
+    foo <- function(x, y) x
+
+    foo(x = 'wrong', y = 'also wrong')
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should catch both named arguments
+  expect_equal(length(lints), 2)
+
+  # Check messages mention the correct parameters
+  lint_messages <- vapply(lints, function(l) l$message, character(1))
+  expect_true(any(grepl("Argument 'x'.*numeric.*character", lint_messages)))
+  expect_true(any(grepl("Argument 'y'.*logical.*character", lint_messages)))
+})
+
+test_that("linter handles mixed positional and named arguments", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Test function
+    #' @typedParam x {numeric} first
+    #' @typedParam y {logical} second
+    foo <- function(x, y) x
+
+    foo('wrong', y = 'also wrong')
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should catch both arguments (one positional, one named)
+  expect_equal(length(lints), 2)
+
+  # Check messages
+  lint_messages <- vapply(lints, function(l) l$message, character(1))
+  expect_true(any(grepl("Argument 'x'", lint_messages)))
+  expect_true(any(grepl("Argument 'y'", lint_messages)))
+})
+
+test_that("linter reports all type errors in single call", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Calculate mean
+    #' @typedParam x {numeric} vector
+    #' @typedParam na_rm {logical(1)} remove NAs
+    calculate_mean <- function(x, na_rm = FALSE) mean(x, na.rm = na_rm)
+
+    calculate_mean('a', na_rm = 'FALSE')
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should report both errors
+  expect_equal(length(lints), 2)
+
+  lint_messages <- vapply(lints, function(l) l$message, character(1))
+  expect_true(any(grepl("Argument 'x'.*numeric.*character", lint_messages)))
+  expect_true(any(grepl("Argument 'na_rm'.*logical.*character", lint_messages)))
+})
+
+test_that("extract_arguments handles named arguments", {
+  skip_if_not_installed("xml2")
+
+  code <- "foo(x = 'a', y = 123)"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  call_node <- xml2::xml_find_first(xml, "//expr[.//SYMBOL_FUNCTION_CALL]")
+
+  args <- extract_arguments(call_node)
+
+  expect_equal(length(args), 2)
+  expect_equal(args[[1]]$name, "x")
+  expect_equal(args[[1]]$type, "character")
+  expect_equal(args[[2]]$name, "y")
+  expect_equal(args[[2]]$type, "numeric")
+})
+
+test_that("extract_arguments handles positional arguments", {
+  skip_if_not_installed("xml2")
+
+  code <- "foo('a', 123)"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  call_node <- xml2::xml_find_first(xml, "//expr[.//SYMBOL_FUNCTION_CALL]")
+
+  args <- extract_arguments(call_node)
+
+  expect_equal(length(args), 2)
+  expect_true(is.na(args[[1]]$name))
+  expect_equal(args[[1]]$type, "character")
+  expect_true(is.na(args[[2]]$name))
+  expect_equal(args[[2]]$type, "numeric")
+})
+
+test_that("extract_arguments handles mixed arguments", {
+  skip_if_not_installed("xml2")
+
+  code <- "foo('a', y = 123)"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  call_node <- xml2::xml_find_first(xml, "//expr[.//SYMBOL_FUNCTION_CALL]")
+
+  args <- extract_arguments(call_node)
+
+  expect_equal(length(args), 2)
+  expect_true(is.na(args[[1]]$name))
+  expect_equal(args[[1]]$type, "character")
+  expect_equal(args[[2]]$name, "y")
+  expect_equal(args[[2]]$type, "numeric")
+})

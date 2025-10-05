@@ -525,9 +525,9 @@ check_function_calls <- function(xml, all_types, source_expression) {
   call_nodes <- xml2::xml_find_all(xml, "//SYMBOL_FUNCTION_CALL/parent::expr/parent::expr")
 
   for (call_node in call_nodes) {
-    lint <- check_single_call(call_node, all_types, source_expression)
-    if (!is.null(lint)) {
-      lints <- c(lints, list(lint))
+    call_lints <- check_single_call(call_node, all_types, source_expression)
+    if (length(call_lints) > 0) {
+      lints <- c(lints, call_lints)
     }
   }
 
@@ -539,20 +539,20 @@ check_function_calls <- function(xml, all_types, source_expression) {
 #' @param call_node XML node of the function call
 #' @param all_types List of type information
 #' @param source_expression Source expression
-#' @return Lint object or NULL
+#' @return List of Lint objects
 #' @keywords internal
 check_single_call <- function(call_node, all_types, source_expression) {
   # Get function name
   fn_node <- xml2::xml_find_first(call_node, ".//SYMBOL_FUNCTION_CALL")
   if (is.na(fn_node)) {
-    return(NULL)
+    return(list())
   }
 
   fn_name <- xml2::xml_text(fn_node)
 
   # Check if we have type info for this function
   if (!fn_name %in% names(all_types)) {
-    return(NULL)
+    return(list())
   }
 
   type_info <- all_types[[fn_name]]
@@ -573,27 +573,65 @@ extract_arguments <- function(call_node) {
   # The call_node structure is: expr containing:
   #   - expr with SYMBOL_FUNCTION_CALL (the function name)
   #   - OP-LEFT-PAREN
-  #   - expr nodes (the arguments)
+  #   - For named args: SYMBOL_SUB, EQ_SUB, expr (value)
+  #   - For positional args: expr (value)
+  #   - OP-COMMA between args
   #   - OP-RIGHT-PAREN
 
-  # Get all child expr nodes
-  all_exprs <- xml2::xml_find_all(call_node, "./expr")
+  # Get all children
+  all_children <- xml2::xml_children(call_node)
 
-  # First expr is the function name, rest are arguments
-  if (length(all_exprs) <= 1) {
-    return(list())  # No arguments
-  }
-
-  arg_nodes <- all_exprs[-1]  # Skip first (function name)
-
+  # Skip function name expr and parens
   args <- list()
-  for (i in seq_along(arg_nodes)) {
-    arg_type <- infer_argument_type(arg_nodes[[i]])
-    args[[i]] <- list(
-      node = arg_nodes[[i]],
-      type = arg_type,
-      position = i
-    )
+  i <- 1
+  position <- 1
+
+  while (i <= length(all_children)) {
+    child <- all_children[[i]]
+    child_name <- xml2::xml_name(child)
+
+    # Check if this is a named argument (SYMBOL_SUB)
+    if (child_name == "SYMBOL_SUB") {
+      arg_name <- xml2::xml_text(child)
+      # Skip EQ_SUB
+      i <- i + 1
+      # Next should be the expr with the value
+      i <- i + 1
+      if (i <= length(all_children)) {
+        value_node <- all_children[[i]]
+        if (xml2::xml_name(value_node) == "expr") {
+          arg_type <- infer_argument_type(value_node)
+          args[[length(args) + 1]] <- list(
+            node = value_node,
+            type = arg_type,
+            position = position,
+            name = arg_name
+          )
+          position <- position + 1
+        }
+      }
+    } else if (child_name == "expr") {
+      # Check if this is the function name (first expr)
+      if (length(args) == 0 && position == 1) {
+        # This might be the function name, check for SYMBOL_FUNCTION_CALL
+        if (length(xml2::xml_find_all(child, ".//SYMBOL_FUNCTION_CALL")) > 0) {
+          # Skip function name
+          i <- i + 1
+          next
+        }
+      }
+      # This is a positional argument
+      arg_type <- infer_argument_type(child)
+      args[[length(args) + 1]] <- list(
+        node = child,
+        type = arg_type,
+        position = position,
+        name = NA_character_
+      )
+      position <- position + 1
+    }
+
+    i <- i + 1
   }
 
   args
@@ -636,23 +674,39 @@ infer_argument_type <- function(arg_node) {
 #' @param type_info Type information for function
 #' @param call_node XML node of the call
 #' @param source_expression Source expression
-#' @return Lint object or NULL
+#' @return List of Lint objects
 #' @keywords internal
 check_arguments <- function(fn_name, args, type_info, call_node, source_expression) {
   if (is.null(type_info$params)) {
-    return(NULL)
+    return(list())
   }
 
-  # For now, check positional arguments only
   param_names <- names(type_info$params)
+  positional_index <- 1
+  lints <- list()
 
   for (i in seq_along(args)) {
-    if (i > length(param_names)) {
-      break
+    arg <- args[[i]]
+
+    # Determine which parameter this argument corresponds to
+    if (!is.na(arg$name)) {
+      # Named argument - match by name
+      param_name <- arg$name
+      if (!param_name %in% param_names) {
+        # Unknown parameter, skip
+        next
+      }
+    } else {
+      # Positional argument - match by position
+      if (positional_index > length(param_names)) {
+        break
+      }
+      param_name <- param_names[positional_index]
+      positional_index <- positional_index + 1
     }
 
-    expected_type <- type_info$params[[param_names[i]]]$type
-    actual_type <- args[[i]]$type
+    expected_type <- type_info$params[[param_name]]$type
+    actual_type <- arg$type
 
     # Skip if we can't infer the type
     if (actual_type == "unknown") {
@@ -686,24 +740,24 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
       if (is.na(col)) col <- 1L
       if (is.na(col_end)) col_end <- col
 
-      return(lintr::Lint(
+      lints[[length(lints) + 1]] <- lintr::Lint(
         filename = source_expression$filename,
         line_number = line,
         column_number = col,
         type = "warning",
         message = sprintf(
           "Argument '%s' expects type '%s' but got '%s'",
-          param_names[i],
+          param_name,
           expected_type,
           actual_type
         ),
         line = line_text,
         ranges = list(c(col, col_end))
-      ))
+      )
     }
   }
 
-  NULL
+  lints
 }
 
 #' Get a line from a file by line number
