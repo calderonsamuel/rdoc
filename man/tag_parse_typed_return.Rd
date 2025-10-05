@@ -10,9 +10,10 @@ tag_parse_typed_return(x)
 \item{x}{A roxy_tag object}
 }
 \value{
-A list with type and description
+A roxy_tag object with both type info and @return compatibility
 }
 \description{
 Parses the format: "{type} description"
+Creates a structure compatible with roxygen2's @return tag
 }
 \keyword{internal}

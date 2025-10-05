@@ -4,7 +4,13 @@
 \alias{check_single_call}
 \title{Check a single function call}
 \usage{
-check_single_call(call_node, all_types, var_context, source_expression)
+check_single_call(
+  call_node,
+  all_types,
+  var_context,
+  source_expression,
+  strict = FALSE
+)
 }
 \arguments{
 \item{call_node}{XML node of the function call}
@@ -14,6 +20,8 @@ check_single_call(call_node, all_types, var_context, source_expression)
 \item{var_context}{List of variable assignments}
 
 \item{source_expression}{Source expression}
+
+\item{strict}{Logical, whether to warn on unknown types}
 }
 \value{
 List of Lint objects

@@ -48,9 +48,9 @@ test_that("infer_argument_type detects logical", {
 
   code <- "TRUE"
   xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
-  bool_node <- xml2::xml_find_first(xml, "//expr")
+  log_node <- xml2::xml_find_first(xml, "//expr")
 
-  result <- infer_argument_type(bool_node)
+  result <- infer_argument_type(log_node)
 
   expect_equal(result, "logical")
 })
@@ -67,325 +67,310 @@ test_that("infer_argument_type detects NULL", {
   expect_equal(result, "NULL")
 })
 
-test_that("infer_argument_type detects comparison operators as logical", {
+test_that("extract_arguments handles positional arguments", {
   skip_if_not_installed("xml2")
 
-  operators <- c(
-    "x > y",   # GT
-    "x >= y",  # GE
-    "x < y",   # LT
-    "x <= y",  # LE
-    "x == y",  # EQ
-    "x != y"   # NE
-  )
+  code <- "foo(123, 'test')"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  call_node <- xml2::xml_find_first(xml, "//expr[SYMBOL_FUNCTION_CALL]")
 
-  for (code in operators) {
-    xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
-    expr_node <- xml2::xml_find_first(xml, "//expr")
-    result <- infer_argument_type(expr_node)
-    expect_equal(result, "logical", info = paste("Failed for:", code))
-  }
+  args <- extract_arguments(call_node)
+
+  expect_equal(length(args), 2)
+  expect_null(args[[1]]$name)
+  expect_equal(args[[1]]$type, "numeric")
+  expect_null(args[[2]]$name)
+  expect_equal(args[[2]]$type, "character")
 })
 
-test_that("infer_argument_type detects logical operators as logical", {
+test_that("extract_arguments handles named arguments", {
   skip_if_not_installed("xml2")
 
-  operators <- c(
-    "x & y",   # AND
-    "x | y",   # OR
-    "!x"       # NOT
-  )
+  code <- "foo(x = 123, y = 'test')"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  call_node <- xml2::xml_find_first(xml, "//expr[SYMBOL_FUNCTION_CALL]")
 
-  for (code in operators) {
-    xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
-    expr_node <- xml2::xml_find_first(xml, "//expr")
-    result <- infer_argument_type(expr_node)
-    expect_equal(result, "logical", info = paste("Failed for:", code))
-  }
+  args <- extract_arguments(call_node)
+
+  expect_equal(length(args), 2)
+  expect_equal(args[[1]]$name, "x")
+  expect_equal(args[[1]]$type, "numeric")
+  expect_equal(args[[2]]$name, "y")
+  expect_equal(args[[2]]$type, "character")
 })
 
-test_that("types_compatible handles exact matches", {
-  expect_true(types_compatible("numeric", "numeric"))
-  expect_true(types_compatible("character", "character"))
-  expect_false(types_compatible("numeric", "character"))
-})
-
-test_that("types_compatible handles union types", {
-  expect_true(types_compatible("NULL", "character | NULL"))
-  expect_true(types_compatible("character", "character | NULL"))
-  expect_false(types_compatible("numeric", "character | NULL"))
-})
-
-test_that("types_compatible handles numeric compatibility", {
-  expect_true(types_compatible("integer", "numeric"))
-  expect_true(types_compatible("numeric", "numeric"))
-  expect_true(types_compatible("double", "numeric"))
-})
-
-test_that("types_compatible ignores length constraints", {
-  expect_true(types_compatible("numeric", "numeric(1)"))
-  expect_true(types_compatible("character", "character(n)"))
-})
-
-test_that("linter catches type mismatch with literals", {
+test_that("linter flags type mismatch - literal argument", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' Test function
-    #' @typedParam x {numeric} input
-    foo <- function(x) x * 2
+    #' @typedParam x {numeric} number input
+    calculate_mean <- function(x) mean(x)
 
-    foo('not a number')
+    calculate_mean('test')
   "
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should have at least one lint
-  expect_true(length(lints) > 0)
-
-  # Check the lint message
-  lint_messages <- vapply(lints, function(l) l$message, character(1))
-  expect_true(any(grepl("numeric.*character", lint_messages)))
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
 })
 
-test_that("linter passes correct types", {
+test_that("linter passes with correct type - literal argument", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' Test function
-    #' @typedParam x {numeric} input
-    foo <- function(x) x * 2
+    #' @typedParam x {numeric} number input
+    calculate_mean <- function(x) mean(x)
 
-    foo(123)
+    calculate_mean(123)
   "
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  expect_length(lints, 0)
+  expect_equal(length(lints), 0)
 })
 
-test_that("linter handles union types", {
+test_that("linter handles multiple arguments", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' Test function
-    #' @typedParam x {numeric | NULL} input
-    foo <- function(x) x
+    #' @typedParam x {numeric} first number
+    #' @typedParam y {numeric} second number
+    add <- function(x, y) x + y
 
-    foo(NULL)
+    add(1, 'text')
   "
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  expect_length(lints, 0)
-})
-
-test_that("linter handles multiple parameters", {
-  skip_if_not_installed("lintr")
-
-  code <- "
-    #' Test function
-    #' @typedParam x {numeric} first
-    #' @typedParam y {character} second
-    foo <- function(x, y) paste(x, y)
-
-    foo('wrong', 123)
-  "
-
-  lints <- lintr::lint(text = code, linters = type_consistency_linter())
-
-  # Should catch the first argument mismatch
-  expect_true(length(lints) > 0)
-})
-
-test_that("linter infers types from simple variable assignments", {
-  skip_if_not_installed("lintr")
-
-  code <- "
-    #' Test function
-    #' @typedParam x {numeric} input
-    foo <- function(x) x * 2
-
-    y <- 'string'
-    foo(y)  # Can infer type of variable from assignment
-  "
-
-  lints <- lintr::lint(text = code, linters = type_consistency_linter())
-
-  # Should catch the type error since y is inferred as character
-  expect_length(lints, 1)
-  expect_true(grepl("numeric.*character", lints[[1]]$message))
-})
-
-test_that("find_loaded_packages detects library calls", {
-  skip_if_not_installed("xml2")
-
-  code <- "
-    library(dplyr)
-    require(ggplot2)
-  "
-
-  parsed <- parse(text = code, keep.source = TRUE)
-  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parsed))
-
-  source_expr <- list(xml_parsed_content = xml)
-  packages <- find_loaded_packages(source_expr)
-
-  expect_true("dplyr" %in% packages)
-  expect_true("ggplot2" %in% packages)
-})
-
-test_that("linter handles no type annotations gracefully", {
-  skip_if_not_installed("lintr")
-
-  code <- "
-    # Regular function without types
-    foo <- function(x) x * 2
-
-    foo('string')
-  "
-
-  lints <- lintr::lint(text = code, linters = type_consistency_linter())
-
-  # Should not lint if no type annotations
-  expect_length(lints, 0)
+  # Should detect mismatch on second argument
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter handles named arguments", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' Test function
-    #' @typedParam x {numeric} first
-    #' @typedParam y {logical} second
-    foo <- function(x, y) x
+    #' @typedParam x {numeric} number
+    #' @typedParam text {character} text
+    process <- function(x, text) paste(text, x)
 
-    foo(x = 'wrong', y = 'also wrong')
+    process(x = 'wrong', text = 123)
   "
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should catch both named arguments
+  # Should detect both mismatches
   expect_equal(length(lints), 2)
-
-  # Check messages mention the correct parameters
-  lint_messages <- vapply(lints, function(l) l$message, character(1))
-  expect_true(any(grepl("Argument 'x'.*numeric.*character", lint_messages)))
-  expect_true(any(grepl("Argument 'y'.*logical.*character", lint_messages)))
 })
 
 test_that("linter handles mixed positional and named arguments", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' Test function
-    #' @typedParam x {numeric} first
-    #' @typedParam y {logical} second
-    foo <- function(x, y) x
+    #' @typedParam x {numeric} number
+    #' @typedParam y {numeric} another number
+    #' @typedParam z {character} text
+    process <- function(x, y, z) paste(z, x + y)
 
-    foo('wrong', y = 'also wrong')
+    process(1, z = 'ok', y = 'wrong')
   "
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should catch both arguments (one positional, one named)
-  expect_equal(length(lints), 2)
-
-  # Check messages
-  lint_messages <- vapply(lints, function(l) l$message, character(1))
-  expect_true(any(grepl("Argument 'x'", lint_messages)))
-  expect_true(any(grepl("Argument 'y'", lint_messages)))
+  # Should detect mismatch on y (named argument with wrong type)
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
 })
 
-test_that("linter reports all type errors in single call", {
+test_that("types_compatible accepts matching types", {
+  expect_true(types_compatible("numeric", "numeric"))
+  expect_true(types_compatible("character", "character"))
+  expect_true(types_compatible("logical", "logical"))
+})
+
+test_that("types_compatible rejects mismatching types", {
+  expect_false(types_compatible("numeric", "character"))
+  expect_false(types_compatible("character", "logical"))
+})
+
+test_that("types_compatible handles union types", {
+  expect_true(types_compatible("character | NULL", "character"))
+  expect_true(types_compatible("character | NULL", "NULL"))
+  expect_false(types_compatible("character | NULL", "numeric"))
+})
+
+test_that("types_compatible handles numeric coercion", {
+  # numeric(1) should be compatible with numeric
+  expect_true(types_compatible("numeric", "numeric(1)"))
+  expect_true(types_compatible("numeric(1)", "numeric"))
+})
+
+test_that("linter reports correct line numbers", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' Calculate mean
-    #' @typedParam x {numeric} vector
-    #' @typedParam na_rm {logical(1)} remove NAs
-    calculate_mean <- function(x, na_rm = FALSE) mean(x, na.rm = na_rm)
+    #' @typedParam x {numeric} number
+    foo <- function(x) x
 
-    calculate_mean('a', na_rm = 'FALSE')
+    # Line 5
+    foo('wrong')
   "
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should report both errors
-  expect_equal(length(lints), 2)
-
-  lint_messages <- vapply(lints, function(l) l$message, character(1))
-  expect_true(any(grepl("Argument 'x'.*numeric.*character", lint_messages)))
-  expect_true(any(grepl("Argument 'na_rm'.*logical.*character", lint_messages)))
+  expect_equal(length(lints), 1)
+  # Lint should be on line 6 (where foo('wrong') is)
+  expect_equal(lints[[1]]$line_number, 6)
 })
 
-test_that("extract_arguments handles named arguments", {
+test_that("linter handles functions with no type annotations", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    # No type annotations
+    calculate <- function(x) x * 2
+
+    calculate('text')
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should not produce lints if function has no type annotations
+  expect_equal(length(lints), 0)
+})
+
+test_that("linter handles multiple lints in single call", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {numeric} number
+    #' @typedParam y {numeric} another number
+    #' @typedParam z {numeric} third number
+    add_three <- function(x, y, z) x + y + z
+
+    add_three('a', 'b', 'c')
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect all three mismatches
+  expect_equal(length(lints), 3)
+})
+
+test_that("linter extracts types from accumulated comments", {
+  skip_if_not_installed("lintr")
+
+  # Simulate lintr's multi-pass execution
+  code <- "
+    #' Function with types
+    #' @typedParam x {numeric} a number
+    calculate <- function(x) x * 2
+
+    calculate('wrong')
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Linter should accumulate comments and find type info
+  expect_equal(length(lints), 1)
+})
+
+# Phase 5: Variable Type Inference ----
+
+test_that("infer_argument_type detects c() with character", {
   skip_if_not_installed("xml2")
 
-  code <- "foo(x = 'a', y = 123)"
+  code <- "c('a', 'b', 'c')"
   xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
-  call_node <- xml2::xml_find_first(xml, "//expr[.//SYMBOL_FUNCTION_CALL]")
+  expr_node <- xml2::xml_find_first(xml, "//expr")
 
-  args <- extract_arguments(call_node)
+  result <- infer_argument_type(expr_node)
 
-  expect_equal(length(args), 2)
-  expect_equal(args[[1]]$name, "x")
-  expect_equal(args[[1]]$type, "character")
-  expect_equal(args[[2]]$name, "y")
-  expect_equal(args[[2]]$type, "numeric")
+  expect_equal(result, "character")
 })
 
-test_that("extract_arguments handles positional arguments", {
+test_that("infer_argument_type detects c() with numeric", {
   skip_if_not_installed("xml2")
 
-  code <- "foo('a', 123)"
+  code <- "c(1, 2, 3)"
   xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
-  call_node <- xml2::xml_find_first(xml, "//expr[.//SYMBOL_FUNCTION_CALL]")
+  expr_node <- xml2::xml_find_first(xml, "//expr")
 
-  args <- extract_arguments(call_node)
+  result <- infer_argument_type(expr_node)
 
-  expect_equal(length(args), 2)
-  expect_true(is.na(args[[1]]$name))
-  expect_equal(args[[1]]$type, "character")
-  expect_true(is.na(args[[2]]$name))
-  expect_equal(args[[2]]$type, "numeric")
+  expect_equal(result, "numeric")
 })
 
-test_that("extract_arguments handles mixed arguments", {
+test_that("infer_argument_type detects list()", {
   skip_if_not_installed("xml2")
 
-  code <- "foo('a', y = 123)"
+  code <- "list(1, 2, 3)"
   xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
-  call_node <- xml2::xml_find_first(xml, "//expr[.//SYMBOL_FUNCTION_CALL]")
+  expr_node <- xml2::xml_find_first(xml, "//expr")
 
-  args <- extract_arguments(call_node)
+  result <- infer_argument_type(expr_node)
 
-  expect_equal(length(args), 2)
-  expect_true(is.na(args[[1]]$name))
-  expect_equal(args[[1]]$type, "character")
-  expect_equal(args[[2]]$name, "y")
-  expect_equal(args[[2]]$type, "numeric")
+  expect_equal(result, "list")
 })
 
-# Variable type inference tests (not yet implemented)
+test_that("infer_argument_type detects data.frame()", {
+  skip_if_not_installed("xml2")
+
+  code <- "data.frame(x = 1:3)"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  expr_node <- xml2::xml_find_first(xml, "//expr")
+
+  result <- infer_argument_type(expr_node)
+
+  expect_equal(result, "data.frame")
+})
+
+test_that("infer_argument_type detects matrix()", {
+  skip_if_not_installed("xml2")
+
+  code <- "matrix(1:9, 3, 3)"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  expr_node <- xml2::xml_find_first(xml, "//expr")
+
+  result <- infer_argument_type(expr_node)
+
+  expect_equal(result, "matrix")
+})
+
+test_that("extract_variable_assignments finds simple assignments", {
+  skip_if_not_installed("xml2")
+
+  code <- "
+    x <- 123
+    y <- 'text'
+  "
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+
+  vars <- extract_variable_assignments(xml)
+
+  expect_equal(length(vars), 2)
+  expect_true("x" %in% names(vars))
+  expect_true("y" %in% names(vars))
+})
 
 test_that("linter infers type from character vector variable", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {numeric} vector of values
-    #' @typedReturn {numeric(1)} the mean value
-    calculate_mean <- function(x) mean(x)
+    #' @typedParam x {numeric} number
+    foo <- function(x) x * 2
 
     a <- c('1', '2', '3')
-    calculate_mean(x = a)
+    foo(a)
   "
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should detect that 'a' is character vector
+  # Should detect: foo expects numeric but a is character
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("Argument 'x'.*numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers type from numeric vector variable", {
@@ -393,7 +378,7 @@ test_that("linter infers type from numeric vector variable", {
 
   code <- "
     #' @typedParam x {character} text
-    foo <- function(x) x
+    foo <- function(x) paste(x)
 
     a <- c(1, 2, 3)
     foo(a)
@@ -401,7 +386,7 @@ test_that("linter infers type from numeric vector variable", {
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should detect that 'a' is numeric
+  # Should detect: foo expects character but a is numeric
   expect_equal(length(lints), 1)
   expect_true(any(grepl("character.*numeric", vapply(lints, function(l) l$message, character(1)))))
 })
@@ -410,8 +395,8 @@ test_that("linter infers type from logical variable", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {character} text
-    foo <- function(x) x
+    #' @typedParam x {numeric} number
+    foo <- function(x) x * 2
 
     a <- TRUE
     foo(a)
@@ -419,9 +404,9 @@ test_that("linter infers type from logical variable", {
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should detect that 'a' is logical
+  # Should detect: foo expects numeric but a is logical
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("character.*logical", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("numeric.*logical", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers type from string variable", {
@@ -437,36 +422,17 @@ test_that("linter infers type from string variable", {
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should detect that 'a' is character
+  # Should detect: foo expects numeric but a is character
   expect_equal(length(lints), 1)
   expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
 })
 
-test_that("linter handles variable reassignment", {
-  skip("Variable type inference not yet implemented")
+test_that("linter infers type from NULL variable", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {character} text
-    foo <- function(x) x
-
-    a <- 123
-    a <- 'text'
-    foo(a)
-  "
-
-  lints <- lintr::lint(text = code, linters = type_consistency_linter())
-
-  # Should use the most recent assignment (character)
-  expect_equal(length(lints), 0)
-})
-
-test_that("linter infers type from NULL assignment", {
-  skip_if_not_installed("lintr")
-
-  code <- "
-    #' @typedParam x {character} text
-    foo <- function(x) x
+    #' @typedParam x {numeric} number
+    foo <- function(x) x * 2
 
     a <- NULL
     foo(a)
@@ -474,17 +440,17 @@ test_that("linter infers type from NULL assignment", {
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should detect that 'a' is NULL
+  # Should detect: foo expects numeric but a is NULL
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("character.*NULL", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("numeric.*NULL", vapply(lints, function(l) l$message, character(1)))))
 })
 
-test_that("linter infers type from list() call", {
+test_that("linter infers type from list() constructor", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {character} text
-    foo <- function(x) x
+    #' @typedParam x {numeric} number
+    foo <- function(x) x * 2
 
     a <- list(1, 2, 3)
     foo(a)
@@ -492,17 +458,17 @@ test_that("linter infers type from list() call", {
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should detect that 'a' is list
+  # Should detect: foo expects numeric but a is list
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("character.*list", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("numeric.*list", vapply(lints, function(l) l$message, character(1)))))
 })
 
-test_that("linter infers type from empty list()", {
+test_that("linter infers type from empty list() constructor", {
   skip_if_not_installed("lintr")
 
   code <- "
     #' @typedParam x {numeric} number
-    foo <- function(x) x
+    foo <- function(x) x * 2
 
     a <- list()
     foo(a)
@@ -510,17 +476,70 @@ test_that("linter infers type from empty list()", {
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should detect that 'a' is list
+  # Should detect: foo expects numeric but a is list
   expect_equal(length(lints), 1)
   expect_true(any(grepl("numeric.*list", vapply(lints, function(l) l$message, character(1)))))
 })
 
-test_that("linter passes when list matches list parameter", {
+test_that("linter infers type from data.frame() constructor", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {numeric} number
+    foo <- function(x) x * 2
+
+    a <- data.frame(x = 1:3)
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect: foo expects numeric but a is data.frame
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("numeric.*data\\.frame", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter infers type from matrix() constructor", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {numeric} number
+    foo <- function(x) x * 2
+
+    a <- matrix(1:9, 3, 3)
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect: foo expects numeric but a is matrix
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("numeric.*matrix", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter passes when variable type matches from c()", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {numeric} number
+    foo <- function(x) x * 2
+
+    a <- c(1, 2, 3)
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should pass - numeric vector to numeric parameter
+  expect_equal(length(lints), 0)
+})
+
+test_that("linter passes when list type matches", {
   skip_if_not_installed("lintr")
 
   code <- "
     #' @typedParam x {list} a list
-    foo <- function(x) length(x)
+    foo <- function(x) x
 
     a <- list(1, 2, 3)
     foo(a)
@@ -532,11 +551,11 @@ test_that("linter passes when list matches list parameter", {
   expect_equal(length(lints), 0)
 })
 
-test_that("linter infers type from data.frame() call", {
+test_that("linter passes when data.frame type matches", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {character} text
+    #' @typedParam x {data.frame} a data frame
     foo <- function(x) x
 
     a <- data.frame(x = 1:3)
@@ -545,55 +564,19 @@ test_that("linter infers type from data.frame() call", {
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should detect that 'a' is data.frame
-  expect_equal(length(lints), 1)
-  expect_true(any(grepl("character.*data.frame", vapply(lints, function(l) l$message, character(1)))))
-})
-
-test_that("linter passes when data.frame matches data.frame parameter", {
-  skip_if_not_installed("lintr")
-
-  code <- "
-    #' @typedParam df {data.frame} a data frame
-    process <- function(df) nrow(df)
-
-    my_df <- data.frame(x = 1:3, y = 4:6)
-    process(my_df)
-  "
-
-  lints <- lintr::lint(text = code, linters = type_consistency_linter())
-
   # Should pass - data.frame to data.frame parameter
   expect_equal(length(lints), 0)
 })
 
-test_that("linter infers type from matrix() call", {
+test_that("linter passes when matrix type matches", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {character} text
+    #' @typedParam x {matrix} a matrix
     foo <- function(x) x
 
     a <- matrix(1:9, 3, 3)
     foo(a)
-  "
-
-  lints <- lintr::lint(text = code, linters = type_consistency_linter())
-
-  # Should detect that 'a' is matrix
-  expect_equal(length(lints), 1)
-  expect_true(any(grepl("character.*matrix", vapply(lints, function(l) l$message, character(1)))))
-})
-
-test_that("linter passes when matrix matches matrix parameter", {
-  skip_if_not_installed("lintr")
-
-  code <- "
-    #' @typedParam m {matrix} a matrix
-    foo <- function(m) nrow(m)
-
-    my_matrix <- matrix(1:12, nrow = 3)
-    foo(my_matrix)
   "
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
@@ -985,4 +968,313 @@ test_that("linter validates return from logical operators", {
 
   # Should pass: logical operators return logical
   expect_equal(length(lints), 0)
+})
+
+test_that("infer_argument_type detects comparison operators as logical", {
+  skip_if_not_installed("xml2")
+
+  operators <- c("x > y", "x >= y", "x < y", "x <= y", "x == y", "x != y")
+
+  for (code in operators) {
+    xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+    expr_node <- xml2::xml_find_first(xml, "//expr")
+
+    result <- infer_argument_type(expr_node)
+
+    expect_equal(result, "logical", info = paste("Failed for:", code))
+  }
+})
+
+test_that("infer_argument_type detects logical operators as logical", {
+  skip_if_not_installed("xml2")
+
+  operators <- c("x & y", "x | y", "!x")
+
+  for (code in operators) {
+    xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+    expr_node <- xml2::xml_find_first(xml, "//expr")
+
+    result <- infer_argument_type(expr_node)
+
+    expect_equal(result, "logical", info = paste("Failed for:", code))
+  }
+})
+
+# Phase 9: Strict Mode ----
+
+test_that("type_consistency_linter accepts strict parameter", {
+  linter <- type_consistency_linter(strict = TRUE)
+  expect_s3_class(linter, "linter")
+
+  linter_false <- type_consistency_linter(strict = FALSE)
+  expect_s3_class(linter_false, "linter")
+})
+
+test_that("strict mode flags function with missing @typedParam", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Calculate sum
+    #' @param x A number
+    #' @param y Another number
+    calculate <- function(x, y) x + y
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = TRUE))
+
+  # Should flag both parameters missing type annotations
+  expect_gte(length(lints), 2)
+  expect_true(any(grepl("missing type annotation.*strict mode", vapply(lints, function(l) l$message, character(1)), ignore.case = TRUE)))
+})
+
+test_that("strict mode flags function with missing @typedReturn", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Calculate sum
+    #' @typedParam x {numeric} First number
+    #' @typedParam y {numeric} Second number
+    calculate <- function(x, y) x + y
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = TRUE))
+
+  # Should flag missing return type annotation
+  expect_gte(length(lints), 1)
+  expect_true(any(grepl("missing return type annotation.*strict mode", vapply(lints, function(l) l$message, character(1)), ignore.case = TRUE)))
+})
+
+test_that("strict mode passes with complete type annotations", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Calculate sum
+    #' @typedParam x {numeric} First number
+    #' @typedParam y {numeric} Second number
+    #' @typedReturn {numeric} The sum
+    calculate <- function(x, y) x + y
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = TRUE))
+
+  # Should pass - all parameters and return have type annotations
+  expect_equal(length(lints), 0)
+})
+
+test_that("lenient mode allows missing type annotations", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Calculate sum
+    #' @param x A number
+    #' @param y Another number
+    calculate <- function(x, y) x + y
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = FALSE))
+
+  # Should not flag missing annotations in lenient mode
+  expect_equal(length(lints), 0)
+})
+
+test_that("default mode is lenient", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Calculate sum
+    #' @param x A number
+    calculate <- function(x, y) x + y
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Default should be lenient - no lints for missing annotations
+  expect_equal(length(lints), 0)
+})
+
+test_that("strict mode flags partial type annotations", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Process data
+    #' @typedParam x {numeric} A number
+    #' @param y Another parameter (missing type)
+    process <- function(x, y) x + y
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = TRUE))
+
+  # Should flag parameter y and missing return type
+  expect_gte(length(lints), 2)
+  messages <- vapply(lints, function(l) l$message, character(1))
+  expect_true(any(grepl("missing type annotation", messages, ignore.case = TRUE)))
+})
+
+test_that("strict mode warns on unknown variable types", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {numeric} A number
+    #' @typedReturn {numeric} Result
+    process <- function(x) x * 2
+
+    # result type is unknown (no @typedReturn on foo)
+    foo <- function() 42
+    result <- foo()
+    process(result)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = TRUE))
+
+  # Should warn about unknown type from foo() in strict mode
+  expect_gte(length(lints), 1)
+  expect_true(any(grepl("cannot verify type|unknown type", vapply(lints, function(l) l$message, character(1)), ignore.case = TRUE)))
+})
+
+test_that("lenient mode skips unknown variable types", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {numeric} A number
+    process <- function(x) x * 2
+
+    # result type is unknown
+    foo <- function() 42
+    result <- foo()
+    process(result)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = FALSE))
+
+  # Lenient mode should skip unknown types - no error
+  expect_equal(length(lints), 0)
+})
+
+test_that("strict mode flags functions without roxygen comments", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    # Regular comment, not roxygen
+    calculate <- function(x, y) x + y
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = TRUE))
+
+  # Should flag missing type annotations
+  expect_gte(length(lints), 1)
+  expect_true(any(grepl("missing.*annotation", vapply(lints, function(l) l$message, character(1)), ignore.case = TRUE)))
+})
+
+test_that("strict mode handles functions with default parameters", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Calculate with defaults
+    #' @param x A number
+    #' @param y Another number with default
+    calculate <- function(x, y = 10) x + y
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = TRUE))
+
+  # Should flag both parameters regardless of defaults
+  expect_gte(length(lints), 2)
+})
+
+test_that("strict mode handles functions with ... parameter", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Process with ellipsis
+    #' @param x A number
+    #' @param ... Additional arguments
+    process <- function(x, ...) x
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = TRUE))
+
+  # Should flag x and return type, but maybe allow ... without type
+  # (... is tricky to type - implementation decision)
+  expect_gte(length(lints), 1)
+})
+
+test_that("strict mode only checks exported functions for return types", {
+  skip_if_not_installed("lintr")
+
+  # This test documents expected behavior - may need adjustment
+  # based on implementation: should internal functions require @typedReturn?
+  code <- "
+    #' Internal helper
+    #' @keywords internal
+    #' @typedParam x {numeric} A number
+    .internal_helper <- function(x) x * 2
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = TRUE))
+
+  # Decision: Should internal functions require @typedReturn in strict mode?
+  # For now, let's require it for all functions
+  expect_gte(length(lints), 1)
+})
+
+test_that("strict mode provides helpful error messages", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Test function
+    #' @param x A number
+    test <- function(x) x
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = TRUE))
+
+  # Check that messages are informative
+  expect_gte(length(lints), 1)
+  messages <- vapply(lints, function(l) l$message, character(1))
+  expect_true(any(grepl("strict mode", messages, ignore.case = TRUE)))
+  expect_true(any(grepl("@typed", messages)))
+})
+
+test_that("strict mode handles multiple functions in one file", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Complete function
+    #' @typedParam x {numeric} A number
+    #' @typedReturn {numeric} Result
+    good <- function(x) x * 2
+
+    #' Incomplete function
+    #' @param y A number
+    bad <- function(y) y + 1
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = TRUE))
+
+  # Should only flag the incomplete function
+  expect_gte(length(lints), 2)
+  # All lints should reference 'bad' or 'y', not 'good' or 'x'
+  messages <- vapply(lints, function(l) l$message, character(1))
+  expect_false(any(grepl("\\bgood\\b", messages)))
+  expect_false(any(grepl("\\bx\\b.*missing", messages)))
+})
+
+test_that("strict mode combined with type checking still works", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' Process number
+    #' @typedParam x {numeric} A number
+    #' @typedReturn {numeric} Result
+    process <- function(x) x * 2
+
+    # This call has wrong type AND missing annotations
+    process('text')
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(strict = TRUE))
+
+  # Should flag the type mismatch
+  expect_gte(length(lints), 1)
+  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
 })

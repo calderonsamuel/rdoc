@@ -4,7 +4,13 @@
 \alias{check_function_calls}
 \title{Check function calls against type signatures}
 \usage{
-check_function_calls(xml, all_types, var_context, source_expression)
+check_function_calls(
+  xml,
+  all_types,
+  var_context,
+  source_expression,
+  strict = FALSE
+)
 }
 \arguments{
 \item{xml}{XML parsed content}
@@ -14,6 +20,8 @@ check_function_calls(xml, all_types, var_context, source_expression)
 \item{var_context}{List of variable assignments}
 
 \item{source_expression}{Source expression for creating lints}
+
+\item{strict}{Logical, whether to warn on unknown types}
 }
 \value{
 List of Lint objects

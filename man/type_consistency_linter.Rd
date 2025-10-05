@@ -4,7 +4,14 @@
 \alias{type_consistency_linter}
 \title{Type consistency linter}
 \usage{
-type_consistency_linter()
+type_consistency_linter(strict = FALSE)
+}
+\arguments{
+\item{strict}{Enable strict mode (default: FALSE).
+  In strict mode, missing type annotations are flagged as lints.}
+}
+\value{
+A linter function for use with lintr
 }
 \description{
 Checks function calls against type annotations from @typedParam and @typedReturn tags.
@@ -12,9 +19,14 @@ Works with both local function definitions and installed packages.
 }
 \examples{
 \dontrun{
-# In .lintr configuration:
+# In .lintr configuration (lenient mode - default):
 linters: with_defaults(
   type_consistency = rdoc::type_consistency_linter()
+)
+
+# Strict mode - requires all type annotations:
+linters: with_defaults(
+  type_consistency = rdoc::type_consistency_linter(strict = TRUE)
 )
 }
 }

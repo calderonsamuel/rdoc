@@ -3,17 +3,23 @@
 #' Checks function calls against type annotations from @typedParam and @typedReturn tags.
 #' Works with both local function definitions and installed packages.
 #'
-#' @typedParam ... {any} Additional arguments (currently unused)
+#' @typedParam strict {logical(1)} Enable strict mode (default: FALSE).
+#'   In strict mode, missing type annotations are flagged as lints.
 #' @typedReturn {function} A linter function for use with lintr
 #' @export
 #' @examples
 #' \dontrun{
-#' # In .lintr configuration:
+#' # In .lintr configuration (lenient mode - default):
 #' linters: with_defaults(
 #'   type_consistency = rdoc::type_consistency_linter()
 #' )
+#'
+#' # Strict mode - requires all type annotations:
+#' linters: with_defaults(
+#'   type_consistency = rdoc::type_consistency_linter(strict = TRUE)
+#' )
 #' }
-type_consistency_linter <- function() {
+type_consistency_linter <- function(strict = FALSE) {
   # Cache for accumulating data across lintr passes
   file_cache <- new.env(parent = emptyenv())
 
@@ -52,16 +58,18 @@ type_consistency_linter <- function() {
     # Check for function definitions
     fn_assigns <- xml2::xml_find_all(xml, "//expr[LEFT_ASSIGN and .//FUNCTION]")
     return_validation_lints <- list()
+    strict_mode_lints <- list()
 
-    if (length(fn_assigns) > 0 && length(cache$comments) > 0) {
-      # Process accumulated comments for this function
-      for (fn_assign in fn_assigns) {
-        symbol_node <- xml2::xml_find_first(fn_assign, "./expr/SYMBOL")
-        if (is.na(symbol_node)) next
+    # Process each function assignment
+    for (fn_assign in fn_assigns) {
+      symbol_node <- xml2::xml_find_first(fn_assign, "./expr/SYMBOL")
+      if (is.na(symbol_node)) next
 
-        fn_name <- xml2::xml_text(symbol_node)
+      fn_name <- xml2::xml_text(symbol_node)
+      type_info <- NULL
 
-        # Extract types from accumulated comments
+      # Extract types from accumulated comments (if any)
+      if (length(cache$comments) > 0) {
         type_info <- extract_types_from_comment_lines(cache$comments)
 
         if (!is.null(type_info) && length(type_info) > 0) {
@@ -75,16 +83,25 @@ type_consistency_linter <- function() {
             }
           }
         }
+
+        # Clear comments after processing this function
+        cache$comments <- character()
+        file_cache[[filename]] <- cache
       }
 
-      # Clear accumulated comments after processing
-      cache$comments <- character()
-      file_cache[[filename]] <- cache
+      # Strict mode: check for missing annotations (even if no comments)
+      if (strict) {
+        strict_lints <- check_strict_mode_annotations(fn_assign, type_info, source_expression)
+        if (length(strict_lints) > 0) {
+          strict_mode_lints <- c(strict_mode_lints, strict_lints)
+        }
+      }
     }
 
-    # Return validation lints early if found
-    if (length(return_validation_lints) > 0) {
-      return(return_validation_lints)
+    # Return validation and strict mode lints early if found
+    combined_lints <- c(return_validation_lints, strict_mode_lints)
+    if (length(combined_lints) > 0) {
+      return(combined_lints)
     }
 
     # Load package types
@@ -121,6 +138,6 @@ type_consistency_linter <- function() {
     }
 
     # Find and check function calls
-    check_function_calls(xml, all_types, cache$variables, source_expression)
+    check_function_calls(xml, all_types, cache$variables, source_expression, strict)
   })
 }

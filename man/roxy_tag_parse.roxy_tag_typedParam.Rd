@@ -10,8 +10,9 @@
 \item{x}{A roxy_tag object}
 }
 \value{
-A list with param, type, and description
+A roxy_tag object with param class for roxygen2 compatibility
 }
 \description{
-Parse @typedParam tag
+This tag works as both @param (for roxygen2 documentation) and provides
+type information for static type checking. Format: name {type} description
 }

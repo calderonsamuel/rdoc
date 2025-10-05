@@ -4,9 +4,10 @@
 #' @param all_types List of all type information
 #' @param var_context List of variable assignments
 #' @param source_expression Source expression for creating lints
+#' @param strict Logical, whether to warn on unknown types
 #' @return List of Lint objects
 #' @keywords internal
-check_function_calls <- function(xml, all_types, var_context, source_expression) {
+check_function_calls <- function(xml, all_types, var_context, source_expression, strict = FALSE) {
   lints <- list()
 
   # Find all function calls
@@ -15,7 +16,7 @@ check_function_calls <- function(xml, all_types, var_context, source_expression)
   call_nodes <- xml2::xml_find_all(xml, "//SYMBOL_FUNCTION_CALL/parent::expr/parent::expr")
 
   for (call_node in call_nodes) {
-    call_lints <- check_single_call(call_node, all_types, var_context, source_expression)
+    call_lints <- check_single_call(call_node, all_types, var_context, source_expression, strict)
     if (length(call_lints) > 0) {
       lints <- c(lints, call_lints)
     }
@@ -30,9 +31,10 @@ check_function_calls <- function(xml, all_types, var_context, source_expression)
 #' @param all_types List of type information
 #' @param var_context List of variable assignments
 #' @param source_expression Source expression
+#' @param strict Logical, whether to warn on unknown types
 #' @return List of Lint objects
 #' @keywords internal
-check_single_call <- function(call_node, all_types, var_context, source_expression) {
+check_single_call <- function(call_node, all_types, var_context, source_expression, strict = FALSE) {
   # Get function name
   fn_node <- xml2::xml_find_first(call_node, ".//SYMBOL_FUNCTION_CALL")
   if (is.na(fn_node)) {
@@ -56,7 +58,7 @@ check_single_call <- function(call_node, all_types, var_context, source_expressi
   args <- extract_arguments(call_node, var_context, call_line, all_types)
 
   # Check each argument against type signature
-  check_arguments(fn_name, args, type_info, call_node, source_expression)
+  check_arguments(fn_name, args, type_info, call_node, source_expression, strict)
 }
 
 #' Check arguments against type signature
@@ -66,9 +68,10 @@ check_single_call <- function(call_node, all_types, var_context, source_expressi
 #' @param type_info Type information for function
 #' @param call_node XML node of the call
 #' @param source_expression Source expression
+#' @param strict Logical, whether to warn on unknown types
 #' @return List of Lint objects
 #' @keywords internal
-check_arguments <- function(fn_name, args, type_info, call_node, source_expression) {
+check_arguments <- function(fn_name, args, type_info, call_node, source_expression, strict = FALSE) {
   if (is.null(type_info$params)) {
     return(list())
   }
@@ -100,8 +103,39 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
     expected_type <- type_info$params[[param_name]]$type
     actual_type <- arg$type
 
-    # Skip if we can't infer the type
+    # Handle unknown types
     if (actual_type == "unknown") {
+      # In strict mode, warn about unknown types
+      if (strict) {
+        line <- as.integer(xml2::xml_attr(args[[i]]$node, "line1"))
+        col <- as.integer(xml2::xml_attr(args[[i]]$node, "col1"))
+        col_end <- as.integer(xml2::xml_attr(args[[i]]$node, "col2"))
+
+        if (is.na(line)) line <- 1L
+        if (is.na(col)) col <- 1L
+        if (is.na(col_end)) col_end <- col
+
+        line_text <- get_line_from_file(source_expression$filename, line)
+        max_col <- nchar(line_text) + 1L
+        col <- as.integer(min(max(col, 1L), max_col))
+        col_end <- as.integer(min(max(col_end, 1L), max_col))
+
+        if (is.na(col)) col <- 1L
+        if (is.na(col_end)) col_end <- col
+
+        lints[[length(lints) + 1]] <- lintr::Lint(
+          filename = source_expression$filename,
+          line_number = line,
+          column_number = col,
+          type = "warning",
+          message = sprintf(
+            "Cannot verify type of argument '%s' (unknown type) in strict mode",
+            param_name
+          ),
+          line = line_text,
+          ranges = list(c(col, col_end))
+        )
+      }
       next
     }
 
@@ -238,4 +272,115 @@ load_package_types <- function(packages) {
   }
 
   all_types
+}
+
+#' Check for missing type annotations in strict mode
+#'
+#' @param fn_assign_node XML node of function assignment
+#' @param type_info Type information extracted from comments (can be NULL)
+#' @param source_expression Source expression
+#' @return List of Lint objects
+#' @keywords internal
+check_strict_mode_annotations <- function(fn_assign_node, type_info, source_expression) {
+  lints <- list()
+
+  # Get function node
+  fn_node <- xml2::xml_find_first(fn_assign_node, ".//FUNCTION")
+  if (is.na(fn_node)) {
+    return(list())
+  }
+
+  # Get function name for error messages
+  symbol_node <- xml2::xml_find_first(fn_assign_node, "./expr/SYMBOL")
+  fn_name <- if (!is.na(symbol_node)) xml2::xml_text(symbol_node) else "function"
+
+  # Extract parameter names from function definition
+  # SYMBOL_FORMALS are the parameter names in the function signature
+  param_nodes <- xml2::xml_find_all(fn_node, ".//SYMBOL_FORMALS")
+  param_names <- vapply(param_nodes, xml2::xml_text, character(1))
+
+  # Check each parameter for type annotation
+  for (param_name in param_names) {
+    # Skip ... parameter (ellipsis)
+    if (param_name == "...") {
+      next
+    }
+
+    # Check if this parameter has a type annotation
+    has_annotation <- FALSE
+    if (!is.null(type_info) && !is.null(type_info$params)) {
+      has_annotation <- param_name %in% names(type_info$params)
+    }
+
+    if (!has_annotation) {
+      # Find the parameter node for positioning
+      param_node <- xml2::xml_find_first(fn_node, sprintf(".//SYMBOL_FORMALS[text()='%s']", param_name))
+
+      line <- as.integer(xml2::xml_attr(param_node, "line1"))
+      col <- as.integer(xml2::xml_attr(param_node, "col1"))
+      col_end <- as.integer(xml2::xml_attr(param_node, "col2"))
+
+      if (is.na(line)) line <- as.integer(xml2::xml_attr(fn_node, "line1"))
+      if (is.na(col)) col <- 1L
+      if (is.na(col_end)) col_end <- col
+
+      line_text <- get_line_from_file(source_expression$filename, line)
+      max_col <- nchar(line_text) + 1L
+      col <- as.integer(min(max(col, 1L), max_col))
+      col_end <- as.integer(min(max(col_end, 1L), max_col))
+
+      if (is.na(col)) col <- 1L
+      if (is.na(col_end)) col_end <- col
+
+      lints[[length(lints) + 1]] <- lintr::Lint(
+        filename = source_expression$filename,
+        line_number = line,
+        column_number = col,
+        type = "warning",
+        message = sprintf(
+          "Parameter '%s' missing type annotation (strict mode). Add @typedParam %s {type} description",
+          param_name, param_name
+        ),
+        line = line_text,
+        ranges = list(c(col, col_end))
+      )
+    }
+  }
+
+  # Check for missing @typedReturn
+  has_return_annotation <- !is.null(type_info) && !is.null(type_info$return)
+
+  if (!has_return_annotation) {
+    # Position lint at function keyword
+    line <- as.integer(xml2::xml_attr(fn_node, "line1"))
+    col <- as.integer(xml2::xml_attr(fn_node, "col1"))
+    col_end <- as.integer(xml2::xml_attr(fn_node, "col2"))
+
+    if (is.na(line)) line <- 1L
+    if (is.na(col)) col <- 1L
+    if (is.na(col_end)) col_end <- col + 8L  # "function" is 8 characters
+
+    line_text <- get_line_from_file(source_expression$filename, line)
+    max_col <- nchar(line_text) + 1L
+    col <- as.integer(min(max(col, 1L), max_col))
+    col_end <- as.integer(min(max(col_end, 1L), max_col))
+
+    if (is.na(col)) col <- 1L
+    if (is.na(col_end)) col_end <- col
+
+    lints[[length(lints) + 1]] <- lintr::Lint(
+      filename = source_expression$filename,
+      line_number = line,
+      column_number = col,
+      type = "warning",
+      message = sprintf(
+        "Function '%s' missing return type annotation (strict mode). Add @typedReturn {type} description",
+        fn_name
+      ),
+      line = line_text,
+      ranges = list(c(col, col_end))
+    )
+  }
+
+  lints
 }

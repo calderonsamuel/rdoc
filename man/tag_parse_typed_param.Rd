@@ -10,9 +10,10 @@ tag_parse_typed_param(x)
 \item{x}{A roxy_tag object}
 }
 \value{
-A list with param, type, and description
+A roxy_tag object with both type info and @param compatibility
 }
 \description{
 Parses the format: "param_name {type} description"
+Creates a structure compatible with roxygen2's @param tag
 }
 \keyword{internal}

@@ -4,7 +4,14 @@
 \alias{check_arguments}
 \title{Check arguments against type signature}
 \usage{
-check_arguments(fn_name, args, type_info, call_node, source_expression)
+check_arguments(
+  fn_name,
+  args,
+  type_info,
+  call_node,
+  source_expression,
+  strict = FALSE
+)
 }
 \arguments{
 \item{fn_name}{Function name}
@@ -16,6 +23,8 @@ check_arguments(fn_name, args, type_info, call_node, source_expression)
 \item{call_node}{XML node of the call}
 
 \item{source_expression}{Source expression}
+
+\item{strict}{Logical, whether to warn on unknown types}
 }
 \value{
 List of Lint objects
