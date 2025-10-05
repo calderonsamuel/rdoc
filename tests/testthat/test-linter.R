@@ -67,6 +67,43 @@ test_that("infer_argument_type detects NULL", {
   expect_equal(result, "NULL")
 })
 
+test_that("infer_argument_type detects comparison operators as logical", {
+  skip_if_not_installed("xml2")
+
+  operators <- c(
+    "x > y",   # GT
+    "x >= y",  # GE
+    "x < y",   # LT
+    "x <= y",  # LE
+    "x == y",  # EQ
+    "x != y"   # NE
+  )
+
+  for (code in operators) {
+    xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+    expr_node <- xml2::xml_find_first(xml, "//expr")
+    result <- infer_argument_type(expr_node)
+    expect_equal(result, "logical", info = paste("Failed for:", code))
+  }
+})
+
+test_that("infer_argument_type detects logical operators as logical", {
+  skip_if_not_installed("xml2")
+
+  operators <- c(
+    "x & y",   # AND
+    "x | y",   # OR
+    "!x"       # NOT
+  )
+
+  for (code in operators) {
+    xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+    expr_node <- xml2::xml_find_first(xml, "//expr")
+    result <- infer_argument_type(expr_node)
+    expect_equal(result, "logical", info = paste("Failed for:", code))
+  }
+})
+
 test_that("types_compatible handles exact matches", {
   expect_true(types_compatible("numeric", "numeric"))
   expect_true(types_compatible("character", "character"))
@@ -898,5 +935,54 @@ test_that("linter handles functions without @typedReturn", {
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
   # Should not error - no declared return type to validate
+  expect_equal(length(lints), 0)
+})
+
+test_that("linter validates return from comparison operators", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedReturn {logical} is adult
+    is_adult <- function(age) {
+      age >= 18
+    }
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should pass: comparison operator returns logical
+  expect_equal(length(lints), 0)
+})
+
+test_that("linter catches wrong type with comparison operators", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedReturn {numeric} wrong type
+    is_valid <- function(x) {
+      x > 0
+    }
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should warn: declared numeric but returns logical
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("Return.*numeric.*logical", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter validates return from logical operators", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedReturn {logical} combined check
+    check_both <- function(x, y) {
+      (x > 0) & (y < 10)
+    }
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should pass: logical operators return logical
   expect_equal(length(lints), 0)
 })

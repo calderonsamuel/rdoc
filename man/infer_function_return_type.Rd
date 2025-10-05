@@ -4,13 +4,15 @@
 \alias{infer_function_return_type}
 \title{Infer actual return type from function body}
 \usage{
-infer_function_return_type(body_node)
+infer_function_return_type(body_node, return_node = FALSE)
 }
 \arguments{
 \item{body_node}{XML node of function body}
+
+\item{return_node}{Logical, if TRUE returns list(type=..., node=...) instead of just type}
 }
 \value{
-Character string with inferred type or "unknown"/"complex"
+Character string with inferred type or "unknown"/"complex", or list if return_node=TRUE
 }
 \description{
 Infer actual return type from function body

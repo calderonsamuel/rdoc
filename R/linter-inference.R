@@ -59,7 +59,20 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
     }
   }
 
-  # Now check for literals (after ruling out function calls)
+  # Check for comparison and logical operators (they return logical)
+  # Comparison: >, >=, <, <=, ==, !=
+  comparison_ops <- xml2::xml_find_first(arg_node, ".//GT | .//GE | .//LT | .//LE | .//EQ | .//NE")
+  if (!is.na(comparison_ops)) {
+    return("logical")
+  }
+
+  # Logical operators: &, |, ! (AND, OR, NOT)
+  logical_ops <- xml2::xml_find_first(arg_node, ".//AND | .//OR | .//OP-EXCLAMATION")
+  if (!is.na(logical_ops)) {
+    return("logical")
+  }
+
+  # Now check for literals (after ruling out function calls and operators)
 
   # Check for string constant
   if (length(xml2::xml_find_all(arg_node, ".//STR_CONST")) > 0) {
