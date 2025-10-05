@@ -50,6 +50,8 @@ type_consistency_linter <- function() {
 
     # Check for function definitions
     fn_assigns <- xml2::xml_find_all(xml, "//expr[LEFT_ASSIGN and .//FUNCTION]")
+    return_validation_lints <- list()
+
     if (length(fn_assigns) > 0 && length(cache$comments) > 0) {
       # Process accumulated comments for this function
       for (fn_assign in fn_assigns) {
@@ -63,12 +65,25 @@ type_consistency_linter <- function() {
 
         if (!is.null(type_info) && length(type_info) > 0) {
           cache$types[[fn_name]] <- type_info
+
+          # Validate return type if declared (Phase 7.2)
+          if (!is.null(type_info$return)) {
+            validation_lints <- validate_return_type(fn_assign, type_info$return$type, source_expression)
+            if (length(validation_lints) > 0) {
+              return_validation_lints <- c(return_validation_lints, validation_lints)
+            }
+          }
         }
       }
 
       # Clear accumulated comments after processing
       cache$comments <- character()
       file_cache[[filename]] <- cache
+    }
+
+    # Return validation lints early if found
+    if (length(return_validation_lints) > 0) {
+      return(return_validation_lints)
     }
 
     # Load package types
