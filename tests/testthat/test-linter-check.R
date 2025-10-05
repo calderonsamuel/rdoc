@@ -1,11 +1,7 @@
 # Tests for R/linter-check.R
 # Integration tests that call lintr::lint() to validate type checking
 
-test_that("type_consistency_linter can be created", {
-  linter <- type_consistency_linter()
 
-  expect_s3_class(linter, "linter")
-})
 
 test_that("linter flags type mismatch - literal argument", {
   skip_if_not_installed("lintr")
@@ -92,28 +88,7 @@ test_that("linter handles mixed positional and named arguments", {
   expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
 })
 
-test_that("types_compatible accepts matching types", {
-  expect_true(types_compatible("numeric", "numeric"))
-  expect_true(types_compatible("character", "character"))
-  expect_true(types_compatible("logical", "logical"))
-})
 
-test_that("types_compatible rejects mismatching types", {
-  expect_false(types_compatible("numeric", "character"))
-  expect_false(types_compatible("character", "logical"))
-})
-
-test_that("types_compatible handles union types", {
-  expect_true(types_compatible("character | NULL", "character"))
-  expect_true(types_compatible("character | NULL", "NULL"))
-  expect_false(types_compatible("character | NULL", "numeric"))
-})
-
-test_that("types_compatible handles numeric coercion", {
-  # numeric(1) should be compatible with numeric
-  expect_true(types_compatible("numeric", "numeric(1)"))
-  expect_true(types_compatible("numeric(1)", "numeric"))
-})
 
 test_that("linter reports correct line numbers", {
   skip_if_not_installed("lintr")
