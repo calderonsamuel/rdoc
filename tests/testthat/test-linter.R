@@ -161,7 +161,7 @@ test_that("linter handles multiple parameters", {
   expect_true(length(lints) > 0)
 })
 
-test_that("linter skips unknown types", {
+test_that("linter infers types from simple variable assignments", {
   skip_if_not_installed("lintr")
 
   code <- "
@@ -170,13 +170,14 @@ test_that("linter skips unknown types", {
     foo <- function(x) x * 2
 
     y <- 'string'
-    foo(y)  # Can't infer type of variable
+    foo(y)  # Can infer type of variable from assignment
   "
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should not lint since we can't infer the type
-  expect_length(lints, 0)
+  # Should catch the type error since y is inferred as character
+  expect_length(lints, 1)
+  expect_true(grepl("numeric.*character", lints[[1]]$message))
 })
 
 test_that("find_loaded_packages detects library calls", {
@@ -327,4 +328,193 @@ test_that("extract_arguments handles mixed arguments", {
   expect_equal(args[[1]]$type, "character")
   expect_equal(args[[2]]$name, "y")
   expect_equal(args[[2]]$type, "numeric")
+})
+
+# Variable type inference tests (not yet implemented)
+
+test_that("linter infers type from character vector variable", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {numeric} vector of values
+    #' @typedReturn {numeric(1)} the mean value
+    calculate_mean <- function(x) mean(x)
+
+    a <- c('1', '2', '3')
+    calculate_mean(x = a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect that 'a' is character vector
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("Argument 'x'.*numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter infers type from numeric vector variable", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {character} text
+    foo <- function(x) x
+
+    a <- c(1, 2, 3)
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect that 'a' is numeric
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("character.*numeric", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter infers type from logical variable", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {character} text
+    foo <- function(x) x
+
+    a <- TRUE
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect that 'a' is logical
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("character.*logical", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter infers type from string variable", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {numeric} number
+    foo <- function(x) x * 2
+
+    a <- 'text'
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect that 'a' is character
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter handles variable reassignment", {
+  skip("Variable type inference not yet implemented")
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {character} text
+    foo <- function(x) x
+
+    a <- 123
+    a <- 'text'
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should use the most recent assignment (character)
+  expect_equal(length(lints), 0)
+})
+
+test_that("linter infers type from NULL assignment", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {character} text
+    foo <- function(x) x
+
+    a <- NULL
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect that 'a' is NULL
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("character.*NULL", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter infers type from list() call", {
+  skip("Variable type inference not yet implemented")
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {character} text
+    foo <- function(x) x
+
+    a <- list(1, 2, 3)
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect that 'a' is list
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("character.*list", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter infers type from data.frame() call", {
+  skip("Variable type inference not yet implemented")
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {character} text
+    foo <- function(x) x
+
+    a <- data.frame(x = 1:3)
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect that 'a' is data.frame
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("character.*data.frame", vapply(lints, function(l) l$message, character(1)))))
+})
+
+test_that("linter passes when variable type matches", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {numeric} number
+    foo <- function(x) x * 2
+
+    a <- 123
+    foo(a)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should pass - numeric variable to numeric parameter
+  expect_equal(length(lints), 0)
+})
+
+test_that("linter handles variables from outer scope", {
+  skip("Variable type inference not yet implemented")
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {numeric} number
+    foo <- function(x) x * 2
+
+    a <- 'text'
+
+    bar <- function() {
+      foo(a)  # 'a' from outer scope
+    }
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  # Should detect that 'a' is character from outer scope
+  expect_equal(length(lints), 1)
+  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
 })

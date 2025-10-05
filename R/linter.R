@@ -28,7 +28,8 @@ type_consistency_linter <- function() {
     if (!exists(filename, envir = file_cache)) {
       file_cache[[filename]] <- list(
         comments = character(),
-        types = list()
+        types = list(),
+        variables = list()
       )
     }
 
@@ -46,6 +47,26 @@ type_consistency_linter <- function() {
       }
       file_cache[[filename]] <- cache
     }
+
+    # Extract and accumulate variable assignments
+    assignments <- extract_variable_assignments(xml)
+    for (var_name in names(assignments)) {
+      for (assignment in assignments[[var_name]]) {
+        # Infer type from the assigned value
+        inferred_type <- infer_argument_type(assignment$value_node)
+
+        # Store in cache
+        if (!var_name %in% names(cache$variables)) {
+          cache$variables[[var_name]] <- list()
+        }
+
+        cache$variables[[var_name]][[length(cache$variables[[var_name]]) + 1]] <- list(
+          line = assignment$line,
+          type = inferred_type
+        )
+      }
+    }
+    file_cache[[filename]] <- cache
 
     # Check for function definitions
     fn_assigns <- xml2::xml_find_all(xml, "//expr[LEFT_ASSIGN and .//FUNCTION]")
@@ -83,7 +104,7 @@ type_consistency_linter <- function() {
     }
 
     # Find and check function calls
-    check_function_calls(xml, all_types, source_expression)
+    check_function_calls(xml, all_types, cache$variables, source_expression)
   })
 }
 
@@ -513,10 +534,11 @@ load_package_types <- function(packages) {
 #'
 #' @param xml XML parsed content
 #' @param all_types List of all type information
+#' @param var_context List of variable assignments
 #' @param source_expression Source expression for creating lints
 #' @return List of Lint objects
 #' @keywords internal
-check_function_calls <- function(xml, all_types, source_expression) {
+check_function_calls <- function(xml, all_types, var_context, source_expression) {
   lints <- list()
 
   # Find all function calls
@@ -525,7 +547,7 @@ check_function_calls <- function(xml, all_types, source_expression) {
   call_nodes <- xml2::xml_find_all(xml, "//SYMBOL_FUNCTION_CALL/parent::expr/parent::expr")
 
   for (call_node in call_nodes) {
-    call_lints <- check_single_call(call_node, all_types, source_expression)
+    call_lints <- check_single_call(call_node, all_types, var_context, source_expression)
     if (length(call_lints) > 0) {
       lints <- c(lints, call_lints)
     }
@@ -538,10 +560,11 @@ check_function_calls <- function(xml, all_types, source_expression) {
 #'
 #' @param call_node XML node of the function call
 #' @param all_types List of type information
+#' @param var_context List of variable assignments
 #' @param source_expression Source expression
 #' @return List of Lint objects
 #' @keywords internal
-check_single_call <- function(call_node, all_types, source_expression) {
+check_single_call <- function(call_node, all_types, var_context, source_expression) {
   # Get function name
   fn_node <- xml2::xml_find_first(call_node, ".//SYMBOL_FUNCTION_CALL")
   if (is.na(fn_node)) {
@@ -557,8 +580,12 @@ check_single_call <- function(call_node, all_types, source_expression) {
 
   type_info <- all_types[[fn_name]]
 
+  # Get line number of this call for variable lookup
+  call_line <- as.integer(xml2::xml_attr(call_node, "line1"))
+  if (is.na(call_line)) call_line <- 1L
+
   # Get arguments
-  args <- extract_arguments(call_node)
+  args <- extract_arguments(call_node, var_context, call_line)
 
   # Check each argument against type signature
   check_arguments(fn_name, args, type_info, call_node, source_expression)
@@ -567,9 +594,11 @@ check_single_call <- function(call_node, all_types, source_expression) {
 #' Extract arguments from function call
 #'
 #' @param call_node XML node of function call
+#' @param var_context Optional list of variable assignments for type inference
+#' @param current_line Optional line number for variable lookup
 #' @return List of argument information
 #' @keywords internal
-extract_arguments <- function(call_node) {
+extract_arguments <- function(call_node, var_context = NULL, current_line = NULL) {
   # The call_node structure is: expr containing:
   #   - expr with SYMBOL_FUNCTION_CALL (the function name)
   #   - OP-LEFT-PAREN
@@ -600,7 +629,7 @@ extract_arguments <- function(call_node) {
       if (i <= length(all_children)) {
         value_node <- all_children[[i]]
         if (xml2::xml_name(value_node) == "expr") {
-          arg_type <- infer_argument_type(value_node)
+          arg_type <- infer_argument_type(value_node, var_context, current_line)
           args[[length(args) + 1]] <- list(
             node = value_node,
             type = arg_type,
@@ -621,7 +650,7 @@ extract_arguments <- function(call_node) {
         }
       }
       # This is a positional argument
-      arg_type <- infer_argument_type(child)
+      arg_type <- infer_argument_type(child, var_context, current_line)
       args[[length(args) + 1]] <- list(
         node = child,
         type = arg_type,
@@ -640,9 +669,11 @@ extract_arguments <- function(call_node) {
 #' Infer type of an argument from its AST node
 #'
 #' @param arg_node XML node of the argument
+#' @param var_context Optional list of variable assignments for lookup
+#' @param current_line Optional line number where argument is used (for variable lookup)
 #' @return Character string with inferred type or "unknown"
 #' @keywords internal
-infer_argument_type <- function(arg_node) {
+infer_argument_type <- function(arg_node, var_context = NULL, current_line = NULL) {
   # Check for string constant
   if (length(xml2::xml_find_all(arg_node, ".//STR_CONST")) > 0) {
     return("character")
@@ -661,6 +692,35 @@ infer_argument_type <- function(arg_node) {
       return("logical")
     }
     return("numeric")
+  }
+
+  # Check for c() function calls
+  c_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL[text()='c']")
+  if (!is.na(c_call)) {
+    # Get the first argument to c() to infer type
+    first_arg <- xml2::xml_find_first(arg_node, ".//expr[SYMBOL_FUNCTION_CALL[text()='c']]/parent::expr/following-sibling::expr[1]")
+    if (!is.na(first_arg)) {
+      return(infer_argument_type(first_arg, var_context, current_line))
+    }
+  }
+
+  # Check for variable reference (SYMBOL)
+  symbol_node <- xml2::xml_find_first(arg_node, "./SYMBOL[not(self::SYMBOL_FUNCTION_CALL)]")
+  if (!is.na(symbol_node) && !is.null(var_context) && !is.null(current_line)) {
+    var_name <- xml2::xml_text(symbol_node)
+
+    # Look up variable in context
+    if (var_name %in% names(var_context)) {
+      # Find the most recent assignment before current_line
+      assignments <- var_context[[var_name]]
+      valid_assignments <- Filter(function(a) a$line < current_line, assignments)
+
+      if (length(valid_assignments) > 0) {
+        # Get the most recent one (highest line number)
+        most_recent <- valid_assignments[[length(valid_assignments)]]
+        return(most_recent$type)
+      }
+    }
   }
 
   # Otherwise unknown
@@ -806,4 +866,44 @@ types_compatible <- function(actual, expected) {
   }
 
   FALSE
+}
+
+#' Extract variable assignments from XML AST
+#'
+#' @param xml XML parsed content
+#' @return List of assignments with variable names, line numbers, and value nodes
+#' @keywords internal
+extract_variable_assignments <- function(xml) {
+  assignments <- list()
+
+  # Find LEFT_ASSIGN expressions: var <- value
+  left_assigns <- xml2::xml_find_all(xml, "//expr[LEFT_ASSIGN]")
+
+  for (assign_node in left_assigns) {
+    # Get variable name (left side)
+    var_node <- xml2::xml_find_first(assign_node, "./expr[1]/SYMBOL")
+    if (is.na(var_node)) next
+
+    var_name <- xml2::xml_text(var_node)
+
+    # Get assigned value (right side)
+    value_node <- xml2::xml_find_first(assign_node, "./expr[2]")
+    if (is.na(value_node)) next
+
+    # Get line number
+    line <- as.integer(xml2::xml_attr(assign_node, "line1"))
+    if (is.na(line)) line <- 1L
+
+    # Store assignment info
+    if (!var_name %in% names(assignments)) {
+      assignments[[var_name]] <- list()
+    }
+
+    assignments[[var_name]][[length(assignments[[var_name]]) + 1]] <- list(
+      line = line,
+      value_node = value_node
+    )
+  }
+
+  assignments
 }
