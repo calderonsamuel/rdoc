@@ -262,30 +262,34 @@ extract_variable_assignments <- function(xml) {
 #' types_compatible("data.frame", "data.frame")  # TRUE (string match)
 #' types_compatible("data.frame", "matrix")      # FALSE
 #' }
-types_compatible <- function(actual, expected) {
-  # Remove length constraints for basic compatibility check
-  actual_base <- gsub("\\(.*\\)$", "", actual)
-  expected_base <- gsub("\\(.*\\)$", "", expected)
+types_compatible <- function(actual, expected, actual_length = NULL) {
+  # Parse type specifications to extract constraints
+  actual_parsed <- parse_type_constraints(actual)
+  expected_parsed <- parse_type_constraints(expected)
+
+  # Remove legacy length constraints (parentheses) for backward compatibility
+  actual_base <- gsub("\\(.*\\)$", "", actual_parsed$base_type)
+  expected_base <- gsub("\\(.*\\)$", "", expected_parsed$base_type)
 
   # Handle union types (must do this before S7 lookup)
-  if (grepl("\\|", expected)) {
-    expected_types <- split_union_types(expected)
+  if (grepl("\\|", expected_base)) {
+    expected_types <- split_union_types(expected_base)
     expected_bases <- gsub("\\(.*\\)$", "", trimws(expected_types))
     # Check if actual is compatible with any type in the union
     for (exp_type in expected_bases) {
-      if (types_compatible(actual_base, exp_type)) {
+      if (types_compatible(actual_base, exp_type, actual_length)) {
         return(TRUE)
       }
     }
     return(FALSE)
   }
 
-  if (grepl("\\|", actual)) {
-    actual_types <- split_union_types(actual)
+  if (grepl("\\|", actual_base)) {
+    actual_types <- split_union_types(actual_base)
     actual_bases <- gsub("\\(.*\\)$", "", trimws(actual_types))
     # Check if any type in actual union is compatible with expected
     for (act_type in actual_bases) {
-      if (types_compatible(act_type, expected_base)) {
+      if (types_compatible(act_type, expected_base, actual_length)) {
         return(TRUE)
       }
     }
@@ -298,10 +302,36 @@ types_compatible <- function(actual, expected) {
 
   # If both are S7 types, use S7's compatibility logic
   if (!is.null(actual_s7) && !is.null(expected_s7)) {
-    return(s7_class_compatible(actual_s7, expected_s7))
+    if (!s7_class_compatible(actual_s7, expected_s7)) {
+      return(FALSE)
+    }
+
+    # Base types are compatible, now check constraints
+
+    # Check length constraint if specified
+    if (!check_length_constraint(actual_length, expected_parsed$length_constraint)) {
+      return(FALSE)
+    }
+
+    # Check element type constraint if specified
+    # (Currently placeholder - returns TRUE)
+    if (!check_element_type(actual_base, expected_parsed$element_type)) {
+      return(FALSE)
+    }
+
+    return(TRUE)
   }
 
   # FALLBACK: String-based compatibility for non-S7 types
   # (data.frame, matrix, custom classes not in S7, etc.)
-  string_based_compatible(actual_base, expected_base)
+  if (!string_based_compatible(actual_base, expected_base)) {
+    return(FALSE)
+  }
+
+  # Check constraints for non-S7 types too
+  if (!check_length_constraint(actual_length, expected_parsed$length_constraint)) {
+    return(FALSE)
+  }
+
+  TRUE
 }
