@@ -33,8 +33,8 @@ parse_type_syntax <- function(input) {
     } else if (token$type == "RBRACKET") {
       cli::cli_abort(
         c(
-          "Unexpected '\\]' at position {token$position}",
-          "x" = "No matching '\\[' found"
+          "Unexpected ']' at position {token$position}",
+          "x" = "No matching '[' found"
         ),
         call = NULL
       )
@@ -239,15 +239,15 @@ parse_primary_type <- function(parser) {
       if (token$type == "RBRACKET") {
         cli::cli_abort(
           c(
-            "Expected number in \\[\\] at position {lbracket_pos + 1}",
-            "x" = "Found empty length constraint '\\[\\]'"
+            "Expected number in [] at position {lbracket_pos + 1}",
+            "x" = "Found empty length constraint '[]'"
           ),
           call = NULL
         )
       } else {
         cli::cli_abort(
           c(
-            "Expected number in \\[\\] at position {token$position}",
+            "Expected number in [] at position {token$position}",
             "x" = "Found '{token$value}' instead"
           ),
           call = NULL
@@ -274,8 +274,8 @@ parse_primary_type <- function(parser) {
     if (parser$current()$type != "RBRACKET") {
       cli::cli_abort(
         c(
-          "Expected '\\]' at position {parser$current()$position}",
-          "i" = "To match '\\[' at position {lbracket_pos}"
+          "Expected ']' at position {parser$current()$position}",
+          "i" = "To match '[' at position {lbracket_pos}"
         ),
         call = NULL
       )

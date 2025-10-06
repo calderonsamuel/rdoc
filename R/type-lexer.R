@@ -61,7 +61,7 @@ lex_type_syntax <- function(input) {
       cli::cli_abort(
         c(
           "Unexpected character '(' at position {position}",
-          "i" = "Use \\[\\] for length constraints, not ()"
+          "i" = "Use [] for length constraints, not ()"
         ),
         call = NULL
       )
@@ -71,7 +71,7 @@ lex_type_syntax <- function(input) {
       cli::cli_abort(
         c(
           "Unexpected character ')' at position {position}",
-          "i" = "Use \\[\\] for length constraints, not ()"
+          "i" = "Use [] for length constraints, not ()"
         ),
         call = NULL
       )
@@ -82,7 +82,7 @@ lex_type_syntax <- function(input) {
       cli::cli_abort(
         c(
           "Unexpected character '{{' at position {position}",
-          "i" = "Use \\[\\] for length constraints, not {{}}"
+          "i" = "Use [] for length constraints, not {{}}"
         ),
         call = NULL
       )
@@ -92,7 +92,7 @@ lex_type_syntax <- function(input) {
       cli::cli_abort(
         c(
           "Unexpected character '}}' at position {position}",
-          "i" = "Use \\[\\] for length constraints, not {{}}"
+          "i" = "Use [] for length constraints, not {{}}"
         ),
         call = NULL
       )
@@ -129,8 +129,8 @@ lex_type_syntax <- function(input) {
         cli::cli_abort(
           c(
             "Unexpected number '{char}' at position {position}",
-            "i" = "Numbers must be inside \\[\\] for length constraints",
-            "x" = "Use 'type\\[{char}\\]' not 'type{char}'"
+            "i" = "Numbers must be inside [] for length constraints",
+            "x" = "Use 'type[{char}]' not 'type{char}'"
           ),
           call = NULL
         )

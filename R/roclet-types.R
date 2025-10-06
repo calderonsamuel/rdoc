@@ -3,7 +3,7 @@
 #' This roclet generates type metadata from @typedParam and @typedReturn tags.
 #' The metadata is saved to inst/types.rds and gets installed with the package.
 #'
-#' @typedReturn {<roclet>} A roxygen2 roclet object for type metadata generation
+#' @typedReturn {roclet} A roxygen2 roclet object for type metadata generation
 #' @export
 #' @examples
 #' \dontrun{
