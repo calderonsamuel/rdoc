@@ -38,8 +38,21 @@ is_s7_base_type <- function(type_string) {
   type_string <- normalize_type_name(type_string)
 
   s7_base_types <- c(
+    # Original 9 types
     "logical", "integer", "double", "complex", "character", "raw",
-    "list", "expression", "numeric"
+    "list", "expression", "numeric",
+
+    # Base classes (4)
+    "call", "environment", "function", "name",
+
+    # Unions (3)
+    "atomic", "language", "vector",
+
+    # S3 wrappers (7)
+    "data.frame", "Date", "factor", "formula", "POSIXct", "POSIXlt", "POSIXt",
+
+    # Special
+    "any"
   )
 
   # NULL is a special case - not an S7 class but a valid type
@@ -79,8 +92,14 @@ type_string_to_s7_class <- function(type_string) {
     return(NULL)
   }
 
+  # Special handling for 'any' - accepts any value
+  if (type_string == "any") {
+    return(S7::class_any)
+  }
+
   # Map to S7 base classes
   s7_class_map <- list(
+    # Original 9 types
     "logical" = S7::class_logical,
     "integer" = S7::class_integer,
     "double" = S7::class_double,
@@ -89,7 +108,27 @@ type_string_to_s7_class <- function(type_string) {
     "raw" = S7::class_raw,
     "list" = S7::class_list,
     "expression" = S7::class_expression,
-    "numeric" = S7::class_numeric
+    "numeric" = S7::class_numeric,
+
+    # Base classes (4)
+    "call" = S7::class_call,
+    "environment" = S7::class_environment,
+    "function" = S7::class_function,
+    "name" = S7::class_name,
+
+    # Unions (3)
+    "atomic" = S7::class_atomic,
+    "language" = S7::class_language,
+    "vector" = S7::class_vector,
+
+    # S3 wrappers (7)
+    "data.frame" = S7::class_data.frame,
+    "Date" = S7::class_Date,
+    "factor" = S7::class_factor,
+    "formula" = S7::class_formula,
+    "POSIXct" = S7::class_POSIXct,
+    "POSIXlt" = S7::class_POSIXlt,
+    "POSIXt" = S7::class_POSIXt
   )
 
   s7_class_map[[type_string]]
@@ -147,6 +186,11 @@ s7_class_compatible <- function(actual_s7, expected_s7) {
     return(TRUE)
   }
 
+  # Special case: class_any accepts anything
+  if (identical(expected_s7, S7::class_any)) {
+    return(TRUE)
+  }
+
   # Handle unions (like class_numeric)
   if (inherits(expected_s7, "S7_union")) {
     # Check if actual matches any class in the union
@@ -168,8 +212,8 @@ s7_class_compatible <- function(actual_s7, expected_s7) {
     return(TRUE)
   }
 
-  # Check inheritance: walk up the parent chain
-  if (inherits(actual_s7, "S7_class")) {
+  # Check inheritance for S7 classes (regular classes, not S3 wrappers)
+  if (inherits(actual_s7, "S7_class") && !inherits(actual_s7, "S7_S3_class")) {
     current <- actual_s7
     while (!is.null(current)) {
       if (identical(current, expected_s7)) {
@@ -177,6 +221,19 @@ s7_class_compatible <- function(actual_s7, expected_s7) {
       }
       # Move to parent class
       current <- if (!is.null(current@parent)) current@parent else NULL
+    }
+  }
+
+  # Check inheritance for S3 wrappers (POSIXct -> POSIXt, etc.)
+  if (inherits(actual_s7, "S7_S3_class") && inherits(expected_s7, "S7_S3_class")) {
+    actual_classes <- unclass(actual_s7)$class
+    expected_classes <- unclass(expected_s7)$class
+
+    # Check if any of the expected classes are in the actual class hierarchy
+    for (exp_class in expected_classes) {
+      if (exp_class %in% actual_classes) {
+        return(TRUE)
+      }
     }
   }
 

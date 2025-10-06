@@ -56,10 +56,13 @@ test_that("is_s7_base_type recognizes S7 types with class_ prefix", {
 })
 
 test_that("is_s7_base_type rejects non-S7 types", {
-  expect_false(is_s7_base_type("data.frame"))
+  # Phase 15.5: data.frame, factor, Date are now S7 types (S3 wrappers)
+  expect_true(is_s7_base_type("data.frame"))
+  expect_true(is_s7_base_type("factor"))
+  expect_true(is_s7_base_type("Date"))
+
+  # matrix is still not S7
   expect_false(is_s7_base_type("matrix"))
-  expect_false(is_s7_base_type("factor"))
-  expect_false(is_s7_base_type("Date"))
   expect_false(is_s7_base_type("unknown"))
 })
 
@@ -86,8 +89,11 @@ test_that("type_string_to_s7_class handles class_ prefix", {
 test_that("type_string_to_s7_class returns NULL for non-S7 types and NULL type", {
   # NULL type returns NULL (since it's not an S7 class)
   expect_null(type_string_to_s7_class("NULL"))
-  # Unknown types return NULL
-  expect_null(type_string_to_s7_class("data.frame"))
+
+  # Phase 15.5: data.frame is now an S7 type (S3 wrapper)
+  expect_s3_class(type_string_to_s7_class("data.frame"), "S7_S3_class")
+
+  # matrix is still not S7
   expect_null(type_string_to_s7_class("matrix"))
   expect_null(type_string_to_s7_class("unknown"))
 })
