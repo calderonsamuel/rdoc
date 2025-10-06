@@ -1,0 +1,439 @@
+# Test suite for type syntax parser
+# This replaces the regex-based validation with a proper recursive descent parser
+
+# =============================================================================
+# LEXER TESTS
+# =============================================================================
+
+test_that("lexer tokenizes simple identifier", {
+  tokens <- lex_type_syntax("numeric")
+
+  expect_equal(length(tokens), 2)  # identifier + EOF
+  expect_equal(tokens[[1]]$type, "IDENTIFIER")
+  expect_equal(tokens[[1]]$value, "numeric")
+  expect_equal(tokens[[1]]$position, 1)
+  expect_equal(tokens[[2]]$type, "EOF")
+})
+
+test_that("lexer tokenizes identifier with underscore", {
+  tokens <- lex_type_syntax("class_integer")
+
+  expect_equal(tokens[[1]]$type, "IDENTIFIER")
+  expect_equal(tokens[[1]]$value, "class_integer")
+})
+
+test_that("lexer tokenizes identifier with dots", {
+  tokens <- lex_type_syntax("data.frame")
+
+  expect_equal(tokens[[1]]$type, "IDENTIFIER")
+  expect_equal(tokens[[1]]$value, "data.frame")
+})
+
+test_that("lexer tokenizes number", {
+  tokens <- lex_type_syntax("[42]")
+
+  expect_equal(tokens[[1]]$type, "LBRACKET")
+  expect_equal(tokens[[2]]$type, "NUMBER")
+  expect_equal(tokens[[2]]$value, "42")
+  expect_equal(tokens[[3]]$type, "RBRACKET")
+})
+
+test_that("lexer tokenizes brackets and angles", {
+  tokens <- lex_type_syntax("list<int>[5]")
+
+  expect_equal(tokens[[1]]$type, "IDENTIFIER")
+  expect_equal(tokens[[1]]$value, "list")
+  expect_equal(tokens[[2]]$type, "LANGLE")
+  expect_equal(tokens[[3]]$type, "IDENTIFIER")
+  expect_equal(tokens[[3]]$value, "int")
+  expect_equal(tokens[[4]]$type, "RANGLE")
+  expect_equal(tokens[[5]]$type, "LBRACKET")
+  expect_equal(tokens[[6]]$type, "NUMBER")
+  expect_equal(tokens[[6]]$value, "5")
+  expect_equal(tokens[[7]]$type, "RBRACKET")
+  expect_equal(tokens[[8]]$type, "EOF")
+})
+
+test_that("lexer tokenizes pipe", {
+  tokens <- lex_type_syntax("int | char")
+
+  expect_equal(tokens[[1]]$type, "IDENTIFIER")
+  expect_equal(tokens[[2]]$type, "PIPE")
+  expect_equal(tokens[[2]]$position, 5)  # Position of |
+  expect_equal(tokens[[3]]$type, "IDENTIFIER")
+})
+
+test_that("lexer handles whitespace correctly", {
+  tokens <- lex_type_syntax("  list  <  int  >  ")
+
+  # Whitespace should be skipped
+  expect_equal(tokens[[1]]$type, "IDENTIFIER")
+  expect_equal(tokens[[1]]$value, "list")
+  expect_equal(tokens[[2]]$type, "LANGLE")
+  expect_equal(tokens[[3]]$type, "IDENTIFIER")
+  expect_equal(tokens[[3]]$value, "int")
+})
+
+test_that("lexer tracks positions accurately", {
+  tokens <- lex_type_syntax("list<int>")
+
+  expect_equal(tokens[[1]]$position, 1)   # 'list' starts at 1
+  expect_equal(tokens[[2]]$position, 5)   # '<' at position 5
+  expect_equal(tokens[[3]]$position, 6)   # 'int' starts at 6
+  expect_equal(tokens[[4]]$position, 9)   # '>' at position 9
+})
+
+test_that("lexer rejects invalid characters", {
+  expect_error(
+    lex_type_syntax("int@char"),
+    "Unexpected character '@' at position 4"
+  )
+
+  expect_error(
+    lex_type_syntax("int#5"),
+    "Unexpected character '#' at position 4"
+  )
+})
+
+test_that("lexer rejects numbers outside brackets", {
+  expect_error(
+    lex_type_syntax("numeric5"),
+    "Unexpected number '5' at position 8"
+  )
+
+  expect_error(
+    lex_type_syntax("list10"),
+    "Unexpected number '1' at position 5"
+  )
+})
+
+test_that("lexer rejects parentheses", {
+  expect_error(
+    lex_type_syntax("numeric(5)"),
+    "Unexpected character '\\(' at position 8"
+  )
+})
+
+test_that("lexer rejects curly braces", {
+  expect_error(
+    lex_type_syntax("numeric{5}"),
+    "Unexpected character '\\{' at position 8"
+  )
+})
+
+test_that("lexer handles empty string", {
+  expect_error(
+    lex_type_syntax(""),
+    "Empty type specification"
+  )
+
+  expect_error(
+    lex_type_syntax("   "),
+    "Empty type specification"
+  )
+})
+
+# =============================================================================
+# PARSER TESTS - AST Structure
+# =============================================================================
+
+test_that("parser creates AST for simple type", {
+  ast <- parse_type_syntax("numeric")
+
+  expect_equal(ast$node_type, "type")
+  expect_equal(ast$base_type, "numeric")
+  expect_null(ast$element_type)
+  expect_null(ast$length_constraint)
+})
+
+test_that("parser creates AST for type with length", {
+  ast <- parse_type_syntax("numeric[5]")
+
+  expect_equal(ast$node_type, "type")
+  expect_equal(ast$base_type, "numeric")
+  expect_equal(ast$length_constraint, 5)
+  expect_null(ast$element_type)
+})
+
+test_that("parser creates AST for generic type", {
+  ast <- parse_type_syntax("list<integer>")
+
+  expect_equal(ast$node_type, "type")
+  expect_equal(ast$base_type, "list")
+  expect_equal(ast$element_type$node_type, "type")
+  expect_equal(ast$element_type$base_type, "integer")
+})
+
+test_that("parser creates AST for generic with length", {
+  ast <- parse_type_syntax("list<integer>[3]")
+
+  expect_equal(ast$node_type, "type")
+  expect_equal(ast$base_type, "list")
+  expect_equal(ast$length_constraint, 3)
+  expect_equal(ast$element_type$base_type, "integer")
+})
+
+test_that("parser creates AST for nested generic", {
+  ast <- parse_type_syntax("list<list<integer>>")
+
+  expect_equal(ast$base_type, "list")
+  expect_equal(ast$element_type$base_type, "list")
+  expect_equal(ast$element_type$element_type$base_type, "integer")
+})
+
+test_that("parser creates AST for union type", {
+  ast <- parse_type_syntax("integer | character")
+
+  expect_equal(ast$node_type, "union")
+  expect_equal(length(ast$types), 2)
+  expect_equal(ast$types[[1]]$base_type, "integer")
+  expect_equal(ast$types[[2]]$base_type, "character")
+})
+
+test_that("parser creates AST for multi-way union", {
+  ast <- parse_type_syntax("integer | character | logical")
+
+  expect_equal(ast$node_type, "union")
+  expect_equal(length(ast$types), 3)
+  expect_equal(ast$types[[1]]$base_type, "integer")
+  expect_equal(ast$types[[2]]$base_type, "character")
+  expect_equal(ast$types[[3]]$base_type, "logical")
+})
+
+test_that("parser creates AST for union in generic", {
+  ast <- parse_type_syntax("list<integer | character>")
+
+  expect_equal(ast$base_type, "list")
+  expect_equal(ast$element_type$node_type, "union")
+  expect_equal(length(ast$element_type$types), 2)
+})
+
+test_that("parser creates AST for complex nested type", {
+  ast <- parse_type_syntax("list<list<integer | character>[5]>[10]")
+
+  expect_equal(ast$base_type, "list")
+  expect_equal(ast$length_constraint, 10)
+  expect_equal(ast$element_type$base_type, "list")
+  expect_equal(ast$element_type$length_constraint, 5)
+  expect_equal(ast$element_type$element_type$node_type, "union")
+})
+
+# =============================================================================
+# PARSER TESTS - Error Messages
+# =============================================================================
+
+test_that("parser reports error for empty angle brackets", {
+  expect_error(
+    parse_type_syntax("list<>"),
+    "Expected type after '<' at position 6"
+  )
+})
+
+test_that("parser reports error for empty square brackets", {
+  expect_error(
+    parse_type_syntax("integer[]"),
+    "Expected number.*at position 9"
+  )
+})
+
+test_that("parser reports error for unclosed angle bracket", {
+  expect_error(
+    parse_type_syntax("list<integer"),
+    "Expected '>' at position 13"
+  )
+})
+
+test_that("parser reports error for unclosed square bracket", {
+  expect_error(
+    parse_type_syntax("integer[5"),
+    "Expected.*at position 10"
+  )
+})
+
+test_that("parser reports error for unexpected closing bracket", {
+  expect_error(
+    parse_type_syntax("integer>"),
+    "Unexpected '>' at position 8"
+  )
+
+  expect_error(
+    parse_type_syntax("integer]"),
+    "Unexpected.*at position 8"
+  )
+})
+
+test_that("parser reports error for pipe at start", {
+  expect_error(
+    parse_type_syntax("| integer"),
+    "Unexpected '\\|' at position 1"
+  )
+})
+
+test_that("parser reports error for pipe at end", {
+  expect_error(
+    parse_type_syntax("integer |"),
+    "Unexpected end of input"
+  )
+})
+
+test_that("parser reports error for consecutive pipes", {
+  expect_error(
+    parse_type_syntax("integer || character"),
+    "Unexpected '\\|' at position 10"
+  )
+})
+
+test_that("parser reports error for non-numeric length", {
+  expect_error(
+    parse_type_syntax("integer[abc]"),
+    "Expected number.*at position 9"
+  )
+})
+
+test_that("parser reports error for multiple element types", {
+  expect_error(
+    parse_type_syntax("list<integer><character>"),
+    "Unexpected '<' at position 14.*already has element type"
+  )
+})
+
+test_that("parser reports error for missing type identifier", {
+  expect_error(
+    parse_type_syntax("[5]"),
+    "Expected type identifier at position 1"
+  )
+})
+
+test_that("parser provides helpful error for decimal numbers", {
+  # Decimal point is rejected by lexer
+  expect_error(
+    parse_type_syntax("integer[1.5]"),
+    "Unexpected character '\\.' at position 10"
+  )
+})
+
+test_that("parser provides helpful error for negative numbers", {
+  # Minus sign is rejected by lexer
+  expect_error(
+    parse_type_syntax("integer[-5]"),
+    "Unexpected character '-' at position 9"
+  )
+})
+
+# =============================================================================
+# PARSER TESTS - Edge Cases
+# =============================================================================
+
+test_that("parser handles whitespace in unions", {
+  ast1 <- parse_type_syntax("integer|character")
+  ast2 <- parse_type_syntax("integer | character")
+  ast3 <- parse_type_syntax("integer  |  character")
+
+  expect_equal(ast1$node_type, "union")
+  expect_equal(ast2$node_type, "union")
+  expect_equal(ast3$node_type, "union")
+})
+
+test_that("parser handles deeply nested generics", {
+  ast <- parse_type_syntax("list<list<list<list<integer>>>>")
+
+  expect_equal(ast$base_type, "list")
+  expect_equal(ast$element_type$base_type, "list")
+  expect_equal(ast$element_type$element_type$base_type, "list")
+  expect_equal(ast$element_type$element_type$element_type$base_type, "list")
+  expect_equal(ast$element_type$element_type$element_type$element_type$base_type, "integer")
+})
+
+test_that("parser handles complex union in nested generic", {
+  ast <- parse_type_syntax("list<list<integer | character | logical>>")
+
+  inner_union <- ast$element_type$element_type
+  expect_equal(inner_union$node_type, "union")
+  expect_equal(length(inner_union$types), 3)
+})
+
+test_that("parser handles type names with dots and underscores", {
+  ast1 <- parse_type_syntax("data.frame")
+  ast2 <- parse_type_syntax("class_integer")
+  ast3 <- parse_type_syntax("My.Custom_Class")
+
+  expect_equal(ast1$base_type, "data.frame")
+  expect_equal(ast2$base_type, "class_integer")
+  expect_equal(ast3$base_type, "My.Custom_Class")
+})
+
+test_that("parser handles large length constraints", {
+  ast <- parse_type_syntax("integer[99999]")
+
+  expect_equal(ast$length_constraint, 99999)
+})
+
+test_that("parser returns NULL invisibly on success", {
+  result <- parse_type_syntax("integer")
+  expect_invisible(parse_type_syntax("integer"))
+})
+
+# =============================================================================
+# INTEGRATION TESTS - Real-world Examples
+# =============================================================================
+
+test_that("parser handles real-world type annotations", {
+  # From actual package usage
+  expect_silent(parse_type_syntax("numeric"))
+  expect_silent(parse_type_syntax("character"))
+  expect_silent(parse_type_syntax("class_integer[1]"))
+  expect_silent(parse_type_syntax("class_list<class_integer>"))
+  expect_silent(parse_type_syntax("class_list<class_numeric>[2]"))
+  expect_silent(parse_type_syntax("data.frame"))
+  expect_silent(parse_type_syntax("list<integer | character>"))
+})
+
+test_that("parser rejects all invalid syntax from Phase 13.1", {
+  # Parentheses
+  expect_error(parse_type_syntax("numeric(1)"))
+
+  # Curly braces
+  expect_error(parse_type_syntax("numeric{1}"))
+
+  # Bare numbers
+  expect_error(parse_type_syntax("numeric1"))
+
+  # Multiple element types
+  expect_error(parse_type_syntax("list<int><char>"))
+
+  # Empty brackets
+  expect_error(parse_type_syntax("list<>"))
+  expect_error(parse_type_syntax("integer[]"))
+})
+
+# =============================================================================
+# AST UTILITY TESTS
+# =============================================================================
+
+test_that("ast_to_string reconstructs type syntax", {
+  # Simple type
+  expect_equal(ast_to_string(parse_type_syntax("integer")), "integer")
+
+  # With length
+  expect_equal(ast_to_string(parse_type_syntax("integer[5]")), "integer[5]")
+
+  # Generic
+  expect_equal(ast_to_string(parse_type_syntax("list<integer>")), "list<integer>")
+
+  # Complex
+  expect_equal(
+    ast_to_string(parse_type_syntax("list<integer | character>[5]")),
+    "list<integer | character>[5]"
+  )
+})
+
+test_that("ast_validate checks semantic rules", {
+  # Length constraint must be non-negative (0 is allowed)
+  ast <- parse_type_syntax("integer[5]")
+  ast$length_constraint <- -1
+  expect_error(ast_validate(ast), "Length constraint must be non-negative")
+
+  # Zero is allowed
+  ast$length_constraint <- 0
+  expect_silent(ast_validate(ast))
+})

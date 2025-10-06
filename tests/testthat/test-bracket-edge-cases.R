@@ -11,7 +11,7 @@ test_that("parse_type_constraints rejects empty brackets", {
   # With validation, empty brackets are now an error
   expect_error(
     parse_type_constraints("class_integer[]"),
-    "Empty length constraint"
+    "Expected number.*at position"
   )
 })
 
@@ -19,7 +19,7 @@ test_that("parse_type_constraints rejects non-numeric length", {
   # With validation, non-numeric length is now an error
   expect_error(
     parse_type_constraints("class_integer[abc]"),
-    "must be a positive integer"
+    "Expected number"
   )
 })
 
@@ -27,7 +27,7 @@ test_that("parse_type_constraints rejects empty angle brackets", {
   # With validation, empty angle brackets are now an error
   expect_error(
     parse_type_constraints("class_list<>"),
-    "Empty element type"
+    "Expected type after '<'"
   )
 })
 
@@ -111,23 +111,23 @@ test_that("parse_type_constraints handles combined nested constraints", {
 test_that("parse_type_constraints rejects malformed patterns", {
   # With validation, these are now errors instead of silent preservation
 
-  # Negative length
+  # Negative length - rejected by lexer (minus sign not allowed)
   expect_error(
     parse_type_constraints("class_integer[-1]"),
-    "must be a positive integer"
+    "Unexpected character '-'"
   )
 
-  # Decimal length
+  # Decimal length - rejected by lexer (decimal point not allowed)
   expect_error(
     parse_type_constraints("class_integer[1.5]"),
-    "must be a positive integer"
+    "Unexpected character '\\.'"
   )
 
-  # Double brackets - validation can't detect this (would need parsing)
-  # Just verify it doesn't crash
-  result <- parse_type_constraints("class_integer[1][2]")
-  expect_equal(result$base_type, "class_integer[1][2]")  # Preserved as-is
-  expect_null(result$length_constraint)  # Not parsed
+  # Double brackets - now detected and rejected by parser
+  expect_error(
+    parse_type_constraints("class_integer[1][2]"),
+    "Unexpected.*at position"
+  )
 })
 
 test_that("parse_type_constraints rejects double angle brackets", {
@@ -170,9 +170,9 @@ test_that("parse_type_constraints handles class_ prefix variations", {
 })
 
 test_that("parse_type_constraints rejects mixed parenthesis and bracket syntax", {
-  # Parentheses in type spec should be rejected
+  # Parentheses in type spec should be rejected by lexer
   expect_error(
     parse_type_constraints("class_integer(1)[2]"),
-    "Invalid syntax"
+    "Unexpected character '\\('"
   )
 })
