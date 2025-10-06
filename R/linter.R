@@ -44,15 +44,30 @@ type_consistency_linter <- function(strict = FALSE) {
 
     # Check for comments in this expression
     comments <- xml2::xml_find_all(xml, "//COMMENT")
+    syntax_validation_lints <- list()
+
     if (length(comments) > 0) {
-      # Accumulate comments
+      # Validate syntax and collect lints BEFORE accumulating comments
+      comment_texts <- character()
       for (comment_node in comments) {
         comment_text <- xml2::xml_text(comment_node)
         if (grepl("^#'", comment_text)) {
-          cache$comments <- c(cache$comments, comment_text)
+          comment_texts <- c(comment_texts, comment_text)
         }
       }
-      file_cache[[filename]] <- cache
+
+      if (length(comment_texts) > 0) {
+        # Validate syntax and create lints for errors
+        syntax_validation_lints <- create_syntax_validation_lints(
+          comment_texts,
+          comments[sapply(comments, function(n) grepl("^#'", xml2::xml_text(n)))],
+          source_expression
+        )
+
+        # Accumulate comments for type extraction (invalid tags will be skipped)
+        cache$comments <- c(cache$comments, comment_texts)
+        file_cache[[filename]] <- cache
+      }
     }
 
     # Check for function definitions
@@ -98,8 +113,8 @@ type_consistency_linter <- function(strict = FALSE) {
       }
     }
 
-    # Return validation and strict mode lints early if found
-    combined_lints <- c(return_validation_lints, strict_mode_lints)
+    # Return syntax validation, return validation, and strict mode lints early if found
+    combined_lints <- c(syntax_validation_lints, return_validation_lints, strict_mode_lints)
     if (length(combined_lints) > 0) {
       return(combined_lints)
     }
@@ -140,4 +155,83 @@ type_consistency_linter <- function(strict = FALSE) {
     # Find and check function calls
     check_function_calls(xml, all_types, cache$variables, source_expression, strict)
   })
+}
+
+#' Create lint objects for invalid type annotation syntax
+#'
+#' Validates @typedParam and @typedReturn tags in roxygen comments
+#' and creates lint objects for any syntax errors found.
+#'
+#' @param comments Character vector of roxygen comment lines
+#' @param comment_nodes XML nodes for the comments (for line numbers)
+#' @param source_expression Source expression for creating lints
+#' @return List of lint objects
+#' @keywords internal
+create_syntax_validation_lints <- function(comments, comment_nodes, source_expression) {
+  lints <- list()
+
+  for (i in seq_along(comments)) {
+    comment_text <- comments[i]
+    content <- sub("^#'\\s*", "", comment_text)
+
+    # Check for @typedParam
+    if (grepl("^@typedParam\\s+", content)) {
+      param_text <- sub("^@typedParam\\s+", "", content)
+      result <- tryCatch({
+        parse_typed_param_text(param_text)
+        NULL  # Success - no lint needed
+      }, error = function(e) {
+        # Return error info to create lint
+        list(
+          message = conditionMessage(e),
+          line = xml2::xml_attr(comment_nodes[i], "line1"),
+          col = xml2::xml_attr(comment_nodes[i], "col1")
+        )
+      })
+
+      if (!is.null(result)) {
+        col_start <- as.integer(result$col)
+        lints <- c(lints, list(lintr::Lint(
+          filename = source_expression$filename,
+          line_number = as.integer(result$line),
+          column_number = col_start,
+          type = "error",
+          message = result$message,
+          line = comment_text,
+          ranges = list(c(col_start, col_start + nchar(comment_text)))
+        )))
+      }
+    }
+
+    # Check for @typedReturn
+    if (grepl("^@typedReturn\\s+", content)) {
+      return_text <- sub("^@typedReturn\\s+", "", content)
+      result <- tryCatch({
+        parse_typed_return_text(return_text)
+        NULL  # Success - no lint needed
+      }, error = function(e) {
+        # Return error info to create lint
+        list(
+          message = conditionMessage(e),
+          line = xml2::xml_attr(comment_nodes[i], "line1"),
+          col = xml2::xml_attr(comment_nodes[i], "col1")
+        )
+      })
+
+      if (!is.null(result)) {
+        col_start <- as.integer(result$col)
+        lints <- c(lints, list(lintr::Lint(
+          filename = source_expression$filename,
+          line_number = as.integer(result$line),
+          column_number = col_start,
+          type = "error",
+          message = result$message,
+          line = comment_text,
+          ranges = list(c(col_start, col_start + nchar(comment_text)))
+        )))
+      }
+    }
+  }
+
+  lints
 }

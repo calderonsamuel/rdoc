@@ -149,19 +149,19 @@ test_that("validate_type_syntax rejects consecutive pipes", {
 test_that("validate_type_syntax provides source location in error messages", {
   expect_error(
     validate_type_syntax("class_list<>", source_location = "@typedParam foo"),
-    "at @typedParam foo"
+    "@typedParam foo"
   )
 
   expect_error(
     validate_type_syntax("class_integer[]", source_location = "@typedReturn"),
-    "at @typedReturn"
+    "@typedReturn"
   )
 })
 
 test_that("validate_type_syntax shows type in error message", {
   expect_error(
     validate_type_syntax("class_list<>"),
-    "Type:.*class_list<>"
+    "class_list<>"
   )
 })
 
@@ -209,5 +209,34 @@ test_that("validate_type_syntax rejects parenthesis syntax", {
   expect_error(
     validate_type_syntax("class_character(100)"),
     "Invalid syntax"
+  )
+})
+
+test_that("validate_type_syntax rejects bare numbers", {
+  expect_error(
+    validate_type_syntax("numeric1"),
+    "numbers must be in brackets"
+  )
+
+  expect_error(
+    validate_type_syntax("character5"),
+    "numbers must be in brackets"
+  )
+
+  expect_error(
+    validate_type_syntax("list10"),
+    "numbers must be in brackets"
+  )
+})
+
+test_that("validate_type_syntax rejects curly braces for length", {
+  expect_error(
+    validate_type_syntax("numeric{1}"),
+    "use '\\[n\\]'.*not '\\{n\\}'"
+  )
+
+  expect_error(
+    validate_type_syntax("character{5}"),
+    "use '\\[n\\]'.*not '\\{n\\}'"
   )
 })

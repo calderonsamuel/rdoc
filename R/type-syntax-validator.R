@@ -82,12 +82,33 @@ validate_type_syntax <- function(type_spec, source_location = NULL) {
     errors <- c(errors, "Invalid syntax: use '[n]' for length constraints, not '(n)'")
   }
 
+  # Check 11: Curly braces for length (should use square brackets)
+  # Match both complete {n} and incomplete {n patterns
+  if (grepl("\\{[0-9]+", type_spec)) {
+    errors <- c(errors, "Invalid syntax: use '[n]' for length constraints, not '{{n}}'")
+  }
+
+  # Check 12: Bare number after type name (missing brackets)
+  # Match: word followed immediately by digit(s) at end of string or before |
+  # e.g., "numeric1", "character5", but NOT "character[100]"
+  # Only match if the number is NOT followed by a bracket
+  if (grepl("\\w+[0-9]+(?![\\[<>()\\]])", type_spec, perl = TRUE)) {
+    # But exclude cases where brackets exist elsewhere (like character[100])
+    # Simple check: if there are digits but no opening bracket, it's an error
+    if (!grepl("\\[", type_spec)) {
+      errors <- c(errors, "Invalid syntax: numbers must be in brackets, e.g., 'numeric[1]' not 'numeric1'")
+    }
+  }
+
   # Report errors
   if (length(errors) > 0) {
-    location_msg <- if (!is.null(source_location)) {
-      paste0(" at ", source_location)
+    # Build error message with helpful context
+    if (!is.null(source_location)) {
+      # We know which tag caused the error
+      header <- "Invalid type annotation syntax in {.field {source_location}}:"
     } else {
-      ""
+      # Called from linter/validator without tag context
+      header <- "Invalid type annotation syntax in {.code {type_spec}}:"
     }
 
     # Format error messages
@@ -96,8 +117,8 @@ validate_type_syntax <- function(type_spec, source_location = NULL) {
 
     cli::cli_abort(
       c(
-        "Invalid type annotation syntax{location_msg}:",
-        "x" = "Type: {.code {type_spec}}",
+        header,
+        "i" = if (is.null(source_location)) "Check your @typedParam and @typedReturn tags" else NULL,
         error_msgs
       ),
       call = NULL

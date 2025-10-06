@@ -4,10 +4,13 @@
 \alias{parse_type_constraints}
 \title{Parse type specification with bracket constraints}
 \usage{
-parse_type_constraints(type_spec)
+parse_type_constraints(type_spec, validate = TRUE)
 }
 \arguments{
 \item{type_spec}{Type specification string (e.g., "class_integer[1]")}
+
+\item{validate}{Whether to validate syntax (default TRUE). Set to FALSE if
+syntax was already validated during tag parsing.}
 }
 \value{
 List with base_type, length_constraint, and element_type

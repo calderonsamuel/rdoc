@@ -13,6 +13,7 @@ extract_types_from_comment_lines <- function(comments) {
     # Check for @typedParam
     if (grepl("^@typedParam\\s+", content)) {
       param_text <- sub("^@typedParam\\s+", "", content)
+      # Parse - catch errors to allow linting to continue
       parsed_param <- try(parse_typed_param_text(param_text), silent = TRUE)
 
       if (!inherits(parsed_param, "try-error")) {
@@ -21,11 +22,13 @@ extract_types_from_comment_lines <- function(comments) {
           description = parsed_param$description
         )
       }
+      # Note: Validation errors will be reported separately by syntax validation linter
     }
 
     # Check for @typedReturn
     if (grepl("^@typedReturn\\s+", content)) {
       return_text <- sub("^@typedReturn\\s+", "", content)
+      # Parse - catch errors to allow linting to continue
       parsed_return <- try(parse_typed_return_text(return_text), silent = TRUE)
 
       if (!inherits(parsed_return, "try-error")) {
@@ -34,6 +37,7 @@ extract_types_from_comment_lines <- function(comments) {
           description = parsed_return$description
         )
       }
+      # Note: Validation errors will be reported separately by syntax validation linter
     }
   }
 
@@ -133,6 +137,7 @@ extract_types_from_xml <- function(xml) {
       # Check for @typedParam
       if (grepl("^@typedParam\\s+", content)) {
         param_text <- sub("^@typedParam\\s+", "", content)
+        # Parse - catch errors to allow linting to continue
         parsed_param <- try(parse_typed_param_text(param_text), silent = TRUE)
 
         if (!inherits(parsed_param, "try-error")) {
@@ -141,11 +146,13 @@ extract_types_from_xml <- function(xml) {
             description = parsed_param$description
           )
         }
+        # Note: Validation errors will be reported separately by syntax validation linter
       }
 
       # Check for @typedReturn
       if (grepl("^@typedReturn\\s+", content)) {
         return_text <- sub("^@typedReturn\\s+", "", content)
+        # Parse - catch errors to allow linting to continue
         parsed_return <- try(parse_typed_return_text(return_text), silent = TRUE)
 
         if (!inherits(parsed_return, "try-error")) {
@@ -154,6 +161,7 @@ extract_types_from_xml <- function(xml) {
             description = parsed_return$description
           )
         }
+        # Note: Validation errors will be reported separately by syntax validation linter
       }
     }
 
@@ -254,6 +262,7 @@ process_comment_block <- function(block, parsed) {
     # Check for @typedParam
     if (grepl("^@typedParam\\s+", content)) {
       param_text <- sub("^@typedParam\\s+", "", content)
+      # Parse - catch errors to allow linting to continue
       parsed_param <- try(parse_typed_param_text(param_text), silent = TRUE)
 
       if (!inherits(parsed_param, "try-error")) {
@@ -263,11 +272,13 @@ process_comment_block <- function(block, parsed) {
           description = parsed_param$description
         )
       }
+      # Note: Validation errors will be reported separately by syntax validation linter
     }
 
     # Check for @typedReturn
     if (grepl("^@typedReturn\\s+", content)) {
       return_text <- sub("^@typedReturn\\s+", "", content)
+      # Parse - catch errors to allow linting to continue
       parsed_return <- try(parse_typed_return_text(return_text), silent = TRUE)
 
       if (!inherits(parsed_return, "try-error")) {
@@ -276,6 +287,7 @@ process_comment_block <- function(block, parsed) {
           description = parsed_return$description
         )
       }
+      # Note: Validation errors will be reported separately by syntax validation linter
     }
   }
 
@@ -323,10 +335,17 @@ parse_typed_param_text <- function(text) {
     stop("Invalid format")
   }
 
+  param_name <- matches[2]
+  type_spec <- matches[3]
+  description <- matches[4]
+
+  # Validate type syntax
+  validate_type_syntax(type_spec, source_location = paste0("@typedParam ", param_name))
+
   list(
-    param = matches[2],
-    type = matches[3],
-    description = matches[4]
+    param = param_name,
+    type = type_spec,
+    description = description
   )
 }
 
@@ -343,8 +362,14 @@ parse_typed_return_text <- function(text) {
     stop("Invalid format")
   }
 
+  type_spec <- matches[2]
+  description <- matches[3]
+
+  # Validate type syntax
+  validate_type_syntax(type_spec, source_location = "@typedReturn")
+
   list(
-    type = matches[2],
-    description = matches[3]
+    type = type_spec,
+    description = description
   )
 }

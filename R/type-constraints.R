@@ -6,6 +6,8 @@
 #' - Combined: class_list<class_numeric>\[3\]
 #'
 #' @param type_spec Type specification string (e.g., "class_integer\[1\]")
+#' @param validate Whether to validate syntax (default TRUE). Set to FALSE if
+#'   syntax was already validated during tag parsing.
 #' @return List with base_type, length_constraint, and element_type
 #' @keywords internal
 #'
@@ -21,9 +23,11 @@
 #' # Combined
 #' parse_type_constraints("class_list<class_numeric>[3]")
 #' # Returns: list(base_type = "class_list", element_type = "class_numeric", length_constraint = 3)
-parse_type_constraints <- function(type_spec) {
-  # Validate syntax before parsing
-  validate_type_syntax(type_spec)
+parse_type_constraints <- function(type_spec, validate = TRUE) {
+  # Validate syntax before parsing (unless already validated during tag parsing)
+  if (validate) {
+    validate_type_syntax(type_spec)
+  }
 
   # Initialize result
   result <- list(

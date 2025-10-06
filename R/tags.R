@@ -49,8 +49,28 @@ tag_parse_typed_param <- function(x) {
   type_spec <- matches[3]
   description <- matches[4]
 
+  # Build source location with file and line info
+  location <- if (!is.null(x$file) && !is.null(x$line)) {
+    # Find column where {type} starts in x$raw
+    type_start <- regexpr("\\{", x$raw, perl = TRUE)[1]
+    # Add offset for "#' @typedParam " prefix (approximately 15 chars)
+    # x$raw contains content after the tag name, so we need to account for:
+    # "#' " (3 chars) + "@typedParam " (12 chars) = 15 chars
+    col <- if (type_start > 0) type_start + 15 else NULL
+
+    loc_parts <- c(
+      paste0("@typedParam ", param_name),
+      if (!is.null(x$file) && x$file != "<text>") paste0(" in ", basename(x$file)),
+      if (!is.null(x$line)) paste0(" at line ", x$line),
+      if (!is.null(col)) paste0(", column ", col)
+    )
+    paste0(loc_parts, collapse = "")
+  } else {
+    paste0("@typedParam ", param_name)
+  }
+
   # Validate type syntax
-  validate_type_syntax(type_spec, source_location = paste0("@typedParam ", param_name))
+  validate_type_syntax(type_spec, source_location = location)
 
   # Store both rdoc-specific and roxygen2-compatible information
   x$val <- list(
@@ -94,8 +114,28 @@ tag_parse_typed_return <- function(x) {
   type_spec <- matches[2]
   description <- matches[3]
 
+  # Build source location with file and line info
+  location <- if (!is.null(x$file) && !is.null(x$line)) {
+    # Find column where {type} starts in x$raw
+    type_start <- regexpr("\\{", x$raw, perl = TRUE)[1]
+    # Add offset for "#' @typedReturn " prefix
+    # x$raw contains content after the tag name, so we need to account for:
+    # "#' " (3 chars) + "@typedReturn " (13 chars) = 16 chars
+    col <- if (type_start > 0) type_start + 16 else NULL
+
+    loc_parts <- c(
+      "@typedReturn",
+      if (!is.null(x$file) && x$file != "<text>") paste0(" in ", basename(x$file)),
+      if (!is.null(x$line)) paste0(" at line ", x$line),
+      if (!is.null(col)) paste0(", column ", col)
+    )
+    paste0(loc_parts, collapse = "")
+  } else {
+    "@typedReturn"
+  }
+
   # Validate type syntax
-  validate_type_syntax(type_spec, source_location = "@typedReturn")
+  validate_type_syntax(type_spec, source_location = location)
 
   # Store both rdoc-specific and roxygen2-compatible information
   # Use consistent list structure like @typedParam
