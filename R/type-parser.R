@@ -49,6 +49,49 @@ parse_type_syntax <- function(input) {
   invisible(ast)
 }
 
+#' Validate NULL position in union types
+#'
+#' Enforces rdoc's opinionated rule: NULL must come first in unions.
+#' This matches S7's convention where union order determines default value.
+#'
+#' @param types List of type AST nodes from a union
+#' @keywords internal
+validate_null_position <- function(types) {
+  # Find all NULL positions
+  null_indices <- which(sapply(types, function(t) {
+    t$node_type == "type" && t$base_type == "NULL"
+  }))
+
+  # If NULL exists and is not first, error
+  if (length(null_indices) > 0 && null_indices[1] != 1) {
+    # Get the first NULL's position for error message
+    first_null <- types[[null_indices[1]]]
+
+    cli::cli_abort(
+      c(
+        "NULL must be first in union type",
+        "x" = "Found NULL at position {null_indices[1]} in union",
+        "i" = "Use {.code NULL | Type} not {.code Type | NULL}",
+        "i" = "This matches S7's convention where NULL-first creates optional types with NULL default"
+      ),
+      call = NULL
+    )
+  }
+
+  # Check for multiple NULLs
+  if (length(null_indices) > 1) {
+    cli::cli_abort(
+      c(
+        "NULL can only appear once in union type",
+        "x" = "Found NULL at positions: {paste(null_indices, collapse = ', ')}"
+      ),
+      call = NULL
+    )
+  }
+
+  invisible(NULL)
+}
+
 #' Create parser state object
 #' @keywords internal
 new_parser <- function(tokens) {
@@ -155,6 +198,9 @@ parse_union_type <- function(parser) {
   if (length(types) == 1) {
     types[[1]]
   } else {
+    # Validate NULL position in unions
+    validate_null_position(types)
+
     list(
       node_type = "union",
       types = types

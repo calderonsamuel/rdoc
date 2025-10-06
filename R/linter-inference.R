@@ -263,75 +263,95 @@ extract_variable_assignments <- function(xml) {
 #' types_compatible("data.frame", "matrix")      # FALSE
 #' }
 types_compatible <- function(actual, expected, actual_length = NULL) {
-  # Parse type specifications to extract constraints
-  actual_parsed <- parse_type_constraints(actual)
-  expected_parsed <- parse_type_constraints(expected)
+  # Parse type specifications using the proper parser
+  # This handles unions correctly (NULL must be first)
+  actual_ast <- tryCatch(
+    parse_type_syntax(actual),
+    error = function(e) NULL
+  )
+  expected_ast <- tryCatch(
+    parse_type_syntax(expected),
+    error = function(e) NULL
+  )
 
-  # Strip any parentheses from base type for comparison
-  actual_base <- gsub("\\(.*\\)$", "", actual_parsed$base_type)
-  expected_base <- gsub("\\(.*\\)$", "", expected_parsed$base_type)
+  # If parsing failed, fall back to old behavior
+  if (is.null(actual_ast) || is.null(expected_ast)) {
+    actual_parsed <- parse_type_constraints(actual)
+    expected_parsed <- parse_type_constraints(expected)
+    actual_base <- gsub("\\(.*\\)$", "", actual_parsed$base_type)
+    expected_base <- gsub("\\(.*\\)$", "", expected_parsed$base_type)
 
-  # Handle union types (must do this before S7 lookup)
-  if (grepl("\\|", expected_base)) {
-    expected_types <- split_union_types(expected_base)
-    expected_bases <- gsub("\\(.*\\)$", "", trimws(expected_types))
-    # Check if actual is compatible with any type in the union
-    for (exp_type in expected_bases) {
-      if (types_compatible(actual_base, exp_type, actual_length)) {
-        return(TRUE)
-      }
+    # Old string-based compatibility
+    actual_s7 <- type_string_to_s7_class(actual_base)
+    expected_s7 <- type_string_to_s7_class(expected_base)
+
+    if (!is.null(actual_s7) && !is.null(expected_s7)) {
+      return(s7_class_compatible(actual_s7, expected_s7))
     }
-    return(FALSE)
+
+    return(string_based_compatible(actual_base, expected_base))
   }
 
-  if (grepl("\\|", actual_base)) {
-    actual_types <- split_union_types(actual_base)
-    actual_bases <- gsub("\\(.*\\)$", "", trimws(actual_types))
-    # Check if any type in actual union is compatible with expected
-    for (act_type in actual_bases) {
-      if (types_compatible(act_type, expected_base, actual_length)) {
-        return(TRUE)
-      }
-    }
-    return(FALSE)
-  }
+  # NEW: Convert AST to S7 unions (handles NULL | Type correctly)
+  actual_s7 <- tryCatch(
+    rdoc_union_to_s7(actual_ast),
+    error = function(e) NULL
+  )
+  expected_s7 <- tryCatch(
+    rdoc_union_to_s7(expected_ast),
+    error = function(e) NULL
+  )
 
-  # S7-FIRST: Try to resolve both types to S7 classes
-  actual_s7 <- type_string_to_s7_class(actual_base)
-  expected_s7 <- type_string_to_s7_class(expected_base)
-
-  # If both are S7 types, use S7's compatibility logic
-  if (!is.null(actual_s7) && !is.null(expected_s7)) {
+  # If both converted to S7, use S7's compatibility logic
+  if (!is.null(actual_s7) || !is.null(expected_s7)) {
+    # S7's s7_class_compatible handles unions automatically
+    # It walks union members and checks if any match
     if (!s7_class_compatible(actual_s7, expected_s7)) {
       return(FALSE)
     }
 
     # Base types are compatible, now check constraints
+    # Extract constraints from AST
+    expected_length <- if (expected_ast$node_type == "type") {
+      expected_ast$length_constraint
+    } else {
+      NULL
+    }
 
     # Check length constraint if specified
-    if (!check_length_constraint(actual_length, expected_parsed$length_constraint)) {
+    if (!check_length_constraint(actual_length, expected_length)) {
       return(FALSE)
     }
 
     # Check element type constraint if specified
     # (Currently placeholder - returns TRUE)
-    if (!check_element_type(actual_base, expected_parsed$element_type)) {
-      return(FALSE)
+    expected_element <- if (expected_ast$node_type == "type") {
+      expected_ast$element_type
+    } else {
+      NULL
+    }
+
+    if (!is.null(expected_element)) {
+      # For now, just return TRUE (element type checking not fully implemented)
+      # TODO: Implement proper element type checking
     }
 
     return(TRUE)
   }
 
   # FALLBACK: String-based compatibility for non-S7 types
-  # (data.frame, matrix, custom classes not in S7, etc.)
-  if (!string_based_compatible(actual_base, expected_base)) {
-    return(FALSE)
+  # Extract base types for comparison
+  actual_base <- if (actual_ast$node_type == "type") {
+    actual_ast$base_type
+  } else {
+    actual  # Shouldn't happen, but be safe
   }
 
-  # Check constraints for non-S7 types too
-  if (!check_length_constraint(actual_length, expected_parsed$length_constraint)) {
-    return(FALSE)
+  expected_base <- if (expected_ast$node_type == "type") {
+    expected_ast$base_type
+  } else {
+    expected
   }
 
-  TRUE
+  string_based_compatible(actual_base, expected_base)
 }

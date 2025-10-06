@@ -105,9 +105,15 @@ test_that("types_compatible rejects mismatching types", {
 })
 
 test_that("types_compatible handles union types", {
-  expect_true(types_compatible("character | NULL", "character"))
-  expect_true(types_compatible("character | NULL", "NULL"))
-  expect_false(types_compatible("character | NULL", "numeric"))
+  # Subtype → Union (widening, safe)
+  expect_true(types_compatible("character", "NULL | character"))
+  expect_true(types_compatible("NULL", "NULL | character"))
+
+  # Union → different type (invalid)
+  expect_false(types_compatible("NULL | character", "numeric"))
+
+  # Union → Subtype (narrowing, unsafe - would be FALSE)
+  expect_false(types_compatible("NULL | character", "character"))
 })
 
 test_that("types_compatible handles numeric coercion", {

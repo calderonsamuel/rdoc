@@ -472,3 +472,112 @@ test_that("ast_validate checks semantic rules", {
   ast$length_constraint <- 0
   expect_silent(ast_validate(ast))
 })
+
+# =============================================================================
+# NULL POSITION VALIDATION (Phase 14.1)
+# =============================================================================
+
+test_that("parser accepts NULL as first in union", {
+  # Basic NULL union
+  expect_silent(parse_type_syntax("NULL | integer"))
+  expect_silent(parse_type_syntax("NULL | character"))
+  expect_silent(parse_type_syntax("NULL | logical"))
+
+  # Multi-way union with NULL first
+  expect_silent(parse_type_syntax("NULL | integer | character"))
+  expect_silent(parse_type_syntax("NULL | integer | character | logical"))
+
+  # Complex types with NULL first
+  expect_silent(parse_type_syntax("NULL | list<integer>"))
+  expect_silent(parse_type_syntax("NULL | character[1]"))
+  expect_silent(parse_type_syntax("NULL | list<integer>[5]"))
+})
+
+test_that("parser rejects NULL not first in union", {
+  # NULL at end
+  expect_error(
+    parse_type_syntax("integer | NULL"),
+    "NULL must be first in union type"
+  )
+
+  expect_error(
+    parse_type_syntax("character | NULL"),
+    "NULL must be first in union type"
+  )
+
+  # NULL in middle
+  expect_error(
+    parse_type_syntax("integer | NULL | character"),
+    "NULL must be first in union type"
+  )
+
+  expect_error(
+    parse_type_syntax("integer | character | NULL"),
+    "NULL must be first in union type"
+  )
+
+  # Complex types with NULL not first
+  expect_error(
+    parse_type_syntax("list<integer> | NULL"),
+    "NULL must be first in union type"
+  )
+
+  expect_error(
+    parse_type_syntax("character[1] | NULL"),
+    "NULL must be first in union type"
+  )
+})
+
+test_that("parser rejects multiple NULLs in union", {
+  expect_error(
+    parse_type_syntax("NULL | integer | NULL"),
+    "NULL can only appear once in union type"
+  )
+
+  expect_error(
+    parse_type_syntax("NULL | NULL"),
+    "NULL can only appear once in union type"
+  )
+
+  expect_error(
+    parse_type_syntax("NULL | integer | character | NULL"),
+    "NULL can only appear once in union type"
+  )
+})
+
+test_that("parser accepts standalone NULL type", {
+  # Single NULL (not in union) should work
+  ast <- parse_type_syntax("NULL")
+  expect_equal(ast$node_type, "type")
+  expect_equal(ast$base_type, "NULL")
+})
+
+test_that("NULL position error messages are helpful", {
+  error <- tryCatch(
+    parse_type_syntax("integer | NULL"),
+    error = function(e) conditionMessage(e)
+  )
+
+  expect_match(error, "NULL must be first")
+  expect_match(error, "Use.*NULL.*Type.*not.*Type.*NULL")
+  expect_match(error, "S7.*convention")
+})
+
+test_that("NULL position validation preserves AST structure", {
+  # Verify that valid NULL unions produce correct AST
+  ast <- parse_type_syntax("NULL | integer")
+
+  expect_equal(ast$node_type, "union")
+  expect_equal(length(ast$types), 2)
+  expect_equal(ast$types[[1]]$base_type, "NULL")
+  expect_equal(ast$types[[2]]$base_type, "integer")
+
+  # Complex case
+  ast <- parse_type_syntax("NULL | list<integer>[5]")
+
+  expect_equal(ast$node_type, "union")
+  expect_equal(ast$types[[1]]$base_type, "NULL")
+  expect_equal(ast$types[[2]]$base_type, "list")
+  expect_equal(ast$types[[2]]$element_type$base_type, "integer")
+  expect_equal(ast$types[[2]]$length_constraint, 5)
+})

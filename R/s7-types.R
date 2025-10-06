@@ -231,3 +231,59 @@ type_to_s7_display <- function(type_string) {
   # Non-S7 types keep their original name
   normalized
 }
+
+#' Convert rdoc union AST to S7 union object
+#'
+#' Takes a union type AST node from the parser and converts it to an S7_union object.
+#' Handles NULL specially - NULL is represented as R's NULL (not a class object).
+#'
+#' @param ast_node Union type AST node with structure: list(node_type = "union", types = list(...))
+#' @return S7_union object created with | operator, or single S7 class if not actually a union
+#' @keywords internal
+#'
+#' @examples
+#' \dontrun{
+#' # Parse union syntax
+#' ast <- parse_type_syntax("NULL | integer")
+#' s7_union <- rdoc_union_to_s7(ast)
+#' # Returns: <S7_union>: <NULL> or <integer>
+#'
+#' # Complex case
+#' ast <- parse_type_syntax("NULL | character | integer")
+#' s7_union <- rdoc_union_to_s7(ast)
+#' # Returns: <S7_union>: <NULL>, <character>, or <integer>
+#' }
+rdoc_union_to_s7 <- function(ast_node) {
+  # If not a union node, just convert single type
+  if (ast_node$node_type != "union") {
+    type_name <- ast_node$base_type
+
+    # Handle NULL specially
+    if (type_name == "NULL") {
+      return(NULL)
+    }
+
+    # Convert to S7 class
+    return(type_string_to_s7_class(type_name))
+  }
+
+  # Extract S7 class objects for each type in union
+  s7_classes <- lapply(ast_node$types, function(type_node) {
+    type_name <- type_node$base_type
+
+    # Handle NULL specially - represented as R's NULL
+    if (type_name == "NULL") {
+      return(NULL)
+    }
+
+    # For now, just use base type (ignore length/element constraints)
+    # TODO: In future phases, create constrained types
+    type_string_to_s7_class(type_name)
+  })
+
+  # Create union using | operator
+  # NULL | class_a | class_b
+  union_obj <- Reduce(`|`, s7_classes)
+
+  union_obj
+}

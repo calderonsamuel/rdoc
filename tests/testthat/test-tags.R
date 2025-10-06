@@ -19,12 +19,12 @@ test_that("@typed-param handles scalar notation", {
 })
 
 test_that("@typed-param handles union types", {
-  tag <- list(raw = "name {character | NULL} optional name")
+  tag <- list(raw = "name {NULL | character} optional name")
 
   result <- tag_parse_typed_param(tag)
 
   expect_equal(result$val$param, "name")
-  expect_equal(result$val$type, "character | NULL")
+  expect_equal(result$val$type, "NULL | character")
   expect_equal(result$val$description, "optional name")
 })
 
@@ -78,11 +78,11 @@ test_that("@typed-return handles empty description", {
 })
 
 test_that("@typed-return handles union types", {
-  tag <- list(raw = "{numeric | NULL} result or NULL if invalid")
+  tag <- list(raw = "{NULL | numeric} result or NULL if invalid")
 
   result <- tag_parse_typed_return(tag)
 
-  expect_equal(result$val$type, "numeric | NULL")
+  expect_equal(result$val$type, "NULL | numeric")
   expect_equal(result$val$description, "result or NULL if invalid")
 })
 

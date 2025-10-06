@@ -163,9 +163,13 @@ test_that("types_compatible handles S7 numeric union", {
 
 test_that("types_compatible handles rdoc union types with S7", {
   # rdoc's | syntax still works, using S7 under the hood
-  expect_true(types_compatible("class_integer", "integer | NULL"))
-  expect_true(types_compatible("integer", "class_integer | NULL"))
-  expect_true(types_compatible("class_integer | NULL", "integer"))
+  # Subtype → Union is valid (widening)
+  expect_true(types_compatible("class_integer", "NULL | integer"))
+  expect_true(types_compatible("integer", "NULL | class_integer"))
+  expect_true(types_compatible("NULL", "NULL | integer"))
+
+  # Union → Subtype is INVALID (narrowing without check)
+  expect_false(types_compatible("NULL | class_integer", "integer"))
 })
 
 test_that("types_compatible handles length constraints", {
@@ -180,4 +184,109 @@ test_that("types_compatible falls back for non-S7 types", {
   expect_true(types_compatible("data.frame", "data.frame"))
   expect_true(types_compatible("matrix", "matrix"))
   expect_false(types_compatible("data.frame", "matrix"))
+})
+
+# =============================================================================
+# RDOC UNION TO S7 CONVERSION (Phase 14.2)
+# =============================================================================
+
+test_that("rdoc_union_to_s7 converts NULL | Type unions", {
+  # Basic NULL union
+  ast <- parse_type_syntax("NULL | integer")
+  s7_union <- rdoc_union_to_s7(ast)
+
+  expect_s3_class(s7_union, "S7_union")
+  expect_equal(length(s7_union$classes), 2)
+  expect_true(is.null(s7_union$classes[[1]]))  # NULL is first
+  expect_equal(s7_union$classes[[2]]$class, "integer")
+})
+
+test_that("rdoc_union_to_s7 handles multi-way NULL unions", {
+  # NULL | char | int
+  ast <- parse_type_syntax("NULL | character | integer")
+  s7_union <- rdoc_union_to_s7(ast)
+
+  expect_s3_class(s7_union, "S7_union")
+  expect_equal(length(s7_union$classes), 3)
+  expect_true(is.null(s7_union$classes[[1]]))
+  expect_equal(s7_union$classes[[2]]$class, "character")
+  expect_equal(s7_union$classes[[3]]$class, "integer")
+})
+
+test_that("rdoc_union_to_s7 handles non-NULL unions", {
+  # integer | character (no NULL)
+  ast <- parse_type_syntax("integer | character")
+  s7_union <- rdoc_union_to_s7(ast)
+
+  expect_s3_class(s7_union, "S7_union")
+  expect_equal(length(s7_union$classes), 2)
+  expect_equal(s7_union$classes[[1]]$class, "integer")
+  expect_equal(s7_union$classes[[2]]$class, "character")
+})
+
+test_that("rdoc_union_to_s7 handles single types", {
+  # Not a union, just single type
+  ast <- parse_type_syntax("integer")
+  s7_class <- rdoc_union_to_s7(ast)
+
+  expect_s3_class(s7_class, "S7_base_class")
+  expect_equal(s7_class$class, "integer")
+})
+
+test_that("rdoc_union_to_s7 handles standalone NULL", {
+  ast <- parse_type_syntax("NULL")
+  result <- rdoc_union_to_s7(ast)
+
+  expect_null(result)
+})
+
+test_that("rdoc_union_to_s7 uses S7 class objects", {
+  # Verify we're using actual S7 classes
+  ast <- parse_type_syntax("NULL | integer")
+  s7_union <- rdoc_union_to_s7(ast)
+
+  # Check that union members are actual S7 class objects
+  expect_true(is.null(s7_union$classes[[1]]))  # NULL
+  expect_equal(s7_union$classes[[2]], S7::class_integer)  # S7 class object
+})
+
+test_that("rdoc_union_to_s7 validates with s7_class_compatible", {
+  # Create union
+  ast <- parse_type_syntax("NULL | integer")
+  s7_union <- rdoc_union_to_s7(ast)
+
+  # Test compatibility
+  expect_true(s7_class_compatible(S7::class_integer, s7_union))
+  expect_true(s7_class_compatible(NULL, s7_union))
+  expect_false(s7_class_compatible(S7::class_character, s7_union))
+})
+
+test_that("rdoc_union_to_s7 works with class_ prefix", {
+  # Both syntaxes should work
+  ast1 <- parse_type_syntax("NULL | integer")
+  ast2 <- parse_type_syntax("NULL | class_integer")
+
+  s7_union1 <- rdoc_union_to_s7(ast1)
+  s7_union2 <- rdoc_union_to_s7(ast2)
+
+  # Both should resolve to same S7 class
+  expect_equal(s7_union1$classes[[2]], s7_union2$classes[[2]])
+  expect_equal(s7_union1$classes[[2]], S7::class_integer)
+})
+
+test_that("rdoc_union_to_s7 handles complex types (future-proofing)", {
+  # Currently ignores constraints, but should not error
+  ast <- parse_type_syntax("NULL | list<integer>")
+  s7_union <- rdoc_union_to_s7(ast)
+
+  expect_s3_class(s7_union, "S7_union")
+  expect_true(is.null(s7_union$classes[[1]]))
+  expect_equal(s7_union$classes[[2]]$class, "list")
+
+  # With length constraint
+  ast <- parse_type_syntax("NULL | integer[5]")
+  s7_union <- rdoc_union_to_s7(ast)
+
+  expect_s3_class(s7_union, "S7_union")
+  expect_equal(s7_union$classes[[2]]$class, "integer")
 })

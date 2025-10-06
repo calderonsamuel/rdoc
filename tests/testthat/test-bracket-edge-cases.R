@@ -92,11 +92,11 @@ test_that("types_compatible handles subtyping with constraints", {
 })
 
 test_that("types_compatible handles union types with constraints", {
-  # Union on right side
+  # Union on right side (subtype → union, widening is safe)
   expect_true(types_compatible("class_integer[1]", "class_integer[1] | class_character[1]", actual_length = 1))
 
-  # Union on left side
-  expect_true(types_compatible("class_integer[1] | class_character[1]", "class_integer[1]", actual_length = 1))
+  # Union on left side (union → subtype, narrowing is unsafe)
+  expect_false(types_compatible("class_integer[1] | class_character[1]", "class_integer[1]", actual_length = 1))
 })
 
 test_that("parse_type_constraints handles combined nested constraints", {
