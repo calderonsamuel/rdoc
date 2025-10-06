@@ -91,6 +91,10 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
     if (text %in% c("TRUE", "FALSE")) {
       return("logical")
     }
+    # Check for integer literal (ends with L)
+    if (grepl("L$", text)) {
+      return("integer")
+    }
     return("numeric")
   }
 

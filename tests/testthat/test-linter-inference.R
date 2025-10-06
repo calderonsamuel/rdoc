@@ -25,6 +25,18 @@ test_that("infer_argument_type detects numeric", {
   expect_equal(result, "numeric")
 })
 
+test_that("infer_argument_type detects integer literals (with L suffix)", {
+  skip_if_not_installed("xml2")
+
+  code <- "30L"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  int_node <- xml2::xml_find_first(xml, "//expr")
+
+  result <- infer_argument_type(int_node)
+
+  expect_equal(result, "integer")
+})
+
 test_that("infer_argument_type detects logical", {
   skip_if_not_installed("xml2")
 
