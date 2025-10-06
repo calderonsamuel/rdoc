@@ -170,9 +170,9 @@ test_that("types_compatible handles rdoc union types with S7", {
 
 test_that("types_compatible handles length constraints", {
   # Length constraints are stripped, then S7 compatibility checked
-  expect_true(types_compatible("class_integer(1)", "integer(1)"))
-  expect_true(types_compatible("integer(1)", "class_integer(1)"))
-  expect_true(types_compatible("class_integer(1)", "integer"))
+  expect_true(types_compatible("class_integer[1]", "integer[1]"))
+  expect_true(types_compatible("integer[1]", "class_integer[1]"))
+  expect_true(types_compatible("class_integer[1]", "integer"))
 })
 
 test_that("types_compatible falls back for non-S7 types", {

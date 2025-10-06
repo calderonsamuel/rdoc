@@ -51,19 +51,7 @@ distance_3d(list(0, 0, 0), list(1, 1, 1))  # ✓ Both lists of 3 scalars
 # Currently, length checking is most effective for scalar literals
 
 
-# Example 4: Backward compatibility with (n) syntax
-#' Old-style scalar notation
-#' @typedParam x {class_numeric(1)} still works!
-#' @typedReturn {class_numeric(1)} returns scalar
-legacy_function <- function(x) {
-  x * 2
-}
-
-legacy_function(5)  # ✓ Still works
-
-
 # Summary:
 # - [n]  = length constraint (scalar = [1])
 # - <T>  = element type constraint
 # - <T>[n] = combined (list of T with length n)
-# - (n)  = legacy syntax (still supported)

@@ -7,34 +7,36 @@ test_that("parse_type_constraints handles nested generics", {
   expect_type(result, "list")
 })
 
-test_that("parse_type_constraints handles empty brackets", {
-  result <- parse_type_constraints("class_integer[]")
-
-  # Empty brackets should be treated as no constraint
-  expect_equal(result$base_type, "class_integer[]")
-  expect_null(result$length_constraint)
+test_that("parse_type_constraints rejects empty brackets", {
+  # With validation, empty brackets are now an error
+  expect_error(
+    parse_type_constraints("class_integer[]"),
+    "Empty length constraint"
+  )
 })
 
-test_that("parse_type_constraints handles non-numeric length", {
-  result <- parse_type_constraints("class_integer[abc]")
-
-  # Non-numeric should fail to parse as constraint
-  expect_equal(result$base_type, "class_integer[abc]")
-  expect_null(result$length_constraint)
+test_that("parse_type_constraints rejects non-numeric length", {
+  # With validation, non-numeric length is now an error
+  expect_error(
+    parse_type_constraints("class_integer[abc]"),
+    "must be a positive integer"
+  )
 })
 
-test_that("parse_type_constraints handles empty angle brackets", {
-  result <- parse_type_constraints("class_list<>")
-
-  # Empty angle brackets should be treated as no constraint
-  expect_equal(result$base_type, "class_list<>")
-  expect_null(result$element_type)
+test_that("parse_type_constraints rejects empty angle brackets", {
+  # With validation, empty angle brackets are now an error
+  expect_error(
+    parse_type_constraints("class_list<>"),
+    "Empty element type"
+  )
 })
 
-test_that("parse_type_constraints handles whitespace in brackets", {
+test_that("parse_type_constraints handles whitespace in brackets gracefully", {
+  # Validation allows whitespace (after trim), but parsing doesn't match it
+  # This is OK - validation passes, parsing treats it as unparseable
   result <- parse_type_constraints("class_integer[ 1 ]")
 
-  # Whitespace inside brackets should fail to match
+  # Parser doesn't match whitespace pattern, preserved as-is
   expect_equal(result$base_type, "class_integer[ 1 ]")
   expect_null(result$length_constraint)
 })
@@ -106,29 +108,34 @@ test_that("parse_type_constraints handles combined nested constraints", {
   expect_equal(result$length_constraint, 3)
 })
 
-test_that("parse_type_constraints preserves unparseable patterns", {
-  # These should return as-is without crashing
-  patterns <- c(
-    "class_integer[1][2]",  # Double brackets
-    "class_integer[-1]",  # Negative (pattern won't match)
-    "class_integer[1.5]"  # Decimal (pattern won't match)
+test_that("parse_type_constraints rejects malformed patterns", {
+  # With validation, these are now errors instead of silent preservation
+
+  # Negative length
+  expect_error(
+    parse_type_constraints("class_integer[-1]"),
+    "must be a positive integer"
   )
 
-  for (pattern in patterns) {
-    result <- parse_type_constraints(pattern)
-    expect_type(result, "list")
-    expect_equal(result$base_type, pattern)
-  }
+  # Decimal length
+  expect_error(
+    parse_type_constraints("class_integer[1.5]"),
+    "must be a positive integer"
+  )
+
+  # Double brackets - validation can't detect this (would need parsing)
+  # Just verify it doesn't crash
+  result <- parse_type_constraints("class_integer[1][2]")
+  expect_equal(result$base_type, "class_integer[1][2]")  # Preserved as-is
+  expect_null(result$length_constraint)  # Not parsed
 })
 
 test_that("parse_type_constraints rejects double angle brackets", {
-  # class_list<int><char> is malformed - should NOT parse
-  result <- parse_type_constraints("class_list<int><char>")
-
-  # Should fail to match and preserve as-is
-  expect_equal(result$base_type, "class_list<int><char>")
-  expect_null(result$element_type)
-  expect_null(result$length_constraint)
+  # class_list<int><char> is malformed - validation catches it
+  expect_error(
+    parse_type_constraints("class_list<int><char>"),
+    "Multiple element types"
+  )
 })
 
 test_that("format_type_constraints handles complex nested types", {
@@ -156,17 +163,16 @@ test_that("parse_type_constraints handles class_ prefix variations", {
   expect_equal(result1$base_type, "class_integer")
   expect_equal(result1$length_constraint, 1)
 
-  # Without class_ prefix (legacy)
+  # Without class_ prefix (also valid)
   result2 <- parse_type_constraints("integer[1]")
   expect_equal(result2$base_type, "integer")
   expect_equal(result2$length_constraint, 1)
 })
 
-test_that("parse_type_constraints handles mixed syntax gracefully", {
-  # Old parentheses + new brackets
-  result <- parse_type_constraints("class_integer(1)[2]")
-
-  # Should extract the bracket part
-  expect_equal(result$base_type, "class_integer(1)")
-  expect_equal(result$length_constraint, 2)
+test_that("parse_type_constraints rejects mixed parenthesis and bracket syntax", {
+  # Parentheses in type spec should be rejected
+  expect_error(
+    parse_type_constraints("class_integer(1)[2]"),
+    "Invalid syntax"
+  )
 })

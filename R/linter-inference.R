@@ -267,7 +267,7 @@ types_compatible <- function(actual, expected, actual_length = NULL) {
   actual_parsed <- parse_type_constraints(actual)
   expected_parsed <- parse_type_constraints(expected)
 
-  # Remove legacy length constraints (parentheses) for backward compatibility
+  # Strip any parentheses from base type for comparison
   actual_base <- gsub("\\(.*\\)$", "", actual_parsed$base_type)
   expected_base <- gsub("\\(.*\\)$", "", expected_parsed$base_type)
 

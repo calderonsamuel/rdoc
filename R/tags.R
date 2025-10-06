@@ -49,6 +49,9 @@ tag_parse_typed_param <- function(x) {
   type_spec <- matches[3]
   description <- matches[4]
 
+  # Validate type syntax
+  validate_type_syntax(type_spec, source_location = paste0("@typedParam ", param_name))
+
   # Store both rdoc-specific and roxygen2-compatible information
   x$val <- list(
     # For rdoc type checking
@@ -90,6 +93,9 @@ tag_parse_typed_return <- function(x) {
 
   type_spec <- matches[2]
   description <- matches[3]
+
+  # Validate type syntax
+  validate_type_syntax(type_spec, source_location = "@typedReturn")
 
   # Store both rdoc-specific and roxygen2-compatible information
   # Use consistent list structure like @typedParam

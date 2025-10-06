@@ -9,12 +9,12 @@ test_that("@typed-param parses basic types correctly", {
 })
 
 test_that("@typed-param handles scalar notation", {
-  tag <- list(raw = "trim {numeric(1)} proportion to trim")
+  tag <- list(raw = "trim {numeric[1]} proportion to trim")
 
   result <- tag_parse_typed_param(tag)
 
   expect_equal(result$val$param, "trim")
-  expect_equal(result$val$type, "numeric(1)")
+  expect_equal(result$val$type, "numeric[1]")
   expect_equal(result$val$description, "proportion to trim")
 })
 
@@ -58,11 +58,11 @@ test_that("@typed-param errors on invalid format", {
 })
 
 test_that("@typed-return parses correctly", {
-  tag <- list(raw = "{numeric(1)} the mean value")
+  tag <- list(raw = "{numeric[1]} the mean value")
 
   result <- tag_parse_typed_return(tag)
 
-  expect_equal(result$val$type, "numeric(1)")
+  expect_equal(result$val$type, "numeric[1]")
   expect_equal(result$val$description, "the mean value")
 })
 

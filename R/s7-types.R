@@ -197,7 +197,7 @@ string_based_compatible <- function(actual, expected) {
     return(TRUE)
   }
 
-  # Legacy numeric compatibility for non-S7 types
+  # R's numeric type compatibility: numeric/double/integer are interchangeable
   if (expected %in% c("numeric", "double") && actual %in% c("numeric", "integer", "double")) {
     return(TRUE)
   }

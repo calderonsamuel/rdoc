@@ -22,10 +22,10 @@ test_that("types_compatible with bracket syntax maintains S7 type checking", {
   expect_false(types_compatible("class_character", "class_numeric[1]", actual_length = 1))
 })
 
-test_that("types_compatible backward compatible with parentheses syntax", {
-  # Legacy syntax should still work
-  expect_true(types_compatible("class_integer", "class_integer(1)"))
-  expect_true(types_compatible("class_numeric", "class_numeric(5)"))
+test_that("types_compatible rejects parentheses syntax", {
+  # Parenthesis syntax is invalid - should be rejected by validator
+  expect_error(types_compatible("class_integer", "class_integer(1)"))
+  expect_error(types_compatible("class_numeric", "class_numeric(5)"))
 })
 
 test_that("linter parses bracket syntax in annotations without error", {

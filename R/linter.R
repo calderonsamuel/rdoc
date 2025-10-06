@@ -3,7 +3,7 @@
 #' Checks function calls against type annotations from @typedParam and @typedReturn tags.
 #' Works with both local function definitions and installed packages.
 #'
-#' @typedParam strict {logical(1)} Enable strict mode (default: FALSE).
+#' @typedParam strict {logical[1]} Enable strict mode (default: FALSE).
 #'   In strict mode, missing type annotations are flagged as lints.
 #' @typedReturn {function} A linter function for use with lintr
 #' @export

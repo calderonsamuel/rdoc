@@ -523,7 +523,7 @@ test_that("linter infers types from function calls with scalar returns", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedReturn {numeric(1)} scalar number
+    #' @typedReturn {numeric[1]} scalar number
     get_scalar <- function() 42
 
     #' @typedParam x {numeric} vector
@@ -535,7 +535,7 @@ test_that("linter infers types from function calls with scalar returns", {
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
-  # Should pass - numeric(1) is compatible with numeric
+  # Should pass - numeric[1] is compatible with numeric
   expect_equal(length(lints), 0)
 })
 

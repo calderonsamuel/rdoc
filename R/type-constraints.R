@@ -1,11 +1,11 @@
 #' Parse type specification with bracket constraints
 #'
 #' Parses type specifications supporting:
-#' - Length constraints: class_integer[1], class_numeric[5]
+#' - Length constraints: class_integer\[1\], class_numeric\[5\]
 #' - Element type constraints: class_list<class_integer>
-#' - Combined: class_list<class_numeric>[3]
+#' - Combined: class_list<class_numeric>\[3\]
 #'
-#' @param type_spec Type specification string (e.g., "class_integer[1]")
+#' @param type_spec Type specification string (e.g., "class_integer\[1\]")
 #' @return List with base_type, length_constraint, and element_type
 #' @keywords internal
 #'
@@ -22,6 +22,9 @@
 #' parse_type_constraints("class_list<class_numeric>[3]")
 #' # Returns: list(base_type = "class_list", element_type = "class_numeric", length_constraint = 3)
 parse_type_constraints <- function(type_spec) {
+  # Validate syntax before parsing
+  validate_type_syntax(type_spec)
+
   # Initialize result
   result <- list(
     base_type = type_spec,
