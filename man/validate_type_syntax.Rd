@@ -15,8 +15,9 @@ validate_type_syntax(type_spec, source_location = NULL)
 Invisible NULL if valid, aborts with error if invalid
 }
 \description{
-Checks for common malformed patterns and provides clear error messages.
-This function is called before parsing to catch syntax errors early.
+Uses the recursive descent parser to validate type syntax.
+This replaces the previous regex-based validation (Phase 13.1) with
+a proper parser (Phase 13.4) for better error messages and maintainability.
 }
 \examples{
 \dontrun{

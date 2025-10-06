@@ -3,11 +3,13 @@
 #' Recursive descent parser for type annotation syntax.
 #'
 #' Grammar (EBNF):
-#'   type_expr   ::= union_type
-#'   union_type  ::= primary_type ("|" primary_type)*
-#'   primary_type::= identifier element_type? length_constraint?
-#'   element_type::= "<" type_expr ">"
+#' \preformatted{
+#'   type_expr         ::= union_type
+#'   union_type        ::= primary_type ("|" primary_type)*
+#'   primary_type      ::= identifier element_type? length_constraint?
+#'   element_type      ::= "<" type_expr ">"
 #'   length_constraint ::= "[" number "]"
+#' }
 #'
 #' @param input Character string containing type syntax
 #' @return AST object (nested list structure)
