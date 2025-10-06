@@ -236,53 +236,68 @@ extract_variable_assignments <- function(xml) {
 
 #' Check if two types are compatible
 #'
-#' @param actual Actual type
-#' @param expected Expected type
+#' S7-FIRST ARCHITECTURE: Resolves type strings to S7 class objects and uses
+#' S7's type system for compatibility checking. Falls back to string-based
+#' checking only for non-S7 types (data.frame, matrix, etc).
+#'
+#' @param actual Actual type string (e.g., "integer", "class_integer")
+#' @param expected Expected type string
 #' @return Logical
 #' @keywords internal
+#'
+#' @examples
+#' \dontrun{
+#' # S7 types (uses S7::class_* compatibility)
+#' types_compatible("integer", "numeric")        # TRUE (numeric = integer | double)
+#' types_compatible("class_integer", "numeric")  # TRUE (same, normalized)
+#'
+#' # S7 inheritance (future: custom classes)
+#' types_compatible("Child", "Parent")  # TRUE if Child inherits from Parent
+#'
+#' # Fallback for non-S7 types
+#' types_compatible("data.frame", "data.frame")  # TRUE (string match)
+#' types_compatible("data.frame", "matrix")      # FALSE
+#' }
 types_compatible <- function(actual, expected) {
   # Remove length constraints for basic compatibility check
   actual_base <- gsub("\\(.*\\)$", "", actual)
   expected_base <- gsub("\\(.*\\)$", "", expected)
 
-  # Normalize type names (handles "integer" and "class_integer")
-  actual_base <- normalize_type_name(actual_base)
-  expected_base <- normalize_type_name(expected_base)
-
-  # Exact match
-  if (actual_base == expected_base) {
-    return(TRUE)
-  }
-
-  # Handle union types in expected
+  # Handle union types (must do this before S7 lookup)
   if (grepl("\\|", expected)) {
     expected_types <- split_union_types(expected)
     expected_bases <- gsub("\\(.*\\)$", "", trimws(expected_types))
-    expected_bases <- sapply(expected_bases, normalize_type_name)
-    return(actual_base %in% expected_bases)
+    # Check if actual is compatible with any type in the union
+    for (exp_type in expected_bases) {
+      if (types_compatible(actual_base, exp_type)) {
+        return(TRUE)
+      }
+    }
+    return(FALSE)
   }
 
-  # Handle union types in actual
   if (grepl("\\|", actual)) {
     actual_types <- split_union_types(actual)
     actual_bases <- gsub("\\(.*\\)$", "", trimws(actual_types))
-    actual_bases <- sapply(actual_bases, normalize_type_name)
-    return(expected_base %in% actual_bases)
+    # Check if any type in actual union is compatible with expected
+    for (act_type in actual_bases) {
+      if (types_compatible(act_type, expected_base)) {
+        return(TRUE)
+      }
+    }
+    return(FALSE)
   }
 
-  # S7 numeric compatibility (numeric is integer | double)
-  if (expected_base == "numeric" && actual_base %in% c("integer", "double")) {
-    return(TRUE)
+  # S7-FIRST: Try to resolve both types to S7 classes
+  actual_s7 <- type_string_to_s7_class(actual_base)
+  expected_s7 <- type_string_to_s7_class(expected_base)
+
+  # If both are S7 types, use S7's compatibility logic
+  if (!is.null(actual_s7) && !is.null(expected_s7)) {
+    return(s7_class_compatible(actual_s7, expected_s7))
   }
 
-  if (actual_base == "numeric" && expected_base %in% c("integer", "double")) {
-    return(TRUE)
-  }
-
-  # Backward compatibility: double and numeric are compatible
-  if (expected_base %in% c("numeric", "double") && actual_base %in% c("numeric", "double")) {
-    return(TRUE)
-  }
-
-  FALSE
+  # FALLBACK: String-based compatibility for non-S7 types
+  # (data.frame, matrix, custom classes not in S7, etc.)
+  string_based_compatible(actual_base, expected_base)
 }

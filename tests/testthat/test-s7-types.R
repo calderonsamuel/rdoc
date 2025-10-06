@@ -104,57 +104,80 @@ test_that("s7_class_to_type_string converts S7 classes to strings", {
   expect_equal(s7_class_to_type_string(S7::class_numeric), "numeric")
 })
 
-# s7_types_compatible() tests ----
+# s7_class_compatible() tests ----
 
-test_that("s7_types_compatible handles exact matches", {
-  expect_true(s7_types_compatible("integer", "integer"))
-  expect_true(s7_types_compatible("double", "double"))
-  expect_true(s7_types_compatible("character", "character"))
+test_that("s7_class_compatible handles exact matches", {
+  skip_if_not_installed("S7")
+
+  expect_true(s7_class_compatible(S7::class_integer, S7::class_integer))
+  expect_true(s7_class_compatible(S7::class_double, S7::class_double))
+  expect_true(s7_class_compatible(S7::class_character, S7::class_character))
 })
 
-test_that("s7_types_compatible handles class_ prefix in both arguments", {
-  expect_true(s7_types_compatible("class_integer", "integer"))
-  expect_true(s7_types_compatible("integer", "class_integer"))
-  expect_true(s7_types_compatible("class_integer", "class_integer"))
-})
+test_that("s7_class_compatible handles numeric union", {
+  skip_if_not_installed("S7")
 
-test_that("s7_types_compatible handles numeric union", {
   # numeric accepts integer or double
-  expect_true(s7_types_compatible("integer", "numeric"))
-  expect_true(s7_types_compatible("double", "numeric"))
-  expect_true(s7_types_compatible("numeric", "integer"))
-  expect_true(s7_types_compatible("numeric", "double"))
+  expect_true(s7_class_compatible(S7::class_integer, S7::class_numeric))
+  expect_true(s7_class_compatible(S7::class_double, S7::class_numeric))
 })
 
-test_that("s7_types_compatible rejects incompatible types", {
-  expect_false(s7_types_compatible("integer", "character"))
-  expect_false(s7_types_compatible("double", "logical"))
-  expect_false(s7_types_compatible("character", "integer"))
+test_that("s7_class_compatible rejects incompatible types", {
+  skip_if_not_installed("S7")
+
+  expect_false(s7_class_compatible(S7::class_integer, S7::class_character))
+  expect_false(s7_class_compatible(S7::class_double, S7::class_logical))
+  expect_false(s7_class_compatible(S7::class_character, S7::class_integer))
 })
 
-# Integration tests with types_compatible() ----
+test_that("s7_class_compatible handles inheritance", {
+  skip_if_not_installed("S7")
 
-test_that("types_compatible uses normalize_type_name for basic types", {
+  # Create parent and child classes
+  Parent <- S7::new_class("Parent")
+  Child <- S7::new_class("Child", parent = Parent)
+
+  # Child should be compatible with Parent
+  expect_true(s7_class_compatible(Child, Parent))
+
+  # Parent should NOT be compatible with Child
+  expect_false(s7_class_compatible(Parent, Child))
+})
+
+# Integration tests with types_compatible() (S7-first) ----
+
+test_that("types_compatible uses S7 for base types", {
+  # Both short and class_ prefix forms resolve to S7 classes
   expect_true(types_compatible("class_integer", "integer"))
   expect_true(types_compatible("integer", "class_integer"))
   expect_true(types_compatible("class_integer", "class_integer"))
 })
 
-test_that("types_compatible handles class_ prefix in union types", {
-  expect_true(types_compatible("class_integer", "integer | NULL"))
-  expect_true(types_compatible("integer", "class_integer | NULL"))
-  expect_true(types_compatible("class_integer | NULL", "integer"))
-})
-
-test_that("types_compatible handles S7 numeric union with class_ prefix", {
+test_that("types_compatible handles S7 numeric union", {
+  # S7's class_numeric is integer | double
   expect_true(types_compatible("class_integer", "numeric"))
   expect_true(types_compatible("class_double", "numeric"))
   expect_true(types_compatible("integer", "class_numeric"))
   expect_true(types_compatible("double", "class_numeric"))
 })
 
-test_that("types_compatible handles length constraints with class_ prefix", {
+test_that("types_compatible handles rdoc union types with S7", {
+  # rdoc's | syntax still works, using S7 under the hood
+  expect_true(types_compatible("class_integer", "integer | NULL"))
+  expect_true(types_compatible("integer", "class_integer | NULL"))
+  expect_true(types_compatible("class_integer | NULL", "integer"))
+})
+
+test_that("types_compatible handles length constraints", {
+  # Length constraints are stripped, then S7 compatibility checked
   expect_true(types_compatible("class_integer(1)", "integer(1)"))
   expect_true(types_compatible("integer(1)", "class_integer(1)"))
   expect_true(types_compatible("class_integer(1)", "integer"))
+})
+
+test_that("types_compatible falls back for non-S7 types", {
+  # Non-S7 types use string-based compatibility
+  expect_true(types_compatible("data.frame", "data.frame"))
+  expect_true(types_compatible("matrix", "matrix"))
+  expect_false(types_compatible("data.frame", "matrix"))
 })
