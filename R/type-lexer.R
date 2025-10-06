@@ -99,37 +99,14 @@ lex_type_syntax <- function(input) {
     }
 
     # Identifier (letters, digits, dots, underscores)
-    # Must start with letter, can contain dots and underscores
-    # But NOT bare numbers (e.g., numeric5 is invalid)
+    # Must start with letter, can contain digits, dots, and underscores
     if (grepl("[A-Za-z]", char)) {
       start_pos <- position
       value <- ""
 
       while (position <= n) {
         char <- substr(input, position, position)
-        if (grepl("[A-Za-z._]", char)) {
-          value <- paste0(value, char)
-          position <- position + 1
-        } else if (grepl("[0-9]", char)) {
-          # Check if this looks like a bare number (not followed by brackets)
-          # Peek ahead to see what comes next
-          next_pos <- position + 1
-          while (next_pos <= n && grepl("[0-9]", substr(input, next_pos, next_pos))) {
-            next_pos <- next_pos + 1
-          }
-          # If not followed by [ it's a bare number error
-          next_char <- if (next_pos <= n) substr(input, next_pos, next_pos) else ""
-          if (next_char != "[") {
-            cli::cli_abort(
-              c(
-                "Unexpected number '{char}' at position {position}",
-                "i" = "Numbers must be inside \\[\\] for length constraints",
-                "x" = "Use '{value}\\[{char}...\\]' not '{value}{char}...'"
-              ),
-              call = NULL
-            )
-          }
-          # It's followed by [, so this is a syntax error we'll catch later
+        if (grepl("[A-Za-z0-9._]", char)) {
           value <- paste0(value, char)
           position <- position + 1
         } else {

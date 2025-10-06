@@ -95,16 +95,19 @@ test_that("lexer rejects invalid characters", {
   )
 })
 
-test_that("lexer rejects numbers outside brackets", {
-  expect_error(
-    lex_type_syntax("numeric5"),
-    "Unexpected number '5' at position 8"
-  )
+test_that("lexer allows numbers in identifiers", {
+  # Identifiers can contain numbers (like R identifiers)
+  tokens <- lex_type_syntax("numeric5")
+  expect_equal(tokens[[1]]$type, "IDENTIFIER")
+  expect_equal(tokens[[1]]$value, "numeric5")
 
-  expect_error(
-    lex_type_syntax("list10"),
-    "Unexpected number '1' at position 5"
-  )
+  tokens <- lex_type_syntax("list10")
+  expect_equal(tokens[[1]]$type, "IDENTIFIER")
+  expect_equal(tokens[[1]]$value, "list10")
+
+  # This allows custom types like "R6Class2" or "data.frame2"
+  tokens <- lex_type_syntax("MyClass123")
+  expect_equal(tokens[[1]]$value, "MyClass123")
 })
 
 test_that("lexer rejects parentheses", {
@@ -394,9 +397,6 @@ test_that("parser rejects all invalid syntax from Phase 13.1", {
 
   # Curly braces
   expect_error(parse_type_syntax("numeric{1}"))
-
-  # Bare numbers
-  expect_error(parse_type_syntax("numeric1"))
 
   # Multiple element types
   expect_error(parse_type_syntax("list<int><char>"))
