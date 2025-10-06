@@ -43,6 +43,20 @@ check_single_call <- function(call_node, all_types, var_context, source_expressi
 
   fn_name <- xml2::xml_text(fn_node)
 
+  # Check for property access (e.g., math$double)
+  # Structure: expr[expr/OP-DOLLAR/SYMBOL_FUNCTION_CALL]
+  fn_parent <- xml2::xml_parent(fn_node)
+  has_dollar <- !is.na(xml2::xml_find_first(fn_parent, "./OP-DOLLAR"))
+
+  if (has_dollar) {
+    # Get the module/object name before the $
+    module_node <- xml2::xml_find_first(fn_parent, "./expr[1]/SYMBOL | ./expr[1]//SYMBOL")
+    if (!is.na(module_node)) {
+      module_name <- xml2::xml_text(module_node)
+      fn_name <- paste0(module_name, "$", fn_name)
+    }
+  }
+
   # Check if we have type info for this function
   if (!fn_name %in% names(all_types)) {
     return(list())

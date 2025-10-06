@@ -36,7 +36,8 @@ type_consistency_linter <- function(strict = FALSE) {
       file_cache[[filename]] <- list(
         comments = character(),
         types = list(),
-        variables = list()
+        variables = list(),
+        box_modules = list()  # Cache box module types across expressions
       )
     }
 
@@ -123,8 +124,16 @@ type_consistency_linter <- function(strict = FALSE) {
     loaded_packages <- find_loaded_packages(source_expression)
     package_types <- load_package_types(loaded_packages)
 
-    # Combine local and package types
-    all_types <- c(cache$types, package_types)
+    # Load box module types (Phase 21.4)
+    # Accumulate box module imports across expressions
+    new_box_types <- load_box_module_types(xml, filename)
+    if (length(new_box_types) > 0) {
+      cache$box_modules <- c(cache$box_modules, new_box_types)
+      file_cache[[filename]] <- cache
+    }
+
+    # Combine local, package, and cached box module types
+    all_types <- c(cache$types, package_types, cache$box_modules)
 
     # Extract and accumulate variable assignments
     # Do this AFTER type extraction so we can infer function return types
