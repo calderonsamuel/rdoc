@@ -16,7 +16,7 @@ test_that("linter flags type mismatch - literal argument", {
   lints <- lintr::lint(text = code, linters = type_consistency_linter())
 
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_numeric.*class_character", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter passes with correct type - literal argument", {
@@ -49,7 +49,7 @@ test_that("linter handles multiple arguments", {
 
   # Should detect mismatch on second argument
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_numeric.*class_character", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter handles named arguments", {
@@ -85,7 +85,7 @@ test_that("linter handles mixed positional and named arguments", {
 
   # Should detect mismatch on y (named argument with wrong type)
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_numeric.*class_character", vapply(lints, function(l) l$message, character(1)))))
 })
 
 
@@ -177,7 +177,7 @@ test_that("linter infers type from character vector variable", {
 
   # Should detect: foo expects numeric but a is character
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_numeric.*class_character", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers type from numeric vector variable", {
@@ -195,7 +195,7 @@ test_that("linter infers type from numeric vector variable", {
 
   # Should detect: foo expects character but a is numeric
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("character.*numeric", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_character.*class_numeric", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers type from logical variable", {
@@ -213,7 +213,7 @@ test_that("linter infers type from logical variable", {
 
   # Should detect: foo expects numeric but a is logical
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("numeric.*logical", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_numeric.*class_logical", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers type from string variable", {
@@ -231,7 +231,7 @@ test_that("linter infers type from string variable", {
 
   # Should detect: foo expects numeric but a is character
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_numeric.*class_character", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers type from NULL variable", {
@@ -249,7 +249,7 @@ test_that("linter infers type from NULL variable", {
 
   # Should detect: foo expects numeric but a is NULL
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("numeric.*NULL", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_numeric.*NULL", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers type from list() constructor", {
@@ -267,7 +267,7 @@ test_that("linter infers type from list() constructor", {
 
   # Should detect: foo expects numeric but a is list
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("numeric.*list", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_numeric.*class_list", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers type from empty list() constructor", {
@@ -285,7 +285,7 @@ test_that("linter infers type from empty list() constructor", {
 
   # Should detect: foo expects numeric but a is list
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("numeric.*list", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_numeric.*class_list", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers type from data.frame() constructor", {
@@ -303,7 +303,7 @@ test_that("linter infers type from data.frame() constructor", {
 
   # Should detect: foo expects numeric but a is data.frame
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("numeric.*data\\.frame", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_numeric.*data.frame", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers type from matrix() constructor", {
@@ -321,7 +321,7 @@ test_that("linter infers type from matrix() constructor", {
 
   # Should detect: foo expects numeric but a is matrix
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("numeric.*matrix", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_numeric.*matrix", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter passes when variable type matches from c()", {
@@ -428,7 +428,7 @@ test_that("linter handles variables from outer scope", {
 
   # Should detect that 'a' is character from outer scope
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_numeric.*class_character", vapply(lints, function(l) l$message, character(1)))))
 })
 
 # Phase 7: Function Return Type Inference ----
@@ -451,7 +451,7 @@ test_that("linter infers types from function return values - simple case", {
 
   # Should detect: process_text expects character but result is numeric
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("character.*numeric", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_character.*class_numeric", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers types from function return values - matching types", {
@@ -556,7 +556,7 @@ test_that("linter handles inline function calls as arguments", {
 
   # Should detect: expects character but get_number() returns numeric
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("character.*numeric", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_character.*class_numeric", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers types from functions returning list, data.frame, matrix", {
@@ -614,5 +614,5 @@ test_that("linter catches type mismatch with complex return types", {
 
   # Should detect: expects list but get_df() returns data.frame
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("list.*data\\.frame", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_list.*data.frame", vapply(lints, function(l) l$message, character(1)))))
 })

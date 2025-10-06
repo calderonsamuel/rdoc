@@ -204,3 +204,30 @@ string_based_compatible <- function(actual, expected) {
 
   FALSE
 }
+
+#' Convert type to S7 display name for error messages
+#'
+#' Always uses S7 convention (class_ prefix) for S7 base types
+#'
+#' @param type_string Type string to convert
+#' @return S7 display name
+#' @keywords internal
+#'
+#' @examples
+#' \dontrun{
+#' type_to_s7_display("integer")      # "class_integer"
+#' type_to_s7_display("numeric")      # "class_numeric"
+#' type_to_s7_display("data.frame")   # "data.frame" (not S7)
+#' }
+type_to_s7_display <- function(type_string) {
+  # Normalize first (strip class_ if present)
+  normalized <- normalize_type_name(type_string)
+
+  # Check if it's an S7 base type
+  if (is_s7_base_type(normalized)) {
+    return(paste0("class_", normalized))
+  }
+
+  # Non-S7 types keep their original name
+  normalized
+}

@@ -78,8 +78,8 @@ validate_return_type <- function(fn_assign_node, declared_type, source_expressio
       type = "warning",
       message = sprintf(
         "Function declares @typedReturn {%s} but returns {%s}",
-        declared_type,
-        actual_type
+        type_to_s7_display(declared_type),
+        type_to_s7_display(actual_type)
       ),
       line = line_text,
       ranges = list(c(col, col_end))

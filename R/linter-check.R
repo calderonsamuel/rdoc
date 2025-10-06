@@ -174,8 +174,8 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
         message = sprintf(
           "Argument '%s' expects type '%s' but got '%s'",
           param_name,
-          expected_type,
-          actual_type
+          type_to_s7_display(expected_type),
+          type_to_s7_display(actual_type)
         ),
         line = line_text,
         ranges = list(c(col, col_end))
