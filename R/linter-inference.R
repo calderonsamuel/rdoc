@@ -245,6 +245,10 @@ types_compatible <- function(actual, expected) {
   actual_base <- gsub("\\(.*\\)$", "", actual)
   expected_base <- gsub("\\(.*\\)$", "", expected)
 
+  # Normalize type names (handles "integer" and "class_integer")
+  actual_base <- normalize_type_name(actual_base)
+  expected_base <- normalize_type_name(expected_base)
+
   # Exact match
   if (actual_base == expected_base) {
     return(TRUE)
@@ -254,6 +258,7 @@ types_compatible <- function(actual, expected) {
   if (grepl("\\|", expected)) {
     expected_types <- split_union_types(expected)
     expected_bases <- gsub("\\(.*\\)$", "", trimws(expected_types))
+    expected_bases <- sapply(expected_bases, normalize_type_name)
     return(actual_base %in% expected_bases)
   }
 
@@ -261,11 +266,21 @@ types_compatible <- function(actual, expected) {
   if (grepl("\\|", actual)) {
     actual_types <- split_union_types(actual)
     actual_bases <- gsub("\\(.*\\)$", "", trimws(actual_types))
+    actual_bases <- sapply(actual_bases, normalize_type_name)
     return(expected_base %in% actual_bases)
   }
 
-  # Numeric compatibility
-  if (expected_base %in% c("numeric", "double") && actual_base %in% c("numeric", "integer", "double")) {
+  # S7 numeric compatibility (numeric is integer | double)
+  if (expected_base == "numeric" && actual_base %in% c("integer", "double")) {
+    return(TRUE)
+  }
+
+  if (actual_base == "numeric" && expected_base %in% c("integer", "double")) {
+    return(TRUE)
+  }
+
+  # Backward compatibility: double and numeric are compatible
+  if (expected_base %in% c("numeric", "double") && actual_base %in% c("numeric", "double")) {
     return(TRUE)
   }
 
