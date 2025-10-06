@@ -186,6 +186,19 @@ parse_primary_type <- function(parser) {
   langle_pos <- NULL
   if (parser$current()$type == "LANGLE") {
     langle_pos <- parser$current()$position
+
+    # Semantic validation: only list types can have element types
+    if (base_type != "list" && base_type != "class_list") {
+      cli::cli_abort(
+        c(
+          "Type '{base_type}' cannot have element type at position {langle_pos}",
+          "i" = "Only 'list' and 'class_list' can use <T> syntax",
+          "x" = "Atomic vectors like 'logical', 'numeric', 'integer', 'character' cannot contain other types"
+        ),
+        call = NULL
+      )
+    }
+
     parser$advance()
 
     # Check for empty <>

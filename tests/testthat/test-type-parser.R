@@ -407,6 +407,41 @@ test_that("parser rejects all invalid syntax from Phase 13.1", {
 })
 
 # =============================================================================
+# SEMANTIC VALIDATION TESTS
+# =============================================================================
+
+test_that("parser rejects element types on non-list types", {
+  # Primitive types cannot have element types
+  expect_error(
+    parse_type_syntax("logical<character>"),
+    "Type 'logical' cannot have element type"
+  )
+
+  expect_error(
+    parse_type_syntax("numeric<integer>"),
+    "Type 'numeric' cannot have element type"
+  )
+
+  expect_error(
+    parse_type_syntax("integer<numeric>"),
+    "Type 'integer' cannot have element type"
+  )
+
+  expect_error(
+    parse_type_syntax("character<logical>"),
+    "Type 'character' cannot have element type"
+  )
+})
+
+test_that("parser allows element types only on list types", {
+  # These should work
+  expect_silent(parse_type_syntax("list<integer>"))
+  expect_silent(parse_type_syntax("class_list<character>"))
+  expect_silent(parse_type_syntax("list<logical>"))
+  expect_silent(parse_type_syntax("class_list<numeric>"))
+})
+
+# =============================================================================
 # AST UTILITY TESTS
 # =============================================================================
 
