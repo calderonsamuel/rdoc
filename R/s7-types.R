@@ -29,6 +29,44 @@ normalize_type_name <- function(type_string) {
   type_string
 }
 
+# S7 type map - single source of truth for all S7 base types
+# Used by both type_string_to_s7_class() and is_s7_base_type()
+.s7_class_map <- list(
+  # Original 9 types
+  "logical" = S7::class_logical,
+  "integer" = S7::class_integer,
+  "double" = S7::class_double,
+  "complex" = S7::class_complex,
+  "character" = S7::class_character,
+  "raw" = S7::class_raw,
+  "list" = S7::class_list,
+  "expression" = S7::class_expression,
+  "numeric" = S7::class_numeric,
+
+  # Base classes (4)
+  "call" = S7::class_call,
+  "environment" = S7::class_environment,
+  "function" = S7::class_function,
+  "name" = S7::class_name,
+
+  # Unions (3)
+  "atomic" = S7::class_atomic,
+  "language" = S7::class_language,
+  "vector" = S7::class_vector,
+
+  # S3 wrappers (7)
+  "data.frame" = S7::class_data.frame,
+  "Date" = S7::class_Date,
+  "factor" = S7::class_factor,
+  "formula" = S7::class_formula,
+  "POSIXct" = S7::class_POSIXct,
+  "POSIXlt" = S7::class_POSIXlt,
+  "POSIXt" = S7::class_POSIXt,
+
+  # Special
+  "any" = S7::class_any
+)
+
 #' Check if type is an S7 base type
 #'
 #' @param type_string Type name to check
@@ -37,30 +75,8 @@ normalize_type_name <- function(type_string) {
 is_s7_base_type <- function(type_string) {
   type_string <- normalize_type_name(type_string)
 
-  s7_base_types <- c(
-    # Original 9 types
-    "logical", "integer", "double", "complex", "character", "raw",
-    "list", "expression", "numeric",
-
-    # Base classes (4)
-    "call", "environment", "function", "name",
-
-    # Unions (3)
-    "atomic", "language", "vector",
-
-    # S3 wrappers (7)
-    "data.frame", "Date", "factor", "formula", "POSIXct", "POSIXlt", "POSIXt",
-
-    # Special
-    "any"
-  )
-
   # NULL is a special case - not an S7 class but a valid type
-  if (type_string == "NULL") {
-    return(TRUE)
-  }
-
-  type_string %in% s7_base_types
+  type_string == "NULL" || type_string %in% names(.s7_class_map)
 }
 
 #' Convert type string to S7 class object
@@ -92,46 +108,7 @@ type_string_to_s7_class <- function(type_string) {
     return(NULL)
   }
 
-  # Special handling for 'any' - accepts any value
-  if (type_string == "any") {
-    return(S7::class_any)
-  }
-
-  # Map to S7 base classes
-  s7_class_map <- list(
-    # Original 9 types
-    "logical" = S7::class_logical,
-    "integer" = S7::class_integer,
-    "double" = S7::class_double,
-    "complex" = S7::class_complex,
-    "character" = S7::class_character,
-    "raw" = S7::class_raw,
-    "list" = S7::class_list,
-    "expression" = S7::class_expression,
-    "numeric" = S7::class_numeric,
-
-    # Base classes (4)
-    "call" = S7::class_call,
-    "environment" = S7::class_environment,
-    "function" = S7::class_function,
-    "name" = S7::class_name,
-
-    # Unions (3)
-    "atomic" = S7::class_atomic,
-    "language" = S7::class_language,
-    "vector" = S7::class_vector,
-
-    # S3 wrappers (7)
-    "data.frame" = S7::class_data.frame,
-    "Date" = S7::class_Date,
-    "factor" = S7::class_factor,
-    "formula" = S7::class_formula,
-    "POSIXct" = S7::class_POSIXct,
-    "POSIXlt" = S7::class_POSIXlt,
-    "POSIXt" = S7::class_POSIXt
-  )
-
-  s7_class_map[[type_string]]
+  .s7_class_map[[type_string]]
 }
 
 #' Convert S7 class object to type string

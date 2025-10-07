@@ -9,32 +9,25 @@
 infer_argument_type <- function(arg_node, var_context = NULL, current_line = NULL, type_registry = NULL) {
   # Check for function calls FIRST (before checking their arguments/literals)
 
-  # Check for c() function calls
+  # Check for c() function calls - infer from first arg
   c_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL[text()='c']")
   if (!is.na(c_call)) {
-    # Get the first argument to c() to infer type
     first_arg <- xml2::xml_find_first(arg_node, ".//expr[SYMBOL_FUNCTION_CALL[text()='c']]/parent::expr/following-sibling::expr[1]")
     if (!is.na(first_arg)) {
       return(infer_argument_type(first_arg, var_context, current_line, type_registry))
     }
   }
 
-  # Check for list() function calls
-  list_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL[text()='list']")
-  if (!is.na(list_call)) {
-    return("list")
-  }
-
-  # Check for data.frame() function calls
-  df_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL[text()='data.frame']")
-  if (!is.na(df_call)) {
-    return("data.frame")
-  }
-
-  # Check for matrix() function calls
-  matrix_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL[text()='matrix']")
-  if (!is.na(matrix_call)) {
-    return("matrix")
+  # Check for known constructor function calls
+  for (fn_info in list(
+    list(name = "list", type = "list"),
+    list(name = "data.frame", type = "data.frame"),
+    list(name = "matrix", type = "matrix")
+  )) {
+    fn_call <- xml2::xml_find_first(arg_node, sprintf(".//SYMBOL_FUNCTION_CALL[text()='%s']", fn_info$name))
+    if (!is.na(fn_call)) {
+      return(fn_info$type)
+    }
   }
 
   # Check for general function calls with @typedReturn

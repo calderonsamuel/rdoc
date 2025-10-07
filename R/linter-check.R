@@ -121,33 +121,10 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
     if (actual_type == "unknown") {
       # In strict mode, warn about unknown types
       if (mode == "strict") {
-        line <- as.integer(xml2::xml_attr(args[[i]]$node, "line1"))
-        col <- as.integer(xml2::xml_attr(args[[i]]$node, "col1"))
-        col_end <- as.integer(xml2::xml_attr(args[[i]]$node, "col2"))
-
-        if (is.na(line)) line <- 1L
-        if (is.na(col)) col <- 1L
-        if (is.na(col_end)) col_end <- col
-
-        line_text <- get_line_from_file(source_expression$filename, line)
-        max_col <- nchar(line_text) + 1L
-        col <- as.integer(min(max(col, 1L), max_col))
-        col_end <- as.integer(min(max(col_end, 1L), max_col))
-
-        if (is.na(col)) col <- 1L
-        if (is.na(col_end)) col_end <- col
-
-        lints[[length(lints) + 1]] <- lintr::Lint(
-          filename = source_expression$filename,
-          line_number = line,
-          column_number = col,
-          type = "warning",
-          message = sprintf(
-            "Cannot verify type of argument '%s' (unknown type) in %s mode",
-            param_name, mode
-          ),
-          line = line_text,
-          ranges = list(c(col, col_end))
+        lints[[length(lints) + 1]] <- create_lint(
+          args[[i]]$node,
+          source_expression,
+          sprintf("Cannot verify type of argument '%s' (unknown type) in %s mode", param_name, mode)
         )
       }
       next
@@ -155,44 +132,15 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
 
     # Check type compatibility
     if (!types_compatible(actual_type, expected_type)) {
-      # Create a lint
-      # Get line and column from XML (these are absolute line numbers in the file)
-      line <- as.integer(xml2::xml_attr(args[[i]]$node, "line1"))
-      col <- as.integer(xml2::xml_attr(args[[i]]$node, "col1"))
-      col_end <- as.integer(xml2::xml_attr(args[[i]]$node, "col2"))
-
-      # Handle NA values
-      if (is.na(line)) line <- 1L
-      if (is.na(col)) col <- 1L
-      if (is.na(col_end)) col_end <- col
-
-      # Get the actual line text from the file
-      # source_expression$lines only contains the current expression, not the whole file
-      # So we need to read the file to get the correct line content
-      line_text <- get_line_from_file(source_expression$filename, line)
-
-      # Ensure columns are within bounds
-      max_col <- nchar(line_text) + 1L
-      col <- as.integer(min(max(col, 1L), max_col))
-      col_end <- as.integer(min(max(col_end, 1L), max_col))
-
-      # Final NA check
-      if (is.na(col)) col <- 1L
-      if (is.na(col_end)) col_end <- col
-
-      lints[[length(lints) + 1]] <- lintr::Lint(
-        filename = source_expression$filename,
-        line_number = line,
-        column_number = col,
-        type = "warning",
-        message = sprintf(
+      lints[[length(lints) + 1]] <- create_lint(
+        args[[i]]$node,
+        source_expression,
+        sprintf(
           "Argument '%s' expects type '%s' but got '%s'",
           param_name,
           type_to_s7_display(expected_type),
           type_to_s7_display(actual_type)
-        ),
-        line = line_text,
-        ranges = list(c(col, col_end))
+        )
       )
     }
   }
@@ -215,6 +163,52 @@ get_line_from_file <- function(filename, line_number) {
     return("")
   }
   lines[line_number]
+}
+
+#' Create a lint object with proper positioning
+#'
+#' Helper to eliminate duplication in lint creation. Handles:
+#' - Extracting line/col from XML node
+#' - NA handling with defaults
+#' - Line text retrieval
+#' - Column clamping to line boundaries
+#'
+#' @param node XML node for positioning
+#' @param source_expression Source expression from lintr
+#' @param message Lint message
+#' @param fallback_line Fallback line if node has no line info
+#' @return lintr::Lint object
+#' @keywords internal
+create_lint <- function(node, source_expression, message, fallback_line = 1L) {
+  # Extract position from XML
+  line <- as.integer(xml2::xml_attr(node, "line1"))
+  col <- as.integer(xml2::xml_attr(node, "col1"))
+  col_end <- as.integer(xml2::xml_attr(node, "col2"))
+
+  # Handle NAs
+  if (is.na(line)) line <- fallback_line
+  if (is.na(col)) col <- 1L
+  if (is.na(col_end)) col_end <- col
+
+  # Get line text and clamp columns
+  line_text <- get_line_from_file(source_expression$filename, line)
+  max_col <- nchar(line_text) + 1L
+  col <- as.integer(min(max(col, 1L), max_col))
+  col_end <- as.integer(min(max(col_end, 1L), max_col))
+
+  # Final NA check
+  if (is.na(col)) col <- 1L
+  if (is.na(col_end)) col_end <- col
+
+  lintr::Lint(
+    filename = source_expression$filename,
+    line_number = line,
+    column_number = col,
+    type = "warning",
+    message = message,
+    line = line_text,
+    ranges = list(c(col, col_end))
+  )
 }
 
 #' Find loaded packages in source
@@ -359,33 +353,18 @@ check_strict_mode_annotations_impl <- function(fn_assign_node, type_info, source
       # Find the parameter node for positioning
       param_node <- xml2::xml_find_first(fn_node, sprintf(".//SYMBOL_FORMALS[text()='%s']", param_name))
 
-      line <- as.integer(xml2::xml_attr(param_node, "line1"))
-      col <- as.integer(xml2::xml_attr(param_node, "col1"))
-      col_end <- as.integer(xml2::xml_attr(param_node, "col2"))
+      # Use function node as fallback
+      fallback <- as.integer(xml2::xml_attr(fn_node, "line1"))
+      if (is.na(fallback)) fallback <- 1L
 
-      if (is.na(line)) line <- as.integer(xml2::xml_attr(fn_node, "line1"))
-      if (is.na(col)) col <- 1L
-      if (is.na(col_end)) col_end <- col
-
-      line_text <- get_line_from_file(source_expression$filename, line)
-      max_col <- nchar(line_text) + 1L
-      col <- as.integer(min(max(col, 1L), max_col))
-      col_end <- as.integer(min(max(col_end, 1L), max_col))
-
-      if (is.na(col)) col <- 1L
-      if (is.na(col_end)) col_end <- col
-
-      lints[[length(lints) + 1]] <- lintr::Lint(
-        filename = source_expression$filename,
-        line_number = line,
-        column_number = col,
-        type = "warning",
-        message = sprintf(
+      lints[[length(lints) + 1]] <- create_lint(
+        param_node,
+        source_expression,
+        sprintf(
           "Parameter '%s' missing type annotation (%s mode). Add @typedParam %s {type} description",
           param_name, mode, param_name
         ),
-        line = line_text,
-        ranges = list(c(col, col_end))
+        fallback_line = fallback
       )
     }
   }
@@ -394,34 +373,13 @@ check_strict_mode_annotations_impl <- function(fn_assign_node, type_info, source
   has_return_annotation <- !is.null(type_info) && !is.null(type_info$return)
 
   if (!has_return_annotation) {
-    # Position lint at function keyword
-    line <- as.integer(xml2::xml_attr(fn_node, "line1"))
-    col <- as.integer(xml2::xml_attr(fn_node, "col1"))
-    col_end <- as.integer(xml2::xml_attr(fn_node, "col2"))
-
-    if (is.na(line)) line <- 1L
-    if (is.na(col)) col <- 1L
-    if (is.na(col_end)) col_end <- col + 8L  # "function" is 8 characters
-
-    line_text <- get_line_from_file(source_expression$filename, line)
-    max_col <- nchar(line_text) + 1L
-    col <- as.integer(min(max(col, 1L), max_col))
-    col_end <- as.integer(min(max(col_end, 1L), max_col))
-
-    if (is.na(col)) col <- 1L
-    if (is.na(col_end)) col_end <- col
-
-    lints[[length(lints) + 1]] <- lintr::Lint(
-      filename = source_expression$filename,
-      line_number = line,
-      column_number = col,
-      type = "warning",
-      message = sprintf(
+    lints[[length(lints) + 1]] <- create_lint(
+      fn_node,
+      source_expression,
+      sprintf(
         "Function '%s' missing return type annotation (%s mode). Add @typedReturn {type} description",
         fn_name, mode
-      ),
-      line = line_text,
-      ranges = list(c(col, col_end))
+      )
     )
   }
 
