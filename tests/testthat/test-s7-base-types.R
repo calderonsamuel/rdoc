@@ -87,7 +87,7 @@ test_that("any type accepts anything", {
 test_that("missing type is forbidden with helpful error", {
   expect_error(
     rdoc:::validate_type_syntax("missing"),
-    "Type 'missing' is not allowed"
+    "Type 'missing' or 'class_missing' is not allowed"
   )
 
   expect_error(
@@ -104,12 +104,41 @@ test_that("missing type is forbidden with helpful error", {
 test_that("missing in unions is also forbidden", {
   expect_error(
     rdoc:::validate_type_syntax("missing | integer"),
-    "Type 'missing' is not allowed"
+    "Type 'missing' or 'class_missing' is not allowed"
   )
 
   expect_error(
     rdoc:::validate_type_syntax("integer | missing"),
-    "Type 'missing' is not allowed"
+    "Type 'missing' or 'class_missing' is not allowed"
+  )
+})
+
+test_that("class_missing type is also forbidden", {
+  expect_error(
+    rdoc:::validate_type_syntax("class_missing"),
+    "Type 'missing' or 'class_missing' is not allowed"
+  )
+
+  expect_error(
+    rdoc:::validate_type_syntax("class_missing"),
+    "Use missing\\(arg\\)"
+  )
+
+  expect_error(
+    rdoc:::validate_type_syntax("class_missing"),
+    "\\{NULL \\| Type\\}"
+  )
+})
+
+test_that("class_missing in unions is also forbidden", {
+  expect_error(
+    rdoc:::validate_type_syntax("class_missing | integer"),
+    "Type 'missing' or 'class_missing' is not allowed"
+  )
+
+  expect_error(
+    rdoc:::validate_type_syntax("integer | class_missing"),
+    "Type 'missing' or 'class_missing' is not allowed"
   )
 })
 

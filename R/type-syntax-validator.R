@@ -16,11 +16,11 @@
 #' validate_type_syntax("class_list<int><char>")  # Invalid - aborts
 #' }
 validate_type_syntax <- function(type_spec, source_location = NULL) {
-  # Check for forbidden 'missing' type before parsing
-  if (grepl("\\bmissing\\b", type_spec, ignore.case = FALSE)) {
+  # Check for forbidden 'missing' and 'class_missing' types before parsing
+  if (grepl("\\b(class_)?missing\\b", type_spec, ignore.case = FALSE)) {
     cli::cli_abort(
       c(
-        "Type 'missing' is not allowed in type annotations",
+        "Type 'missing' or 'class_missing' is not allowed in type annotations",
         "i" = "Use missing(arg) to check for missing arguments, not type annotations",
         "i" = "If you need optional parameters, use {{NULL | Type}} instead"
       ),

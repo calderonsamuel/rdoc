@@ -29,43 +29,43 @@ normalize_type_name <- function(type_string) {
   type_string
 }
 
-# S7 type map - single source of truth for all S7 base types
-# Used by both type_string_to_s7_class() and is_s7_base_type()
-.s7_class_map <- list(
+# S7 type name mapping - list of valid S7 types
+# We dynamically get the class objects from S7 namespace to avoid identity issues
+.s7_type_names <- c(
   # Original 9 types
-  "logical" = S7::class_logical,
-  "integer" = S7::class_integer,
-  "double" = S7::class_double,
-  "complex" = S7::class_complex,
-  "character" = S7::class_character,
-  "raw" = S7::class_raw,
-  "list" = S7::class_list,
-  "expression" = S7::class_expression,
-  "numeric" = S7::class_numeric,
+  "logical", "integer", "double", "complex", "character", "raw",
+  "list", "expression", "numeric",
 
   # Base classes (4)
-  "call" = S7::class_call,
-  "environment" = S7::class_environment,
-  "function" = S7::class_function,
-  "name" = S7::class_name,
+  "call", "environment", "function", "name",
 
   # Unions (3)
-  "atomic" = S7::class_atomic,
-  "language" = S7::class_language,
-  "vector" = S7::class_vector,
+  "atomic", "language", "vector",
 
   # S3 wrappers (7)
-  "data.frame" = S7::class_data.frame,
-  "Date" = S7::class_Date,
-  "factor" = S7::class_factor,
-  "formula" = S7::class_formula,
-  "POSIXct" = S7::class_POSIXct,
-  "POSIXlt" = S7::class_POSIXlt,
-  "POSIXt" = S7::class_POSIXt,
+  "data.frame", "Date", "factor", "formula", "POSIXct", "POSIXlt", "POSIXt",
 
   # Special
-  "any" = S7::class_any
+  "any"
 )
+
+#' Get S7 class object from type name
+#'
+#' Dynamically retrieves from S7 namespace to ensure we get the same object
+#' instances that tests and other code use.
+#'
+#' @param type_name Type name (normalized, without "class_" prefix)
+#' @return S7 class object or NULL
+#' @keywords internal
+get_s7_class_from_namespace <- function(type_name) {
+  class_name <- paste0("class_", type_name)
+
+  # Try to get from S7 namespace
+  tryCatch(
+    getExportedValue("S7", class_name),
+    error = function(e) NULL
+  )
+}
 
 #' Check if type is an S7 base type
 #'
@@ -76,7 +76,7 @@ is_s7_base_type <- function(type_string) {
   type_string <- normalize_type_name(type_string)
 
   # NULL is a special case - not an S7 class but a valid type
-  type_string == "NULL" || type_string %in% names(.s7_class_map)
+  type_string == "NULL" || type_string %in% .s7_type_names
 }
 
 #' Convert type string to S7 class object
@@ -108,7 +108,8 @@ type_string_to_s7_class <- function(type_string) {
     return(NULL)
   }
 
-  .s7_class_map[[type_string]]
+  # Dynamically get from S7 namespace to ensure object identity
+  get_s7_class_from_namespace(type_string)
 }
 
 #' Convert S7 class object to type string
