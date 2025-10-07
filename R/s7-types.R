@@ -180,8 +180,9 @@ s7_class_compatible <- function(actual_s7, expected_s7) {
       if (identical(current, expected_s7)) {
         return(TRUE)
       }
-      # Move to parent class
-      current <- if (!is.null(current@parent)) current@parent else NULL
+      # Move to parent class - use S7::prop() for R < 4.3.0 compatibility
+      parent_class <- S7::prop(current, "parent")
+      current <- if (!is.null(parent_class)) parent_class else NULL
     }
   }
 
