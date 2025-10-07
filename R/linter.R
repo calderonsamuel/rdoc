@@ -8,6 +8,7 @@
 #'   - `"exported"`: Require types on `@export` functions, internal functions optional
 #'   - `"strict"`: Require types on all functions
 #' @typedReturn {class_function} A linter function for use with lintr
+#' @importFrom rlang %||%
 #' @export
 #' @examples
 #' \dontrun{
