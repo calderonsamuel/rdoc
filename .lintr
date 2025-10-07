@@ -1,3 +1,1 @@
-linters: lintr::linters_with_defaults(
-  type_consistency = rdoc::type_consistency_linter()
-)
+linters: lintr::linters_with_defaults(type_consistency = rdoc::type_consistency_linter(mode = "exported"))

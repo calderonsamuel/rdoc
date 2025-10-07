@@ -9,16 +9,15 @@ Description: Provides JSDoc-style type annotations for R functions using custom
 License: MIT + file LICENSE
 Imports:
     roxygen2 (>= 7.0.0),
-    rlang,
     cli,
     xml2,
-    xmlparsedata,
     S7 (>= 0.2.0)
 Suggests:
     lintr (>= 3.0.0),
     testthat (>= 3.0.0),
     withr,
-    jsonlite
+    jsonlite,
+    xmlparsedata
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE, roclets = c("collate", "rd", "namespace", "rdoc::roclet_types"))

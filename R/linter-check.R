@@ -299,7 +299,18 @@ check_mode_annotations <- function(fn_assign_node, type_info, source_expression,
 
   # For exported mode, check if function has @export tag
   if (mode == "exported") {
-    is_exported <- any(grepl("@export\\b", comments))
+    # Stop at @examples block - don't check export tags in example code
+    examples_start <- which(grepl("^#'\\s*@examples", comments))
+    comments_to_check <- if (length(examples_start) > 0) {
+      comments[1:(examples_start[1] - 1)]
+    } else {
+      comments
+    }
+
+    # Check if @export appears as a proper roxygen tag (not in description text)
+    # Pattern: #' followed by optional whitespace, then @export as a word
+    is_exported <- any(grepl("^#'\\s*@export\\b", comments_to_check))
+
     if (!is_exported) {
       return(list())  # Not exported, no requirements
     }

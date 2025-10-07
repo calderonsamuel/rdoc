@@ -13,7 +13,7 @@ tag_parse_typed_return(x)
 A roxy_tag object with both type info and @return compatibility
 }
 \description{
-Parses the format: "{type} description"
+Parses the format: "\{type\} description"
 Creates a structure compatible with roxygen2's @return tag
 }
 \keyword{internal}

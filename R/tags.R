@@ -1,7 +1,7 @@
 #' Parse @typedParam tag
 #'
 #' This tag works as both @param (for roxygen2 documentation) and provides
-#' type information for static type checking. Format: name {type} description
+#' type information for static type checking. Format: name \{type\} description
 #'
 #' @param x A roxy_tag object
 #' @return A roxy_tag object with param class for roxygen2 compatibility
@@ -13,7 +13,7 @@ roxy_tag_parse.roxy_tag_typedParam <- function(x) {
 #' Parse @typedReturn tag
 #'
 #' This tag works as both @return (for roxygen2 documentation) and provides
-#' type information for static type checking. Format: {type} description
+#' type information for static type checking. Format: \{type\} description
 #'
 #' @param x A roxy_tag object
 #' @return A roxy_tag object with return class for roxygen2 compatibility
@@ -24,7 +24,7 @@ roxy_tag_parse.roxy_tag_typedReturn <- function(x) {
 
 #' Internal parser for typed-param
 #'
-#' Parses the format: "param_name {type} description"
+#' Parses the format: "param_name \{type\} description"
 #' Creates a structure compatible with roxygen2's @param tag
 #'
 #' @param x A roxy_tag object
@@ -90,7 +90,7 @@ tag_parse_typed_param <- function(x) {
 
 #' Internal parser for typed-return
 #'
-#' Parses the format: "{type} description"
+#' Parses the format: "\{type\} description"
 #' Creates a structure compatible with roxygen2's @return tag
 #'
 #' @param x A roxy_tag object
@@ -178,6 +178,7 @@ roclet_tags.roclet_rd <- function(x) {
 #' @return An rd_section object
 #' @exportS3Method roxygen2::roxy_tag_rd
 #' @keywords internal
+#' @importFrom stats setNames
 roxy_tag_rd.roxy_tag_typedParam <- function(x, base_path, env) {
   # Create rd_section for param, following roxygen2's pattern
   value <- setNames(x$val$description, x$val$name)

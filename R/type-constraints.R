@@ -12,6 +12,7 @@
 #' @keywords internal
 #'
 #' @examples
+#' \dontrun{
 #' # Length constraint
 #' parse_type_constraints("class_integer[1]")
 #' # Returns: list(base_type = "class_integer", length_constraint = 1)
@@ -23,6 +24,7 @@
 #' # Combined
 #' parse_type_constraints("class_list<class_numeric>[3]")
 #' # Returns: list(base_type = "class_list", element_type = "class_numeric", length_constraint = 3)
+#' }
 parse_type_constraints <- function(type_spec, validate = TRUE) {
   # Validate syntax before parsing (unless already validated during tag parsing)
   if (validate) {

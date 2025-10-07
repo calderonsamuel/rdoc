@@ -14,5 +14,5 @@ A roxy_tag object with return class for roxygen2 compatibility
 }
 \description{
 This tag works as both @return (for roxygen2 documentation) and provides
-type information for static type checking. Format: {type} description
+type information for static type checking. Format: \{type\} description
 }

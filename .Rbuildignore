@@ -9,3 +9,8 @@
 ^docs$
 ^pkgdown$
 ^\.lintr$
+^\.claude$
+^CLAUDE\.md$
+^IMPLEMENTATION_PLAN\.md$
+^examples$
+^NEWS\.md$

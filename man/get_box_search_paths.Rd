@@ -24,7 +24,10 @@ Resolution order:
 \examples{
 \dontrun{
 # .Rprofile contains: options(box.path = c("R/modules", "shared"))
-get_box_search_paths("/path/to/project")  # c("/path/to/project/R/modules", "/path/to/project/shared", "/path/to/project")
+get_box_search_paths("/path/to/project")
+# Returns: c("/path/to/project/R/modules",
+#            "/path/to/project/shared",
+#            "/path/to/project")
 }
 }
 \keyword{internal}

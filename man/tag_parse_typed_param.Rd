@@ -13,7 +13,7 @@ tag_parse_typed_param(x)
 A roxy_tag object with both type info and @param compatibility
 }
 \description{
-Parses the format: "param_name {type} description"
+Parses the format: "param_name \{type\} description"
 Creates a structure compatible with roxygen2's @param tag
 }
 \keyword{internal}

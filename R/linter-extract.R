@@ -3,6 +3,7 @@
 #' @param comments Character vector of comment lines
 #' @return List with params and return type info
 #' @keywords internal
+#' @importFrom utils tail
 extract_types_from_comment_lines <- function(comments) {
   param_types <- list()
   return_type <- NULL
