@@ -287,6 +287,69 @@ types_compatible <- function(actual, expected, actual_length = NULL) {
     return(string_based_compatible(actual_base, expected_base))
   }
 
+  # Phase 24.1: Check for external types (package::class syntax)
+  # External types should use exact string matching (no inheritance checking in Phase 24.1)
+  has_external_actual <- if (actual_ast$node_type == "type") {
+    !is.null(actual_ast$package)
+  } else if (actual_ast$node_type == "union") {
+    any(sapply(actual_ast$types, function(t) !is.null(t$package)))
+  } else {
+    FALSE
+  }
+
+  has_external_expected <- if (expected_ast$node_type == "type") {
+    !is.null(expected_ast$package)
+  } else if (expected_ast$node_type == "union") {
+    any(sapply(expected_ast$types, function(t) !is.null(t$package)))
+  } else {
+    FALSE
+  }
+
+  # If either type is external, use string-based matching (Phase 24.1)
+  if (has_external_actual || has_external_expected) {
+    # Handle union types specially
+    if (expected_ast$node_type == "union") {
+      # Check if actual matches any member of the union
+      actual_full <- ast_to_string(actual_ast)
+
+      for (member in expected_ast$types) {
+        member_str <- if (!is.null(member$package)) {
+          paste0(member$package, "::", member$base_type)
+        } else {
+          member$base_type
+        }
+
+        if (actual_full == member_str) {
+          # Match found, check length constraint
+          expected_length <- member$length_constraint
+          return(check_length_constraint(actual_length, expected_length))
+        }
+      }
+
+      # No match in union
+      return(FALSE)
+    }
+
+    # Both are simple types (not unions)
+    actual_full <- ast_to_string(actual_ast)
+    expected_full <- ast_to_string(expected_ast)
+
+    # For Phase 24.1: exact match only (no inheritance)
+    # Phase 24.2 will add inheritance database lookup here
+    if (actual_full != expected_full) {
+      return(FALSE)
+    }
+
+    # Types match, now check constraints
+    expected_length <- if (expected_ast$node_type == "type") {
+      expected_ast$length_constraint
+    } else {
+      NULL
+    }
+
+    return(check_length_constraint(actual_length, expected_length))
+  }
+
   # NEW: Convert AST to S7 unions (handles NULL | Type correctly)
   actual_s7 <- tryCatch(
     rdoc_union_to_s7(actual_ast),
@@ -335,15 +398,23 @@ types_compatible <- function(actual, expected, actual_length = NULL) {
   }
 
   # FALLBACK: String-based compatibility for non-S7 types
-  # Extract base types for comparison
+  # Extract base types for comparison (with package qualification if present)
   actual_base <- if (actual_ast$node_type == "type") {
-    actual_ast$base_type
+    if (!is.null(actual_ast$package)) {
+      paste0(actual_ast$package, "::", actual_ast$base_type)
+    } else {
+      actual_ast$base_type
+    }
   } else {
     actual  # Shouldn't happen, but be safe
   }
 
   expected_base <- if (expected_ast$node_type == "type") {
-    expected_ast$base_type
+    if (!is.null(expected_ast$package)) {
+      paste0(expected_ast$package, "::", expected_ast$base_type)
+    } else {
+      expected_ast$base_type
+    }
   } else {
     expected
   }

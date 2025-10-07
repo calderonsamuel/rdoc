@@ -56,6 +56,24 @@ lex_type_syntax <- function(input) {
       next
     }
 
+    # Two-character tokens: ::
+    if (char == ":" && position < n && substr(input, position + 1, position + 1) == ":") {
+      tokens <- append(tokens, list(list(type = "DOUBLE_COLON", value = "::", position = position)))
+      position <- position + 2
+      next
+    }
+
+    # Single colon is an error (only :: is valid)
+    if (char == ":") {
+      cli::cli_abort(
+        c(
+          "Unexpected character ':' at position {position}",
+          "i" = "Use '::' for package qualification (e.g., 'package::class')"
+        ),
+        call = NULL
+      )
+    }
+
     # Reject parentheses with helpful message
     if (char == "(") {
       cli::cli_abort(

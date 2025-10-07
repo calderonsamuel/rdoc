@@ -2,11 +2,11 @@
 % Please edit documentation in R/type-parser.R
 \name{parse_primary_type}
 \alias{parse_primary_type}
-\title{Parse primary type (identifier with optional element type and length)}
+\title{Parse primary type (qualified identifier with optional element type and length)}
 \usage{
 parse_primary_type(parser)
 }
 \description{
-Parse primary type (identifier with optional element type and length)
+Parse primary type (qualified identifier with optional element type and length)
 }
 \keyword{internal}

@@ -66,12 +66,62 @@ is_s7_base_type <- function(type_string) {
   type_string == "NULL" || type_string %in% .s7_type_names
 }
 
+#' Resolve external type reference (package::class syntax)
+#'
+#' Handles type references to external packages. Tries to find S7 class objects
+#' exported by the package, and falls back to creating S7 wrappers for S3 classes.
+#'
+#' @param type_string Type string in "package::class" format
+#' @return S7 class object or NULL
+#' @keywords internal
+#'
+#' @examples
+#' \dontrun{
+#' # If roxygen2 exports S7 class (future):
+#' resolve_external_type("roxygen2::roclet")  # Uses exported S7 class
+#'
+#' # If roxygen2 uses S3 (current):
+#' resolve_external_type("roxygen2::roclet")  # Creates S7 wrapper via new_S3_class()
+#' }
+resolve_external_type <- function(type_string) {
+  # Parse package::class syntax
+  if (!grepl("::", type_string, fixed = TRUE)) {
+    return(NULL)  # Not an external type
+  }
+
+  parts <- strsplit(type_string, "::", fixed = TRUE)[[1]]
+  if (length(parts) != 2) {
+    return(NULL)  # Invalid syntax
+  }
+
+  package <- parts[1]
+  class_name <- parts[2]
+
+  # Step 1: Try to get exported S7 class from package
+  s7_class <- tryCatch({
+    obj <- getExportedValue(package, class_name)
+    if (inherits(obj, "S7_class")) {
+      return(obj)
+    }
+    NULL
+  }, error = function(e) NULL)
+
+  if (!is.null(s7_class)) {
+    return(s7_class)
+  }
+
+  # Step 2: Create S7 wrapper for S3 class
+  # Note: S7::new_S3_class() doesn't have a package parameter
+  # The package qualification is for rdoc's type tracking only
+  S7::new_S3_class(class_name)
+}
+
 #' Convert type string to S7 class object
 #'
 #' This is the PRIMARY type resolution function. Converts rdoc type annotations
 #' to S7 class objects, which are the source of truth for type checking.
 #'
-#' @param type_string Full S7 class name (e.g., "class_integer")
+#' @param type_string Full S7 class name (e.g., "class_integer") or external type (e.g., "roxygen2::roclet")
 #' @return S7 class object or NULL if not S7 type
 #' @keywords internal
 #'
@@ -85,9 +135,17 @@ is_s7_base_type <- function(type_string) {
 #'
 #' # NULL is special case
 #' type_string_to_s7_class("NULL")           # NULL
+#'
+#' # External types (Phase 24.1)
+#' type_string_to_s7_class("roxygen2::roclet")  # S7 wrapper or exported S7 class
 #' }
 type_string_to_s7_class <- function(type_string) {
   type_string <- normalize_type_name(type_string)
+
+  # Check for external type reference (package::class)
+  if (grepl("::", type_string, fixed = TRUE)) {
+    return(resolve_external_type(type_string))
+  }
 
   # NULL is a special case - not an S7 class
   if (type_string == "NULL") {
@@ -261,22 +319,31 @@ type_to_s7_display <- function(type_string) {
 #' # Returns: <S7_union>: <NULL>, <class_character>, or <class_integer>
 #' }
 rdoc_union_to_s7 <- function(ast_node) {
+  # Helper to construct full type string from AST node
+  ast_to_type_string <- function(type_node) {
+    if (!is.null(type_node$package)) {
+      paste0(type_node$package, "::", type_node$base_type)
+    } else {
+      type_node$base_type
+    }
+  }
+
   # If not a union node, just convert single type
   if (ast_node$node_type != "union") {
-    type_name <- ast_node$base_type
+    type_name <- ast_to_type_string(ast_node)
 
     # Handle NULL specially
     if (type_name == "NULL") {
       return(NULL)
     }
 
-    # Convert to S7 class
+    # Convert to S7 class (handles both built-in and external types)
     return(type_string_to_s7_class(type_name))
   }
 
   # Extract S7 class objects for each type in union
   s7_classes <- lapply(ast_node$types, function(type_node) {
-    type_name <- type_node$base_type
+    type_name <- ast_to_type_string(type_node)
 
     # Handle NULL specially - represented as R's NULL
     if (type_name == "NULL") {

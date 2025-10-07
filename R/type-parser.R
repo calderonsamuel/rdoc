@@ -6,7 +6,8 @@
 #' \preformatted{
 #'   type_expr         ::= union_type
 #'   union_type        ::= primary_type ("|" primary_type)*
-#'   primary_type      ::= identifier element_type? length_constraint?
+#'   primary_type      ::= qualified_type element_type? length_constraint?
+#'   qualified_type    ::= identifier ("::" identifier)?
 #'   element_type      ::= "<" type_expr ">"
 #'   length_constraint ::= "[" number "]"
 #' }
@@ -208,7 +209,7 @@ parse_union_type <- function(parser) {
   }
 }
 
-#' Parse primary type (identifier with optional element type and length)
+#' Parse primary type (qualified identifier with optional element type and length)
 #' @keywords internal
 parse_primary_type <- function(parser) {
   token <- parser$current()
@@ -224,8 +225,31 @@ parse_primary_type <- function(parser) {
     )
   }
 
+  # Parse qualified type: package or base type
   base_type <- token$value
+  package <- NULL
   parser$advance()
+
+  # Check for package qualification (::)
+  if (parser$current()$type == "DOUBLE_COLON") {
+    parser$advance()
+
+    # Next token must be identifier (the class name)
+    if (parser$current()$type != "IDENTIFIER") {
+      cli::cli_abort(
+        c(
+          "Expected class name after '::' at position {parser$current()$position}",
+          "x" = "Found '{parser$current()$value}' instead",
+          "i" = "Use 'package::class' syntax"
+        ),
+        call = NULL
+      )
+    }
+
+    package <- base_type
+    base_type <- parser$current()$value
+    parser$advance()
+  }
 
   # Optional element type <...>
   element_type <- NULL
@@ -345,6 +369,7 @@ parse_primary_type <- function(parser) {
   list(
     node_type = "type",
     base_type = base_type,
+    package = package,
     element_type = element_type,
     length_constraint = length_constraint
   )
@@ -359,7 +384,11 @@ ast_to_string <- function(ast) {
   }
 
   # Type node
-  result <- ast$base_type
+  result <- if (!is.null(ast$package)) {
+    paste0(ast$package, "::", ast$base_type)
+  } else {
+    ast$base_type
+  }
 
   if (!is.null(ast$element_type)) {
     result <- paste0(result, "<", ast_to_string(ast$element_type), ">")

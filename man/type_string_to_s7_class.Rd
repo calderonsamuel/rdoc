@@ -7,7 +7,7 @@
 type_string_to_s7_class(type_string)
 }
 \arguments{
-\item{type_string}{Full S7 class name (e.g., "class_integer")}
+\item{type_string}{Full S7 class name (e.g., "class_integer") or external type (e.g., "roxygen2::roclet")}
 }
 \value{
 S7 class object or NULL if not S7 type
@@ -26,6 +26,9 @@ type_string_to_s7_class("class_numeric")  # S7::class_numeric (union)
 
 # NULL is special case
 type_string_to_s7_class("NULL")           # NULL
+
+# External types (Phase 24.1)
+type_string_to_s7_class("roxygen2::roclet")  # S7 wrapper or exported S7 class
 }
 }
 \keyword{internal}

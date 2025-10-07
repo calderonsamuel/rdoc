@@ -216,7 +216,7 @@ test_that("exported mode: does not trigger on @exportS3method", {
   expect_equal(length(lints), 0)
 })
 
-test_that("exported mode: requires types on function with both @export and @keywords internal", {
+test_that("exported mode: @keywords internal skips type checking (Phase 23)", {
   skip_if_not_installed("lintr")
 
   code <- "
@@ -228,8 +228,9 @@ test_that("exported mode: requires types on function with both @export and @keyw
 
   lints <- lintr::lint(text = code, linters = type_consistency_linter(mode = "exported"))
 
-  # If it has @export, it needs types regardless of @keywords internal
-  expect_gte(length(lints), 2)
+  # Phase 23: @keywords internal provides explicit way to skip type checking
+  # even for exported functions (useful for test helpers, internal utilities)
+  expect_length(lints, 0)
 })
 
 test_that("exported mode: handles exported function with default parameters", {

@@ -3,7 +3,11 @@
 #' This roclet generates type metadata from @typedParam and @typedReturn tags.
 #' The metadata is saved to inst/types.rds and gets installed with the package.
 #'
+#' This function is typically used in DESCRIPTION files rather than called directly,
+#' so type annotations are not enforced.
+#'
 #' @return A roxygen2 roclet object for type metadata generation
+#' @keywords internal
 #' @export
 #' @examples
 #' \dontrun{

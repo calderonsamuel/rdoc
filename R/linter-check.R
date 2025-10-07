@@ -282,6 +282,50 @@ load_package_types <- function(packages) {
   all_types
 }
 
+#' Check if a function assignment is at the top level (not nested)
+#'
+#' Determines whether a function is defined at the top level of the file
+#' or nested inside another function. This is used to filter out false
+#' positives in exported mode, where nested/anonymous functions inside
+#' closures should not be required to have type annotations.
+#'
+#' @param fn_assign_node XML node of function assignment
+#' @return Logical - TRUE if function is top-level, FALSE if nested
+#' @keywords internal
+is_function_top_level <- function(fn_assign_node) {
+  # Walk up the AST tree from the function assignment
+  parent <- xml2::xml_parent(fn_assign_node)
+
+  while (!is.na(parent)) {
+    node_name <- xml2::xml_name(parent)
+
+    # If we reach the root 'exprlist', we're at top level
+    if (node_name == "exprlist") {
+      return(TRUE)
+    }
+
+    # If we encounter a FUNCTION node on the way up, we're nested
+    # Check if this parent contains a FUNCTION that's NOT our own function
+    if (node_name == "expr") {
+      # Look for FUNCTION nodes in parent, excluding the one in our fn_assign_node
+      parent_functions <- xml2::xml_find_all(parent, "./FUNCTION")
+      our_function <- xml2::xml_find_first(fn_assign_node, ".//FUNCTION")
+
+      for (parent_fn in parent_functions) {
+        # If this FUNCTION is not our function, we're nested inside it
+        if (!identical(parent_fn, our_function)) {
+          return(FALSE)
+        }
+      }
+    }
+
+    parent <- xml2::xml_parent(parent)
+  }
+
+  # Default to TRUE if we can't determine (shouldn't happen)
+  TRUE
+}
+
 #' Check for missing type annotations based on mode
 #'
 #' @param fn_assign_node XML node of function assignment
@@ -299,6 +343,12 @@ check_mode_annotations <- function(fn_assign_node, type_info, source_expression,
 
   # For exported mode, check if function has @export tag
   if (mode == "exported") {
+    # Phase 23.1: Skip nested functions (false positive fix)
+    # Nested functions inside closures/factories should not be checked
+    if (!is_function_top_level(fn_assign_node)) {
+      return(list())
+    }
+
     # Stop at @examples block - don't check export tags in example code
     examples_start <- which(grepl("^#'\\s*@examples", comments))
     comments_to_check <- if (length(examples_start) > 0) {
@@ -313,6 +363,14 @@ check_mode_annotations <- function(fn_assign_node, type_info, source_expression,
 
     if (!is_exported) {
       return(list())  # Not exported, no requirements
+    }
+
+    # Phase 23.2: Check for @keywords internal or @internal tag
+    is_internal <- any(grepl("^#'\\s*@keywords\\s+internal\\b", comments_to_check)) ||
+                   any(grepl("^#'\\s*@internal\\b", comments_to_check))
+
+    if (is_internal) {
+      return(list())  # Explicitly marked as internal
     }
   }
 
@@ -343,8 +401,10 @@ check_strict_mode_annotations_impl <- function(fn_assign_node, type_info, source
 
   # Extract parameter names from function definition
   # SYMBOL_FORMALS are siblings of FUNCTION node, so search from parent
+  # IMPORTANT: Use ./SYMBOL_FORMALS (immediate children only) not .//SYMBOL_FORMALS
+  # to avoid capturing parameters from nested functions
   fn_expr <- xml2::xml_parent(fn_node)
-  param_nodes <- xml2::xml_find_all(fn_expr, ".//SYMBOL_FORMALS")
+  param_nodes <- xml2::xml_find_all(fn_expr, "./SYMBOL_FORMALS")
   param_names <- vapply(param_nodes, xml2::xml_text, character(1))
 
   # Check each parameter for type annotation
