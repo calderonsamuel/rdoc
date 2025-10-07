@@ -10,7 +10,7 @@ check_arguments(
   type_info,
   call_node,
   source_expression,
-  strict = FALSE
+  mode = "lenient"
 )
 }
 \arguments{
@@ -24,7 +24,7 @@ check_arguments(
 
 \item{source_expression}{Source expression}
 
-\item{strict}{Logical, whether to warn on unknown types}
+\item{mode}{Type checking mode ("lenient", "exported", "strict")}
 }
 \value{
 List of Lint objects

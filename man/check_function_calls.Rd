@@ -9,7 +9,7 @@ check_function_calls(
   all_types,
   var_context,
   source_expression,
-  strict = FALSE
+  mode = "lenient"
 )
 }
 \arguments{
@@ -21,7 +21,7 @@ check_function_calls(
 
 \item{source_expression}{Source expression for creating lints}
 
-\item{strict}{Logical, whether to warn on unknown types}
+\item{mode}{Type checking mode ("lenient", "exported", "strict")}
 }
 \value{
 List of Lint objects

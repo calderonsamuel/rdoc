@@ -3,23 +3,32 @@
 #' Checks function calls against type annotations from @typedParam and @typedReturn tags.
 #' Works with both local function definitions and installed packages.
 #'
-#' @typedParam strict {logical[1]} Enable strict mode (default: FALSE).
-#'   In strict mode, missing type annotations are flagged as lints.
+#' @typedParam mode {character[1]} Type checking mode:
+#'   - `"lenient"` (default): Check typed functions only, ignore untyped functions
+#'   - `"exported"`: Require types on `@export` functions, internal functions optional
+#'   - `"strict"`: Require types on all functions
 #' @typedReturn {function} A linter function for use with lintr
 #' @export
 #' @examples
 #' \dontrun{
-#' # In .lintr configuration (lenient mode - default):
+#' # Lenient mode (default) - gradual adoption:
 #' linters: with_defaults(
 #'   type_consistency = rdoc::type_consistency_linter()
 #' )
 #'
-#' # Strict mode - requires all type annotations:
+#' # Exported mode - enforce types on public API:
 #' linters: with_defaults(
-#'   type_consistency = rdoc::type_consistency_linter(strict = TRUE)
+#'   type_consistency = rdoc::type_consistency_linter(mode = "exported")
+#' )
+#'
+#' # Strict mode - require types everywhere:
+#' linters: with_defaults(
+#'   type_consistency = rdoc::type_consistency_linter(mode = "strict")
 #' )
 #' }
-type_consistency_linter <- function(strict = FALSE) {
+type_consistency_linter <- function(mode = c("lenient", "exported", "strict")) {
+  # Validate and normalize mode
+  mode <- match.arg(mode)
   # Cache for accumulating data across lintr passes
   file_cache <- new.env(parent = emptyenv())
 
@@ -84,6 +93,9 @@ type_consistency_linter <- function(strict = FALSE) {
       fn_name <- xml2::xml_text(symbol_node)
       type_info <- NULL
 
+      # Save comments before clearing for mode checking
+      comments_for_mode_check <- cache$comments
+
       # Extract types from accumulated comments (if any)
       if (length(cache$comments) > 0) {
         type_info <- extract_types_from_comment_lines(cache$comments)
@@ -105,19 +117,20 @@ type_consistency_linter <- function(strict = FALSE) {
         file_cache[[filename]] <- cache
       }
 
-      # Strict mode: check for missing annotations (even if no comments)
-      if (strict) {
-        strict_lints <- check_strict_mode_annotations(fn_assign, type_info, source_expression)
-        if (length(strict_lints) > 0) {
-          strict_mode_lints <- c(strict_mode_lints, strict_lints)
+      # Mode-based annotation checking (use saved comments)
+      if (mode != "lenient") {
+        mode_lints <- check_mode_annotations(fn_assign, type_info, source_expression, mode, comments_for_mode_check)
+        if (length(mode_lints) > 0) {
+          strict_mode_lints <- c(strict_mode_lints, mode_lints)
         }
       }
     }
 
-    # Return syntax validation, return validation, and strict mode lints early if found
-    combined_lints <- c(syntax_validation_lints, return_validation_lints, strict_mode_lints)
-    if (length(combined_lints) > 0) {
-      return(combined_lints)
+    # Return syntax validation and return validation lints early if found
+    # But continue to function call checking even if we have strict mode lints
+    early_lints <- c(syntax_validation_lints, return_validation_lints)
+    if (length(early_lints) > 0) {
+      return(early_lints)
     }
 
     # Load package types
@@ -156,13 +169,16 @@ type_consistency_linter <- function(strict = FALSE) {
     }
     file_cache[[filename]] <- cache
 
-    # If no types, nothing to lint
+    # If no types, return strict mode lints only (if any)
     if (length(all_types) == 0) {
-      return(list())
+      return(strict_mode_lints)
     }
 
     # Find and check function calls
-    check_function_calls(xml, all_types, cache$variables, source_expression, strict)
+    call_lints <- check_function_calls(xml, all_types, cache$variables, source_expression, mode)
+
+    # Combine strict mode lints with function call lints
+    c(strict_mode_lints, call_lints)
   })
 }
 

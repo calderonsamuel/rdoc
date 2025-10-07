@@ -4,10 +4,10 @@
 #' @param all_types List of all type information
 #' @param var_context List of variable assignments
 #' @param source_expression Source expression for creating lints
-#' @param strict Logical, whether to warn on unknown types
+#' @param mode Type checking mode ("lenient", "exported", "strict")
 #' @return List of Lint objects
 #' @keywords internal
-check_function_calls <- function(xml, all_types, var_context, source_expression, strict = FALSE) {
+check_function_calls <- function(xml, all_types, var_context, source_expression, mode = "lenient") {
   lints <- list()
 
   # Find all function calls
@@ -16,7 +16,7 @@ check_function_calls <- function(xml, all_types, var_context, source_expression,
   call_nodes <- xml2::xml_find_all(xml, "//SYMBOL_FUNCTION_CALL/parent::expr/parent::expr")
 
   for (call_node in call_nodes) {
-    call_lints <- check_single_call(call_node, all_types, var_context, source_expression, strict)
+    call_lints <- check_single_call(call_node, all_types, var_context, source_expression, mode)
     if (length(call_lints) > 0) {
       lints <- c(lints, call_lints)
     }
@@ -31,10 +31,10 @@ check_function_calls <- function(xml, all_types, var_context, source_expression,
 #' @param all_types List of type information
 #' @param var_context List of variable assignments
 #' @param source_expression Source expression
-#' @param strict Logical, whether to warn on unknown types
+#' @param mode Type checking mode ("lenient", "exported", "strict")
 #' @return List of Lint objects
 #' @keywords internal
-check_single_call <- function(call_node, all_types, var_context, source_expression, strict = FALSE) {
+check_single_call <- function(call_node, all_types, var_context, source_expression, mode = "lenient") {
   # Get function name
   fn_node <- xml2::xml_find_first(call_node, ".//SYMBOL_FUNCTION_CALL")
   if (is.na(fn_node)) {
@@ -72,7 +72,7 @@ check_single_call <- function(call_node, all_types, var_context, source_expressi
   args <- extract_arguments(call_node, var_context, call_line, all_types)
 
   # Check each argument against type signature
-  check_arguments(fn_name, args, type_info, call_node, source_expression, strict)
+  check_arguments(fn_name, args, type_info, call_node, source_expression, mode)
 }
 
 #' Check arguments against type signature
@@ -82,10 +82,10 @@ check_single_call <- function(call_node, all_types, var_context, source_expressi
 #' @param type_info Type information for function
 #' @param call_node XML node of the call
 #' @param source_expression Source expression
-#' @param strict Logical, whether to warn on unknown types
+#' @param mode Type checking mode ("lenient", "exported", "strict")
 #' @return List of Lint objects
 #' @keywords internal
-check_arguments <- function(fn_name, args, type_info, call_node, source_expression, strict = FALSE) {
+check_arguments <- function(fn_name, args, type_info, call_node, source_expression, mode = "lenient") {
   if (is.null(type_info$params)) {
     return(list())
   }
@@ -120,7 +120,7 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
     # Handle unknown types
     if (actual_type == "unknown") {
       # In strict mode, warn about unknown types
-      if (strict) {
+      if (mode == "strict") {
         line <- as.integer(xml2::xml_attr(args[[i]]$node, "line1"))
         col <- as.integer(xml2::xml_attr(args[[i]]$node, "col1"))
         col_end <- as.integer(xml2::xml_attr(args[[i]]$node, "col2"))
@@ -143,8 +143,8 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
           column_number = col,
           type = "warning",
           message = sprintf(
-            "Cannot verify type of argument '%s' (unknown type) in strict mode",
-            param_name
+            "Cannot verify type of argument '%s' (unknown type) in %s mode",
+            param_name, mode
           ),
           line = line_text,
           ranges = list(c(col, col_end))
@@ -288,14 +288,42 @@ load_package_types <- function(packages) {
   all_types
 }
 
-#' Check for missing type annotations in strict mode
+#' Check for missing type annotations based on mode
 #'
 #' @param fn_assign_node XML node of function assignment
 #' @param type_info Type information extracted from comments (can be NULL)
 #' @param source_expression Source expression
+#' @param mode Type checking mode ("lenient", "exported", "strict")
+#' @param comments Accumulated roxygen comments for this function
 #' @return List of Lint objects
 #' @keywords internal
-check_strict_mode_annotations <- function(fn_assign_node, type_info, source_expression) {
+check_mode_annotations <- function(fn_assign_node, type_info, source_expression, mode, comments) {
+  # Lenient mode doesn't check for missing annotations
+  if (mode == "lenient") {
+    return(list())
+  }
+
+  # For exported mode, check if function has @export tag
+  if (mode == "exported") {
+    is_exported <- any(grepl("@export\\b", comments))
+    if (!is_exported) {
+      return(list())  # Not exported, no requirements
+    }
+  }
+
+  # If we get here, we need to check annotations (either exported or strict mode)
+  check_strict_mode_annotations_impl(fn_assign_node, type_info, source_expression, mode)
+}
+
+#' Implementation of annotation checking (internal)
+#'
+#' @param fn_assign_node XML node of function assignment
+#' @param type_info Type information extracted from comments (can be NULL)
+#' @param source_expression Source expression
+#' @param mode Type checking mode (for error messages)
+#' @return List of Lint objects
+#' @keywords internal
+check_strict_mode_annotations_impl <- function(fn_assign_node, type_info, source_expression, mode) {
   lints <- list()
 
   # Get function node
@@ -353,8 +381,8 @@ check_strict_mode_annotations <- function(fn_assign_node, type_info, source_expr
         column_number = col,
         type = "warning",
         message = sprintf(
-          "Parameter '%s' missing type annotation (strict mode). Add @typedParam %s {type} description",
-          param_name, param_name
+          "Parameter '%s' missing type annotation (%s mode). Add @typedParam %s {type} description",
+          param_name, mode, param_name
         ),
         line = line_text,
         ranges = list(c(col, col_end))
@@ -389,8 +417,8 @@ check_strict_mode_annotations <- function(fn_assign_node, type_info, source_expr
       column_number = col,
       type = "warning",
       message = sprintf(
-        "Function '%s' missing return type annotation (strict mode). Add @typedReturn {type} description",
-        fn_name
+        "Function '%s' missing return type annotation (%s mode). Add @typedReturn {type} description",
+        fn_name, mode
       ),
       line = line_text,
       ranges = list(c(col, col_end))

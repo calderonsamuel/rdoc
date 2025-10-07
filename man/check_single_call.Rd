@@ -9,7 +9,7 @@ check_single_call(
   all_types,
   var_context,
   source_expression,
-  strict = FALSE
+  mode = "lenient"
 )
 }
 \arguments{
@@ -21,7 +21,7 @@ check_single_call(
 
 \item{source_expression}{Source expression}
 
-\item{strict}{Logical, whether to warn on unknown types}
+\item{mode}{Type checking mode ("lenient", "exported", "strict")}
 }
 \value{
 List of Lint objects

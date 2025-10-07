@@ -55,6 +55,8 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
             return(type_info$return$type)
           }
         }
+        # Function call not in registry - unknown type
+        return("unknown")
       }
     }
   }
