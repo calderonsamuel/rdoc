@@ -199,6 +199,6 @@ test_that("linter validates box module property access syntax", {
   lints <- lintr::lint(script_file, linters = type_consistency_linter())
 
   expect_length(lints, 1)
-  expect_match(lints[[1]]$message, "integer.*numeric", ignore.case = TRUE)
+  expect_match(lints[[1]]$message, "class_integer.*class_numeric", ignore.case = TRUE)
   expect_equal(lints[[1]]$line_number, 3)  # Error on line 3
 })

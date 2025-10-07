@@ -47,8 +47,8 @@ test_that("lenient mode: validates typed functions", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {numeric}
-    #' @typedReturn {numeric}
+    #' @typedParam x {class_numeric}
+    #' @typedReturn {class_numeric}
     process <- function(x) x * 2
 
     process('text')
@@ -64,7 +64,7 @@ test_that("lenient mode: skips unknown types silently", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {numeric}
+    #' @typedParam x {class_numeric}
     process <- function(x) x * 2
 
     foo <- function() 42
@@ -126,8 +126,8 @@ test_that("exported mode: validates typed exported functions", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {numeric}
-    #' @typedReturn {numeric}
+    #' @typedParam x {class_numeric}
+    #' @typedReturn {class_numeric}
     #' @export
     process <- function(x) x * 2
 
@@ -144,9 +144,9 @@ test_that("exported mode: accepts fully typed exported function", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {numeric}
-    #' @typedParam y {numeric}
-    #' @typedReturn {numeric}
+    #' @typedParam x {class_numeric}
+    #' @typedParam y {class_numeric}
+    #' @typedReturn {class_numeric}
     #' @export
     add <- function(x, y) x + y
   "
@@ -168,8 +168,8 @@ test_that("exported mode: handles mixed exported and internal functions", {
     .internal_multiply <- function(a, b) a * b
 
     #' Typed exported (complete, should pass)
-    #' @typedParam z {numeric}
-    #' @typedReturn {numeric}
+    #' @typedParam z {class_numeric}
+    #' @typedReturn {class_numeric}
     #' @export
     good_fn <- function(z) z * 2
   "
@@ -268,7 +268,7 @@ test_that("exported mode: partial types on exported function", {
 
   code <- "
     #' Partially typed
-    #' @typedParam x {numeric}
+    #' @typedParam x {class_numeric}
     #' @export
     partial <- function(x, y) x + y
   "
@@ -320,9 +320,9 @@ test_that("strict mode: accepts fully typed functions", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {numeric}
-    #' @typedParam y {numeric}
-    #' @typedReturn {numeric}
+    #' @typedParam x {class_numeric}
+    #' @typedParam y {class_numeric}
+    #' @typedReturn {class_numeric}
     add <- function(x, y) x + y
   "
 
@@ -335,8 +335,8 @@ test_that("strict mode: warns on unknown variable types", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {numeric}
-    #' @typedReturn {numeric}
+    #' @typedParam x {class_numeric}
+    #' @typedReturn {class_numeric}
     process <- function(x) x * 2
 
     # Untyped function - no @typedReturn
@@ -357,8 +357,8 @@ test_that("strict mode: validates type errors", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {numeric}
-    #' @typedReturn {numeric}
+    #' @typedParam x {class_numeric}
+    #' @typedReturn {class_numeric}
     process <- function(x) x * 2
 
     process('text')
@@ -375,8 +375,8 @@ test_that("strict mode: handles multiple functions in one file", {
 
   code <- "
     #' Complete function
-    #' @typedParam x {numeric}
-    #' @typedReturn {numeric}
+    #' @typedParam x {class_numeric}
+    #' @typedReturn {class_numeric}
     good <- function(x) x * 2
 
     #' Incomplete function
@@ -507,7 +507,7 @@ test_that("all modes: combines type errors with missing annotation warnings", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {numeric}
+    #' @typedParam x {class_numeric}
     #' @export
     incomplete <- function(x, y) x + y
 
@@ -543,8 +543,8 @@ test_that("all modes: nested function definitions", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam x {numeric}
-    #' @typedReturn {function}
+    #' @typedParam x {class_numeric}
+    #' @typedReturn {class_function}
     #' @export
     make_multiplier <- function(x) {
       # Inner function

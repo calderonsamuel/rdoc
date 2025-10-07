@@ -7,7 +7,7 @@
 type_string_to_s7_class(type_string)
 }
 \arguments{
-\item{type_string}{Type name (accepts both "integer" and "class_integer")}
+\item{type_string}{Full S7 class name (e.g., "class_integer")}
 }
 \value{
 S7 class object or NULL if not S7 type
@@ -18,15 +18,14 @@ to S7 class objects, which are the source of truth for type checking.
 }
 \examples{
 \dontrun{
-# Both forms resolve to S7::class_integer
-type_string_to_s7_class("integer")        # S7::class_integer
+# S7 class names resolve to S7 class objects
 type_string_to_s7_class("class_integer")  # S7::class_integer
 
 # S7 union types
-type_string_to_s7_class("numeric")        # S7::class_numeric (union)
+type_string_to_s7_class("class_numeric")  # S7::class_numeric (union)
 
-# Non-S7 types return NULL
-type_string_to_s7_class("data.frame")     # NULL
+# NULL is special case
+type_string_to_s7_class("NULL")           # NULL
 }
 }
 \keyword{internal}

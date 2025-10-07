@@ -10,7 +10,7 @@ test_that("infer_argument_type detects string", {
 
   result <- infer_argument_type(str_node)
 
-  expect_equal(result, "character")
+  expect_equal(result, "class_character")
 })
 
 test_that("infer_argument_type detects numeric", {
@@ -22,7 +22,7 @@ test_that("infer_argument_type detects numeric", {
 
   result <- infer_argument_type(num_node)
 
-  expect_equal(result, "numeric")
+  expect_equal(result, "class_numeric")
 })
 
 test_that("infer_argument_type detects integer literals (with L suffix)", {
@@ -34,7 +34,7 @@ test_that("infer_argument_type detects integer literals (with L suffix)", {
 
   result <- infer_argument_type(int_node)
 
-  expect_equal(result, "integer")
+  expect_equal(result, "class_integer")
 })
 
 test_that("infer_argument_type detects logical", {
@@ -46,7 +46,7 @@ test_that("infer_argument_type detects logical", {
 
   result <- infer_argument_type(log_node)
 
-  expect_equal(result, "logical")
+  expect_equal(result, "class_logical")
 })
 
 test_that("infer_argument_type detects NULL", {
@@ -72,9 +72,9 @@ test_that("extract_arguments handles positional arguments", {
 
   expect_equal(length(args), 2)
   expect_null(args[[1]]$name)
-  expect_equal(args[[1]]$type, "numeric")
+  expect_equal(args[[1]]$type, "class_numeric")
   expect_null(args[[2]]$name)
-  expect_equal(args[[2]]$type, "character")
+  expect_equal(args[[2]]$type, "class_character")
 })
 
 test_that("extract_arguments handles named arguments", {
@@ -88,38 +88,38 @@ test_that("extract_arguments handles named arguments", {
 
   expect_equal(length(args), 2)
   expect_equal(args[[1]]$name, "x")
-  expect_equal(args[[1]]$type, "numeric")
+  expect_equal(args[[1]]$type, "class_numeric")
   expect_equal(args[[2]]$name, "y")
-  expect_equal(args[[2]]$type, "character")
+  expect_equal(args[[2]]$type, "class_character")
 })
 
 test_that("types_compatible accepts matching types", {
-  expect_true(types_compatible("numeric", "numeric"))
-  expect_true(types_compatible("character", "character"))
-  expect_true(types_compatible("logical", "logical"))
+  expect_true(types_compatible("class_numeric", "class_numeric"))
+  expect_true(types_compatible("class_character", "class_character"))
+  expect_true(types_compatible("class_logical", "class_logical"))
 })
 
 test_that("types_compatible rejects mismatching types", {
-  expect_false(types_compatible("numeric", "character"))
-  expect_false(types_compatible("character", "logical"))
+  expect_false(types_compatible("class_numeric", "class_character"))
+  expect_false(types_compatible("class_character", "class_logical"))
 })
 
 test_that("types_compatible handles union types", {
   # Subtype → Union (widening, safe)
-  expect_true(types_compatible("character", "NULL | character"))
-  expect_true(types_compatible("NULL", "NULL | character"))
+  expect_true(types_compatible("class_character", "NULL | class_character"))
+  expect_true(types_compatible("NULL", "NULL | class_character"))
 
   # Union → different type (invalid)
-  expect_false(types_compatible("NULL | character", "numeric"))
+  expect_false(types_compatible("NULL | class_character", "class_numeric"))
 
   # Union → Subtype (narrowing, unsafe - would be FALSE)
-  expect_false(types_compatible("NULL | character", "character"))
+  expect_false(types_compatible("NULL | class_character", "class_character"))
 })
 
 test_that("types_compatible handles numeric coercion", {
-  # numeric[1] should be compatible with numeric
-  expect_true(types_compatible("numeric", "numeric[1]"))
-  expect_true(types_compatible("numeric[1]", "numeric"))
+  # class_numeric[1] should be compatible with class_numeric
+  expect_true(types_compatible("class_numeric", "class_numeric[1]"))
+  expect_true(types_compatible("class_numeric[1]", "class_numeric"))
 })
 
 test_that("infer_argument_type detects c() with character", {
@@ -131,7 +131,7 @@ test_that("infer_argument_type detects c() with character", {
 
   result <- infer_argument_type(expr_node)
 
-  expect_equal(result, "character")
+  expect_equal(result, "class_character")
 })
 
 test_that("infer_argument_type detects c() with numeric", {
@@ -143,7 +143,7 @@ test_that("infer_argument_type detects c() with numeric", {
 
   result <- infer_argument_type(expr_node)
 
-  expect_equal(result, "numeric")
+  expect_equal(result, "class_numeric")
 })
 
 test_that("infer_argument_type detects list()", {
@@ -155,7 +155,7 @@ test_that("infer_argument_type detects list()", {
 
   result <- infer_argument_type(expr_node)
 
-  expect_equal(result, "list")
+  expect_equal(result, "class_list")
 })
 
 test_that("infer_argument_type detects data.frame()", {
@@ -167,7 +167,7 @@ test_that("infer_argument_type detects data.frame()", {
 
   result <- infer_argument_type(expr_node)
 
-  expect_equal(result, "data.frame")
+  expect_equal(result, "class_data.frame")
 })
 
 test_that("infer_argument_type detects matrix()", {
@@ -209,7 +209,7 @@ test_that("infer_argument_type detects comparison operators as logical", {
 
     result <- infer_argument_type(expr_node)
 
-    expect_equal(result, "logical", info = paste("Failed for:", code))
+    expect_equal(result, "class_logical", info = paste("Failed for:", code))
   }
 })
 
@@ -224,6 +224,6 @@ test_that("infer_argument_type detects logical operators as logical", {
 
     result <- infer_argument_type(expr_node)
 
-    expect_equal(result, "logical", info = paste("Failed for:", code))
+    expect_equal(result, "class_logical", info = paste("Failed for:", code))
   }
 })

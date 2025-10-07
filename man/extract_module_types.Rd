@@ -20,8 +20,8 @@ as inst/types.rds for consistency with package type loading.
 \examples{
 \dontrun{
 # Module file:
-# #' @typedParam x {numeric} value
-# #' @typedReturn {numeric} result
+# #' @typedParam x {class_numeric} value
+# #' @typedReturn {class_numeric} result
 # #' @export
 # double <- function(x) x * 2
 

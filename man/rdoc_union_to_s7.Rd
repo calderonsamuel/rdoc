@@ -19,14 +19,14 @@ Handles NULL specially - NULL is represented as R's NULL (not a class object).
 \examples{
 \dontrun{
 # Parse union syntax
-ast <- parse_type_syntax("NULL | integer")
+ast <- parse_type_syntax("NULL | class_integer")
 s7_union <- rdoc_union_to_s7(ast)
-# Returns: <S7_union>: <NULL> or <integer>
+# Returns: <S7_union>: <NULL> or <class_integer>
 
 # Complex case
-ast <- parse_type_syntax("NULL | character | integer")
+ast <- parse_type_syntax("NULL | class_character | class_integer")
 s7_union <- rdoc_union_to_s7(ast)
-# Returns: <S7_union>: <NULL>, <character>, or <integer>
+# Returns: <S7_union>: <NULL>, <class_character>, or <class_integer>
 }
 }
 \keyword{internal}

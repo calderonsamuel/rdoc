@@ -48,7 +48,7 @@ test_that("linter parses bracket syntax in annotations without error", {
   result <- lintr::lint(text = code, linters = type_consistency_linter())
 
   # No errors expected (length inference not yet implemented for c() calls)
-  expect_type(result, "list")
+  expect_type(result, "list")  # R's internal type is "list"
 })
 
 test_that("linter accepts bracket syntax for scalar literals", {

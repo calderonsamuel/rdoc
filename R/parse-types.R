@@ -29,8 +29,8 @@ parse_single_type <- function(type_string) {
   type_string <- trimws(type_string)
 
   # Check for function signature first (before length constraint check)
-  if (grepl("^function\\(.*\\)", type_string)) {
-    # Function signature: function(args): return
+  if (grepl("^class_function\\(.*\\)", type_string)) {
+    # Function signature: class_function(args): return
     return(parse_function_type(type_string))
   }
 
@@ -65,9 +65,9 @@ parse_single_type <- function(type_string) {
 #' @return A list with function type information
 #' @keywords internal
 parse_function_type <- function(type_string) {
-  # Pattern: function(args) or function(args): return
+  # Pattern: class_function(args) or class_function(args): return
   # First try with colon and return type
-  pattern_with_return <- "^function\\((.*)\\):\\s*(.+)$"
+  pattern_with_return <- "^class_function\\((.*)\\):\\s*(.+)$"
   matches <- regmatches(type_string, regexec(pattern_with_return, type_string))[[1]]
 
   if (length(matches) == 3) {
@@ -79,14 +79,14 @@ parse_function_type <- function(type_string) {
     }
 
     return(list(
-      base = "function",
+      base = "class_function",
       args = args,
       return = trimws(matches[3])
     ))
   }
 
   # Try without return type
-  pattern_no_return <- "^function\\((.*)\\)$"
+  pattern_no_return <- "^class_function\\((.*)\\)$"
   matches <- regmatches(type_string, regexec(pattern_no_return, type_string))[[1]]
 
   if (length(matches) == 2) {
@@ -97,13 +97,13 @@ parse_function_type <- function(type_string) {
     }
 
     return(list(
-      base = "function",
+      base = "class_function",
       args = args
     ))
   }
 
   # Fallback
-  list(base = "function")
+  list(base = "class_function")
 }
 
 #' Check if type is a union type
@@ -148,12 +148,12 @@ validate_type_spec <- function(type_string) {
 #' @keywords internal
 base_r_types <- function() {
   c(
-    "numeric", "integer", "double", "character", "logical",
-    "complex", "raw", "list", "vector",
-    "NULL", "any",
-    "data.frame", "matrix", "array",
-    "environment", "function",
-    "factor", "Date", "POSIXct", "POSIXlt"
+    "class_numeric", "class_integer", "class_double", "class_character", "class_logical",
+    "class_complex", "class_raw", "class_list", "class_vector",
+    "NULL", "class_any",
+    "class_data.frame", "matrix", "array",
+    "class_environment", "class_function",
+    "class_factor", "class_Date", "class_POSIXct", "class_POSIXlt"
   )
 }
 

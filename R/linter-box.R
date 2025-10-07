@@ -591,8 +591,8 @@ get_cached_module_types <- function(module_file) {
 #' @examples
 #' \dontrun{
 #' # Module file:
-#' # #' @typedParam x {numeric} value
-#' # #' @typedReturn {numeric} result
+#' # #' @typedParam x {class_numeric} value
+#' # #' @typedReturn {class_numeric} result
 #' # #' @export
 #' # double <- function(x) x * 2
 #'

@@ -15,6 +15,7 @@ string_based_compatible(actual, expected)
 Logical
 }
 \description{
-Fallback for types not in S7 (data.frame, matrix, etc)
+Fallback for types not in S7. Note: Most types should use S7 class names now.
+This is only for special cases like NULL.
 }
 \keyword{internal}

@@ -1,8 +1,7 @@
-#' Normalize type name to handle both short and S7 class forms
+#' Normalize type name (trim whitespace only)
 #'
-#' Accepts both "integer" and "class_integer" forms, normalizing to short form.
-#' This is a helper for backwards compatibility - the main type resolution
-#' happens via type_string_to_s7_class().
+#' Type names must use the full S7 class name (e.g., "class_integer", not "integer").
+#' This function only trims whitespace.
 #'
 #' @param type_string Character string with type name
 #' @return Normalized type string
@@ -10,43 +9,32 @@
 #'
 #' @examples
 #' \dontrun{
-#' normalize_type_name("class_integer")  # "integer"
-#' normalize_type_name("integer")        # "integer"
-#' normalize_type_name("class_numeric")  # "numeric"
+#' normalize_type_name("class_integer")  # "class_integer"
+#' normalize_type_name(" class_integer ") # "class_integer"
 #' }
 normalize_type_name <- function(type_string) {
-  type_string <- trimws(type_string)
-
-  # Strip "class_" prefix if present
-  type_string <- gsub("^class_", "", type_string)
-
-  # Handle S7 type aliases
-  # numeric is integer | double in S7
-  if (type_string == "numeric") {
-    return("numeric")
-  }
-
-  type_string
+  trimws(type_string)
 }
 
-# S7 type name mapping - list of valid S7 types
+# S7 type name mapping - list of valid S7 class names
 # We dynamically get the class objects from S7 namespace to avoid identity issues
 .s7_type_names <- c(
   # Original 9 types
-  "logical", "integer", "double", "complex", "character", "raw",
-  "list", "expression", "numeric",
+  "class_logical", "class_integer", "class_double", "class_complex",
+  "class_character", "class_raw", "class_list", "class_expression", "class_numeric",
 
   # Base classes (4)
-  "call", "environment", "function", "name",
+  "class_call", "class_environment", "class_function", "class_name",
 
   # Unions (3)
-  "atomic", "language", "vector",
+  "class_atomic", "class_language", "class_vector",
 
   # S3 wrappers (7)
-  "data.frame", "Date", "factor", "formula", "POSIXct", "POSIXlt", "POSIXt",
+  "class_data.frame", "class_Date", "class_factor", "class_formula",
+  "class_POSIXct", "class_POSIXlt", "class_POSIXt",
 
   # Special
-  "any"
+  "class_any"
 )
 
 #' Get S7 class object from type name
@@ -54,15 +42,14 @@ normalize_type_name <- function(type_string) {
 #' Dynamically retrieves from S7 namespace to ensure we get the same object
 #' instances that tests and other code use.
 #'
-#' @param type_name Type name (normalized, without "class_" prefix)
+#' @param type_name Full S7 class name (e.g., "class_integer")
 #' @return S7 class object or NULL
 #' @keywords internal
 get_s7_class_from_namespace <- function(type_name) {
-  class_name <- paste0("class_", type_name)
-
+  # Type name should already have "class_" prefix
   # Try to get from S7 namespace
   tryCatch(
-    getExportedValue("S7", class_name),
+    getExportedValue("S7", type_name),
     error = function(e) NULL
   )
 }
@@ -84,21 +71,20 @@ is_s7_base_type <- function(type_string) {
 #' This is the PRIMARY type resolution function. Converts rdoc type annotations
 #' to S7 class objects, which are the source of truth for type checking.
 #'
-#' @param type_string Type name (accepts both "integer" and "class_integer")
+#' @param type_string Full S7 class name (e.g., "class_integer")
 #' @return S7 class object or NULL if not S7 type
 #' @keywords internal
 #'
 #' @examples
 #' \dontrun{
-#' # Both forms resolve to S7::class_integer
-#' type_string_to_s7_class("integer")        # S7::class_integer
+#' # S7 class names resolve to S7 class objects
 #' type_string_to_s7_class("class_integer")  # S7::class_integer
 #'
 #' # S7 union types
-#' type_string_to_s7_class("numeric")        # S7::class_numeric (union)
+#' type_string_to_s7_class("class_numeric")  # S7::class_numeric (union)
 #'
-#' # Non-S7 types return NULL
-#' type_string_to_s7_class("data.frame")     # NULL
+#' # NULL is special case
+#' type_string_to_s7_class("NULL")           # NULL
 #' }
 type_string_to_s7_class <- function(type_string) {
   type_string <- normalize_type_name(type_string)
@@ -115,22 +101,19 @@ type_string_to_s7_class <- function(type_string) {
 #' Convert S7 class object to type string
 #'
 #' @param s7_class S7 class object
-#' @return Type string
+#' @return Full S7 class name (e.g., "class_integer")
 #' @keywords internal
 s7_class_to_type_string <- function(s7_class) {
   # Check if this is a union (like class_numeric)
   if (inherits(s7_class, "S7_union")) {
-    # For unions, return "numeric" (the union name)
+    # For unions, return full class name
     # class_numeric is integer | double
-    return("numeric")
+    return("class_numeric")
   }
 
-  # Get class name from S7 class object
-  # S7 base class objects have a $class property
-  class_name <- s7_class$class
-
-  # Strip "class_" prefix for short form
-  normalize_type_name(class_name)
+  # Get class name from S7 class object and prefix with class_
+  # S7 base class objects have a $class property (which is the short form)
+  paste0("class_", s7_class$class)
 }
 
 #' Check if actual S7 class is compatible with expected S7 class
@@ -220,7 +203,8 @@ s7_class_compatible <- function(actual_s7, expected_s7) {
 
 #' Check if two types are compatible (string-based, for non-S7 types)
 #'
-#' Fallback for types not in S7 (data.frame, matrix, etc)
+#' Fallback for types not in S7. Note: Most types should use S7 class names now.
+#' This is only for special cases like NULL.
 #'
 #' @param actual Actual type string
 #' @param expected Expected type string
@@ -232,39 +216,26 @@ string_based_compatible <- function(actual, expected) {
     return(TRUE)
   }
 
-  # R's numeric type compatibility: numeric/double/integer are interchangeable
-  if (expected %in% c("numeric", "double") && actual %in% c("numeric", "integer", "double")) {
-    return(TRUE)
-  }
-
   FALSE
 }
 
 #' Convert type to S7 display name for error messages
 #'
-#' Always uses S7 convention (class_ prefix) for S7 base types
+#' Type names are already in S7 convention (class_ prefix) for S7 types
 #'
-#' @param type_string Type string to convert
-#' @return S7 display name
+#' @param type_string Type string to display
+#' @return Display name (unchanged for S7 types)
 #' @keywords internal
 #'
 #' @examples
 #' \dontrun{
-#' type_to_s7_display("integer")      # "class_integer"
-#' type_to_s7_display("numeric")      # "class_numeric"
-#' type_to_s7_display("data.frame")   # "data.frame" (not S7)
+#' type_to_s7_display("class_integer")  # "class_integer"
+#' type_to_s7_display("class_numeric")  # "class_numeric"
+#' type_to_s7_display("NULL")           # "NULL"
 #' }
 type_to_s7_display <- function(type_string) {
-  # Normalize first (strip class_ if present)
-  normalized <- normalize_type_name(type_string)
-
-  # Check if it's an S7 base type
-  if (is_s7_base_type(normalized)) {
-    return(paste0("class_", normalized))
-  }
-
-  # Non-S7 types keep their original name
-  normalized
+  # Just normalize whitespace - type names already have correct form
+  normalize_type_name(type_string)
 }
 
 #' Convert rdoc union AST to S7 union object
@@ -279,14 +250,14 @@ type_to_s7_display <- function(type_string) {
 #' @examples
 #' \dontrun{
 #' # Parse union syntax
-#' ast <- parse_type_syntax("NULL | integer")
+#' ast <- parse_type_syntax("NULL | class_integer")
 #' s7_union <- rdoc_union_to_s7(ast)
-#' # Returns: <S7_union>: <NULL> or <integer>
+#' # Returns: <S7_union>: <NULL> or <class_integer>
 #'
 #' # Complex case
-#' ast <- parse_type_syntax("NULL | character | integer")
+#' ast <- parse_type_syntax("NULL | class_character | class_integer")
 #' s7_union <- rdoc_union_to_s7(ast)
-#' # Returns: <S7_union>: <NULL>, <character>, or <integer>
+#' # Returns: <S7_union>: <NULL>, <class_character>, or <class_integer>
 #' }
 rdoc_union_to_s7 <- function(ast_node) {
   # If not a union node, just convert single type

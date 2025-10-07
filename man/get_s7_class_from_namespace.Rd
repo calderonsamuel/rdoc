@@ -7,7 +7,7 @@
 get_s7_class_from_namespace(type_name)
 }
 \arguments{
-\item{type_name}{Type name (normalized, without "class_" prefix)}
+\item{type_name}{Full S7 class name (e.g., "class_integer")}
 }
 \value{
 S7 class object or NULL

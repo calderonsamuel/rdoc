@@ -4,8 +4,8 @@ test_that("NULL safety validates optional parameters", {
   skip_if_not_installed("xml2")
 
   code <- "
-#' @typedParam name {NULL | character} optional name
-#' @typedReturn {character}
+#' @typedParam name {NULL | class_character} optional name
+#' @typedReturn {class_character}
 greet <- function(name = NULL) {
   if (is.null(name)) 'Hello!' else paste('Hello', name)
 }
@@ -24,7 +24,7 @@ test_that("NULL safety rejects NULL to non-nullable parameter", {
   skip_if_not_installed("xml2")
 
   code <- "
-#' @typedParam name {character} required name
+#' @typedParam name {class_character} required name
 greet <- function(name) {
   paste('Hello', name)
 }
@@ -41,8 +41,8 @@ test_that("NULL safety validates NULL returns", {
   skip_if_not_installed("xml2")
 
   code <- "
-#' @typedParam id {integer}
-#' @typedReturn {NULL | list} user or NULL
+#' @typedParam id {class_integer}
+#' @typedReturn {NULL | class_list} user or NULL
 get_user <- function(id) {
   if (id < 1) return(NULL)
   list(id = id, name = 'User')
@@ -60,7 +60,7 @@ test_that("NULL safety validates multi-way unions", {
   skip_if_not_installed("xml2")
 
   code <- "
-#' @typedParam value {NULL | integer | character} flexible input
+#' @typedParam value {NULL | class_integer | class_character} flexible input
 process <- function(value) {
   value
 }
@@ -78,7 +78,7 @@ test_that("NULL safety rejects wrong type in union", {
   skip_if_not_installed("xml2")
 
   code <- "
-#' @typedParam value {NULL | integer | character}
+#' @typedParam value {NULL | class_integer | class_character}
 process <- function(value) {
   value
 }
@@ -93,18 +93,18 @@ process(3.14)  # numeric/double not in union
 test_that("NULL must be first in union (parser enforces)", {
   # Parser should reject NULL not first
   expect_error(
-    parse_type_syntax("integer | NULL"),
+    parse_type_syntax("class_integer | NULL"),
     "NULL must be first"
   )
 
   expect_error(
-    parse_type_syntax("integer | character | NULL"),
+    parse_type_syntax("class_integer | class_character | NULL"),
     "NULL must be first"
   )
 
   # NULL first should work
-  expect_silent(parse_type_syntax("NULL | integer"))
-  expect_silent(parse_type_syntax("NULL | integer | character"))
+  expect_silent(parse_type_syntax("NULL | class_integer"))
+  expect_silent(parse_type_syntax("NULL | class_integer | class_character"))
 })
 
 test_that("NULL safety works with S7 classes", {
@@ -128,7 +128,7 @@ test_that("NULL safety validates complex optional types", {
   skip_if_not_installed("xml2")
 
   code <- "
-#' @typedParam items {NULL | list<integer>} optional list
+#' @typedParam items {NULL | class_list<class_integer>} optional list
 process <- function(items = NULL) {
   items
 }
@@ -147,7 +147,7 @@ test_that("multi-way unions work correctly", {
   skip_if_not_installed("xml2")
 
   code <- "
-#' @typedParam value {NULL | integer | character | logical}
+#' @typedParam value {NULL | class_integer | class_character | class_logical}
 flexible <- function(value) { value }
 
 flexible(NULL)
@@ -168,17 +168,17 @@ test_that("chained union function calls work", {
   skip_if_not_installed("xml2")
 
   code <- "
-#' @typedReturn {NULL | integer}
+#' @typedReturn {NULL | class_integer}
 step1 <- function() { 42L }
 
-#' @typedParam x {NULL | integer}
-#' @typedReturn {NULL | character}
+#' @typedParam x {NULL | class_integer}
+#' @typedReturn {NULL | class_character}
 step2 <- function(x) {
   if (is.null(x)) return(NULL)
   as.character(x)
 }
 
-#' @typedParam x {NULL | character}
+#' @typedParam x {NULL | class_character}
 step3 <- function(x) { x }
 
 # Chain: NULL|int → NULL|char → final
@@ -193,10 +193,10 @@ test_that("union to union compatibility", {
   skip_if_not_installed("xml2")
 
   code <- "
-#' @typedParam value {NULL | integer | character}
+#' @typedParam value {NULL | class_integer | class_character}
 big_union <- function(value) { value }
 
-#' @typedParam value {integer | character}  
+#' @typedParam value {class_integer | class_character}  
 small_union <- function(value) { value }
 
 # Smaller union should be compatible with larger
@@ -213,10 +213,10 @@ test_that("union narrowing detected in chains", {
   skip_if_not_installed("xml2")
 
   code <- "
-#' @typedReturn {NULL | integer}
+#' @typedReturn {NULL | class_integer}
 maybe_int <- function() { NULL }
 
-#' @typedParam x {integer}
+#' @typedParam x {class_integer}
 requires_int <- function(x) { x }
 
 # Should fail: union → non-union

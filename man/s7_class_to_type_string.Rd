@@ -10,7 +10,7 @@ s7_class_to_type_string(s7_class)
 \item{s7_class}{S7 class object}
 }
 \value{
-Type string
+Full S7 class name (e.g., "class_integer")
 }
 \description{
 Convert S7 class object to type string

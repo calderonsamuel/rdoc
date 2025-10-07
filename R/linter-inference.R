@@ -20,9 +20,9 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
 
   # Check for known constructor function calls
   for (fn_info in list(
-    list(name = "list", type = "list"),
-    list(name = "data.frame", type = "data.frame"),
-    list(name = "matrix", type = "matrix")
+    list(name = "list", type = "class_list"),
+    list(name = "data.frame", type = "class_data.frame"),
+    list(name = "matrix", type = "matrix")  # matrix has no S7 class
   )) {
     fn_call <- xml2::xml_find_first(arg_node, sprintf(".//SYMBOL_FUNCTION_CALL[text()='%s']", fn_info$name))
     if (!is.na(fn_call)) {
@@ -54,24 +54,24 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
     }
   }
 
-  # Check for comparison and logical operators (they return logical)
+  # Check for comparison and logical operators (they return class_logical)
   # Comparison: >, >=, <, <=, ==, !=
   comparison_ops <- xml2::xml_find_first(arg_node, ".//GT | .//GE | .//LT | .//LE | .//EQ | .//NE")
   if (!is.na(comparison_ops)) {
-    return("logical")
+    return("class_logical")
   }
 
   # Logical operators: &, |, ! (AND, OR, NOT)
   logical_ops <- xml2::xml_find_first(arg_node, ".//AND | .//OR | .//OP-EXCLAMATION")
   if (!is.na(logical_ops)) {
-    return("logical")
+    return("class_logical")
   }
 
   # Now check for literals (after ruling out function calls and operators)
 
   # Check for string constant
   if (length(xml2::xml_find_all(arg_node, ".//STR_CONST")) > 0) {
-    return("character")
+    return("class_character")
   }
 
   # Check for NULL
@@ -84,13 +84,13 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
   if (length(num_const) > 0) {
     text <- xml2::xml_text(num_const[1])
     if (text %in% c("TRUE", "FALSE")) {
-      return("logical")
+      return("class_logical")
     }
     # Check for integer literal (ends with L)
     if (grepl("L$", text)) {
-      return("integer")
+      return("class_integer")
     }
-    return("numeric")
+    return("class_numeric")
   }
 
   # Check for variable reference (SYMBOL)

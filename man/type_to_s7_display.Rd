@@ -7,19 +7,19 @@
 type_to_s7_display(type_string)
 }
 \arguments{
-\item{type_string}{Type string to convert}
+\item{type_string}{Type string to display}
 }
 \value{
-S7 display name
+Display name (unchanged for S7 types)
 }
 \description{
-Always uses S7 convention (class_ prefix) for S7 base types
+Type names are already in S7 convention (class_ prefix) for S7 types
 }
 \examples{
 \dontrun{
-type_to_s7_display("integer")      # "class_integer"
-type_to_s7_display("numeric")      # "class_numeric"
-type_to_s7_display("data.frame")   # "data.frame" (not S7)
+type_to_s7_display("class_integer")  # "class_integer"
+type_to_s7_display("class_numeric")  # "class_numeric"
+type_to_s7_display("NULL")           # "NULL"
 }
 }
 \keyword{internal}

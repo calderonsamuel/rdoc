@@ -8,7 +8,7 @@ test_that("roclet_types can be created", {
 test_that("has_typed_tags detects typed tags", {
   # Create mock block with typed tags
   tag1 <- structure(
-    list(val = list(param = "x", type = "numeric", description = "input")),
+    list(val = list(param = "x", type = "class_numeric", description = "input")),
     class = c("roxy_tag_typedParam", "roxy_tag")
   )
 
@@ -46,12 +46,12 @@ test_that("get_function_name returns NULL if no object", {
 
 test_that("extract_type_info_from_block extracts params and return", {
   tag_param <- structure(
-    list(val = list(param = "x", type = "numeric", description = "input")),
+    list(val = list(param = "x", type = "class_numeric", description = "input")),
     class = c("roxy_tag_typedParam", "roxy_tag")
   )
 
   tag_return <- structure(
-    list(val = list(type = "numeric", description = "output")),
+    list(val = list(type = "class_numeric", description = "output")),
     class = c("roxy_tag_typedReturn", "roxy_tag")
   )
 
@@ -59,20 +59,20 @@ test_that("extract_type_info_from_block extracts params and return", {
 
   result <- extract_type_info_from_block(block)
 
-  expect_equal(result$params$x$type, "numeric")
+  expect_equal(result$params$x$type, "class_numeric")
   expect_equal(result$params$x$description, "input")
-  expect_equal(result$return$type, "numeric")
+  expect_equal(result$return$type, "class_numeric")
   expect_equal(result$return$description, "output")
 })
 
 test_that("extract_type_info_from_block handles multiple params", {
   tag1 <- structure(
-    list(val = list(param = "x", type = "numeric", description = "first")),
+    list(val = list(param = "x", type = "class_numeric", description = "first")),
     class = c("roxy_tag_typedParam", "roxy_tag")
   )
 
   tag2 <- structure(
-    list(val = list(param = "y", type = "character", description = "second")),
+    list(val = list(param = "y", type = "class_character", description = "second")),
     class = c("roxy_tag_typedParam", "roxy_tag")
   )
 
@@ -81,8 +81,8 @@ test_that("extract_type_info_from_block handles multiple params", {
   result <- extract_type_info_from_block(block)
 
   expect_length(result$params, 2)
-  expect_equal(result$params$x$type, "numeric")
-  expect_equal(result$params$y$type, "character")
+  expect_equal(result$params$x$type, "class_numeric")
+  expect_equal(result$params$y$type, "class_character")
 })
 
 test_that("extract_type_info_from_block returns NULL if no typed tags", {
@@ -97,7 +97,7 @@ test_that("extract_type_info_from_block returns NULL if no typed tags", {
 test_that("roclet_process extracts types from blocks", {
   # Create a mock block
   tag_param <- structure(
-    list(val = list(param = "x", type = "numeric", description = "input")),
+    list(val = list(param = "x", type = "class_numeric", description = "input")),
     class = c("roxy_tag_typedParam", "roxy_tag")
   )
 
@@ -111,14 +111,14 @@ test_that("roclet_process extracts types from blocks", {
 
   expect_length(results, 1)
   expect_equal(names(results), "test_function")
-  expect_equal(results$test_function$params$x$type, "numeric")
+  expect_equal(results$test_function$params$x$type, "class_numeric")
 })
 
 test_that("roclet_output creates inst/types.rds", {
   results <- list(
     my_func = list(
       params = list(
-        x = list(type = "numeric", description = "input")
+        x = list(type = "class_numeric", description = "input")
       )
     )
   )

@@ -7,7 +7,7 @@ test_that("linter validates explicit return statement matches @typedReturn", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedReturn {numeric} should return number
+    #' @typedReturn {class_numeric} should return number
     get_value <- function() {
       return('text')
     }
@@ -24,7 +24,7 @@ test_that("linter validates implicit return (last expression) matches @typedRetu
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedReturn {character} should return text
+    #' @typedReturn {class_character} should return text
     get_value <- function() {
       42
     }
@@ -41,12 +41,12 @@ test_that("linter passes when return type matches declaration", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedReturn {numeric} returns number
+    #' @typedReturn {class_numeric} returns number
     get_number <- function() {
       return(42)
     }
 
-    #' @typedReturn {character} returns text
+    #' @typedReturn {class_character} returns text
     get_text <- function() {
       'hello'
     }
@@ -62,7 +62,7 @@ test_that("linter skips validation for complex function bodies", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedReturn {numeric} complex logic
+    #' @typedReturn {class_numeric} complex logic
     calculate <- function(x) {
       if (x > 0) {
         return(x * 2)
@@ -83,7 +83,7 @@ test_that("linter validates return from constructor calls", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedReturn {numeric} should return number
+    #' @typedReturn {class_numeric} should return number
     get_data <- function() {
       return(list(1, 2, 3))
     }
@@ -116,7 +116,7 @@ test_that("linter validates return from comparison operators", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedReturn {logical} is adult
+    #' @typedReturn {class_logical} is adult
     is_adult <- function(age) {
       age >= 18
     }
@@ -132,7 +132,7 @@ test_that("linter catches wrong type with comparison operators", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedReturn {numeric} wrong type
+    #' @typedReturn {class_numeric} wrong type
     is_valid <- function(x) {
       x > 0
     }
@@ -149,7 +149,7 @@ test_that("linter validates return from logical operators", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedReturn {logical} combined check
+    #' @typedReturn {class_logical} combined check
     check_both <- function(x, y) {
       (x > 0) & (y < 10)
     }

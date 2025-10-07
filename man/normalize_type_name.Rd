@@ -2,7 +2,7 @@
 % Please edit documentation in R/s7-types.R
 \name{normalize_type_name}
 \alias{normalize_type_name}
-\title{Normalize type name to handle both short and S7 class forms}
+\title{Normalize type name (trim whitespace only)}
 \usage{
 normalize_type_name(type_string)
 }
@@ -13,15 +13,13 @@ normalize_type_name(type_string)
 Normalized type string
 }
 \description{
-Accepts both "integer" and "class_integer" forms, normalizing to short form.
-This is a helper for backwards compatibility - the main type resolution
-happens via type_string_to_s7_class().
+Type names must use the full S7 class name (e.g., "class_integer", not "integer").
+This function only trims whitespace.
 }
 \examples{
 \dontrun{
-normalize_type_name("class_integer")  # "integer"
-normalize_type_name("integer")        # "integer"
-normalize_type_name("class_numeric")  # "numeric"
+normalize_type_name("class_integer")  # "class_integer"
+normalize_type_name(" class_integer ") # "class_integer"
 }
 }
 \keyword{internal}

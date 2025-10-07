@@ -28,6 +28,45 @@ validate_type_syntax <- function(type_spec, source_location = NULL) {
     )
   }
 
+  # Check for short-form type names (not allowed - must use S7 class names)
+  short_forms <- c(
+    "logical", "integer", "double", "complex", "character", "raw",
+    "list", "expression", "numeric", "call", "environment", "function",
+    "name", "atomic", "language", "vector", "Date",
+    "factor", "formula", "POSIXct", "POSIXlt", "POSIXt", "any"
+  )
+
+  # Build regex pattern to match short forms as complete words
+  # Match word boundaries to avoid matching "class_integer" when looking for "integer"
+  pattern <- paste0("\\b(", paste(short_forms, collapse = "|"), ")\\b")
+
+  # Special case: data.frame needs special handling (dot breaks word boundary)
+  if (grepl("\\bdata\\.frame\\b", type_spec)) {
+    cli::cli_abort(
+      c(
+        "Short-form type name 'data.frame' is not allowed",
+        "i" = "Use the full S7 class name: 'class_data.frame'",
+        "i" = "Example: Change {{{{data.frame}}}} to {{{{class_data.frame}}}}"
+      ),
+      call = NULL
+    )
+  }
+
+  if (grepl(pattern, type_spec, ignore.case = FALSE)) {
+    # Extract which short form was used
+    matches <- regmatches(type_spec, gregexpr(pattern, type_spec, perl = TRUE))[[1]]
+    short_form <- matches[1]  # Get first match
+
+    cli::cli_abort(
+      c(
+        "Short-form type name '{short_form}' is not allowed",
+        "i" = "Use the full S7 class name: 'class_{short_form}'",
+        "i" = "Example: Change {{{{integer}}}} to {{{{class_integer}}}}"
+      ),
+      call = NULL
+    )
+  }
+
   # Use the parser to validate syntax
   # The parser throws errors with precise locations and helpful messages
   tryCatch(

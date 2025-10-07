@@ -4,7 +4,7 @@ test_that("parse_type_constraints handles nested generics", {
 
   expect_equal(result$base_type, "class_list")
   expect_equal(result$element_type, "class_list<class_integer>")
-  expect_type(result, "list")
+  expect_type(result, "list")  # R's internal type is "list"
 })
 
 test_that("parse_type_constraints rejects empty brackets", {
@@ -50,10 +50,10 @@ test_that("parse_type_constraints handles whitespace in angle brackets", {
 })
 
 test_that("parse_type_constraints handles dots in class names", {
-  result <- parse_type_constraints("data.frame[1]")
+  result <- parse_type_constraints("class_data.frame[1]")
 
   # Dots ARE allowed - [^<>\\[\\]]+ matches them
-  expect_equal(result$base_type, "data.frame")
+  expect_equal(result$base_type, "class_data.frame")
   expect_equal(result$length_constraint, 1)
 })
 
@@ -163,10 +163,11 @@ test_that("parse_type_constraints handles class_ prefix variations", {
   expect_equal(result1$base_type, "class_integer")
   expect_equal(result1$length_constraint, 1)
 
-  # Without class_ prefix (also valid)
-  result2 <- parse_type_constraints("integer[1]")
-  expect_equal(result2$base_type, "integer")
-  expect_equal(result2$length_constraint, 1)
+  # Short forms are rejected
+  expect_error(
+    parse_type_constraints("integer[1]"),
+    "Short-form type name 'integer' is not allowed"
+  )
 })
 
 test_that("parse_type_constraints rejects mixed parenthesis and bracket syntax", {
