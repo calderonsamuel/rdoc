@@ -462,7 +462,10 @@ extract_quoted_strings <- function(text) {
 #' @keywords internal
 normalize_box_paths <- function(paths, project_root) {
   vapply(paths, function(p) {
-    if (grepl("^[/~]", p)) {
+    # Check if path is absolute (Unix: /path or ~/path, Windows: C:/path or C:\path)
+    is_absolute <- grepl("^[/~]", p) || grepl("^[A-Za-z]:", p)
+
+    if (is_absolute) {
       # Already absolute or home-relative
       normalizePath(p, mustWork = FALSE)
     } else {
