@@ -8,8 +8,9 @@ test_that("get_box_search_paths uses existing option if set", {
   paths <- get_box_search_paths("/test/project")
 
   expect_length(paths, 2)
-  expect_match(paths[1], "R/modules$")
-  expect_match(paths[2], "shared$")
+  # Check that paths end with the expected directory names
+  expect_true(endsWith(paths[1], file.path("R", "modules")))
+  expect_true(endsWith(paths[2], "shared"))
 })
 
 test_that("get_box_search_paths parses .Rprofile with c() syntax", {
@@ -26,8 +27,8 @@ test_that("get_box_search_paths parses .Rprofile with c() syntax", {
   paths <- get_box_search_paths(tmp_dir)
 
   expect_length(paths, 2)
-  expect_match(paths[1], "R/modules$")
-  expect_match(paths[2], "shared$")
+  expect_true(endsWith(paths[1], file.path("R", "modules")))
+  expect_true(endsWith(paths[2], "shared"))
 })
 
 test_that("get_box_search_paths parses .Rprofile with single path", {
@@ -42,13 +43,18 @@ test_that("get_box_search_paths parses .Rprofile with single path", {
   paths <- get_box_search_paths(tmp_dir)
 
   expect_length(paths, 1)
-  expect_match(paths[1], "R/modules$")
+  expect_true(endsWith(paths[1], file.path("R", "modules")))
 })
 
 test_that("get_box_search_paths handles absolute paths in .Rprofile", {
   tmp_dir <- withr::local_tempdir()
   rprofile <- file.path(tmp_dir, ".Rprofile")
-  writeLines('options(box.path = "/absolute/path")', rprofile)
+
+  # Create a real absolute path that works on all platforms
+  abs_path <- file.path(tmp_dir, "my_modules")
+
+  # Write to .Rprofile with proper path formatting for the platform
+  writeLines(sprintf('options(box.path = "%s")', abs_path), rprofile)
 
   old_opt <- getOption("box.path")
   on.exit(options(box.path = old_opt), add = TRUE)
@@ -56,7 +62,8 @@ test_that("get_box_search_paths handles absolute paths in .Rprofile", {
 
   paths <- get_box_search_paths(tmp_dir)
 
-  expect_equal(paths, "/absolute/path")
+  # Should preserve the absolute path as-is
+  expect_equal(paths, abs_path)
 })
 
 test_that("get_box_search_paths uses BOX_PATH environment variable", {
@@ -79,8 +86,8 @@ test_that("get_box_search_paths uses BOX_PATH environment variable", {
   paths <- get_box_search_paths(tmp_dir)
 
   expect_length(paths, 2)
-  expect_match(paths[1], "R/modules$")
-  expect_match(paths[2], "shared$")
+  expect_true(endsWith(paths[1], file.path("R", "modules")))
+  expect_true(endsWith(paths[2], "shared"))
 })
 
 test_that("get_box_search_paths defaults to project root", {
@@ -234,14 +241,17 @@ test_that("normalize_box_paths converts relative to absolute", {
 
   expect_length(paths, 2)
   expect_true(all(grepl("^/", paths) | grepl("^[A-Z]:", paths)))  # Unix or Windows absolute
-  expect_match(paths[1], "R/modules$")
-  expect_match(paths[2], "shared$")
+  expect_true(endsWith(paths[1], file.path("R", "modules")))
+  expect_true(endsWith(paths[2], "shared"))
 })
 
 test_that("normalize_box_paths handles absolute paths", {
-  absolute_path <- "/absolute/path"
+  # Create a real absolute path for the current platform
+  tmp_dir <- withr::local_tempdir()
+  absolute_path <- file.path(tmp_dir, "absolute", "path")
 
-  paths <- normalize_box_paths(absolute_path, "/some/project")
+  paths <- normalize_box_paths(absolute_path, tmp_dir)
 
-  expect_equal(paths, "/absolute/path")
+  # Should preserve the absolute path as-is
+  expect_equal(paths, absolute_path)
 })
