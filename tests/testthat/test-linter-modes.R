@@ -588,3 +588,61 @@ test_that("helpful error messages in all modes", {
   messages <- vapply(lints_exported, function(l) l$message, character(1))
   expect_true(any(grepl("@typed", messages)))
 })
+
+# Error Position Accuracy ----
+
+test_that("missing parameter type error points at parameter name, not function name", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    # rdoc: strict
+    #' @export
+    untyped_exported <- function(x) {
+      x + 1
+    }
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(mode = "strict"))
+
+  # Find the parameter error
+  param_lints <- Filter(function(l) grepl("Parameter 'x' missing", l$message), lints)
+  expect_length(param_lints, 1)
+
+  lint <- param_lints[[1]]
+
+  # Line should be where function is defined (line 4 in this code)
+  expect_equal(lint$line_number, 4)
+
+  # Column should point at parameter 'x' (column 36 in "function(x)")
+  # Not at function name 'untyped_exported' (column 5)
+  expect_true(lint$column_number >= 30)  # After 'function('
+  expect_true(lint$column_number <= 40)  # Around 'x'
+})
+
+test_that("missing return type error points at function name, not FUNCTION keyword", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    # rdoc: strict
+    #' @export
+    untyped_exported <- function(x) {
+      x + 1
+    }
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter(mode = "strict"))
+
+  # Find the return type error
+  return_lints <- Filter(function(l) grepl("missing return type", l$message), lints)
+  expect_length(return_lints, 1)
+
+  lint <- return_lints[[1]]
+
+  # Line should be where function is defined
+  expect_equal(lint$line_number, 4)
+
+  # Column should point at function name 'untyped_exported' (starts around column 5)
+  # Not at 'function' keyword (column 25)
+  expect_true(lint$column_number < 25)  # Before 'function' keyword
+  expect_true(lint$column_number >= 5)  # At or after function name start
+})

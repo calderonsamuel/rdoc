@@ -477,7 +477,10 @@ check_strict_mode_annotations_impl <- function(fn_assign_node, type_info, source
   param_names <- vapply(param_nodes, xml2::xml_text, character(1))
 
   # Check each parameter for type annotation
-  for (param_name in param_names) {
+  for (i in seq_along(param_names)) {
+    param_name <- param_names[i]
+    param_node <- param_nodes[[i]]
+
     # Skip ... parameter (ellipsis)
     if (param_name == "...") {
       next
@@ -490,15 +493,12 @@ check_strict_mode_annotations_impl <- function(fn_assign_node, type_info, source
     }
 
     if (!has_annotation) {
-      # Find the parameter node for positioning
-      param_node <- xml2::xml_find_first(fn_node, sprintf(".//SYMBOL_FORMALS[text()='%s']", param_name))
-
-      # Use function node as fallback
+      # Use function node line as fallback if param_node position is missing
       fallback <- as.integer(xml2::xml_attr(fn_node, "line1"))
       if (is.na(fallback)) fallback <- 1L
 
       lints[[length(lints) + 1]] <- create_lint(
-        param_node,
+        param_node,  # Points directly at parameter name
         source_expression,
         sprintf(
           "Parameter '%s' missing type annotation (%s mode). Add @typedParam %s {type} description",
@@ -513,8 +513,12 @@ check_strict_mode_annotations_impl <- function(fn_assign_node, type_info, source
   has_return_annotation <- !is.null(type_info) && !is.null(type_info$return)
 
   if (!has_return_annotation) {
+    # Use function name node for positioning (not FUNCTION keyword)
+    # If no function name (anonymous function), fall back to fn_node
+    position_node <- if (!is.na(symbol_node)) symbol_node else fn_node
+
     lints[[length(lints) + 1]] <- create_lint(
-      fn_node,
+      position_node,  # Points at function name, not FUNCTION keyword
       source_expression,
       sprintf(
         "Function '%s' missing return type annotation (%s mode). Add @typedReturn {type} description",
