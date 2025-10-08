@@ -21,8 +21,11 @@ for clearer error messages. E.g., "class_numeric | class_character" becomes
 \dontrun{
 type_to_s7_display("class_integer")  # "class_integer"
 type_to_s7_display("class_numeric")  # "class_integer | class_double"
-type_to_s7_display("class_numeric | class_character")  # "class_integer | class_double | class_character"
-type_to_s7_display("NULL | class_numeric")  # "NULL | class_integer | class_double"
+# Expands unions recursively:
+type_to_s7_display("class_numeric | class_character")
+# Returns: "class_integer | class_double | class_character"
+type_to_s7_display("NULL | class_numeric")
+# Returns: "NULL | class_integer | class_double"
 }
 }
 \keyword{internal}

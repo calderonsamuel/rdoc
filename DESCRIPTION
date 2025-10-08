@@ -1,6 +1,6 @@
 Package: rdoc
 Title: Type Annotations and Static Checking for R Functions
-Version: 0.0.0.9000
+Version: 0.0.0.9001
 Authors@R:
     person("Samuel", "Calderon", , "samuel.calderon@uarm.pe", role = c("aut", "cre"))
 Description: Provides JSDoc-style type annotations for R functions using custom
