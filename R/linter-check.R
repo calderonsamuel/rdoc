@@ -1,35 +1,50 @@
-#' Find incompatible union member for error messages
+#' Analyze union type incompatibility for error messages
 #'
-#' When a union type is incompatible with an expected type, identify which
-#' union member is incompatible (for TypeScript-style error messages).
+#' When a union type is incompatible with an expected type, determine whether:
+#' - Scenario 1 (Partial): Some union members are compatible (needs type narrowing)
+#' - Scenario 2 (Total): No union members are compatible (completely wrong type)
 #'
 #' @param actual_type The actual type string (may contain unions with |)
 #' @param expected_type The expected type string
-#' @return Character string with incompatible member, or NULL if not a union mismatch
+#' @return List with elements: scenario ("partial", "total", or NULL), expected_display
 #' @keywords internal
-find_incompatible_union_member <- function(actual_type, expected_type) {
+analyze_union_incompatibility <- function(actual_type, expected_type) {
   # Check if actual type contains a union (has |)
   if (!grepl("\\|", actual_type)) {
-    return(NULL)
+    return(list(scenario = NULL, expected_display = NULL))
   }
 
   # Split the union into individual types
   # Parse to handle complex types properly
   actual_ast <- parse_type_syntax(actual_type)
   if (is.null(actual_ast) || actual_ast$node_type != "union") {
-    return(NULL)
+    return(list(scenario = NULL, expected_display = NULL))
   }
 
-  # For each union member, check if it's incompatible with expected type
+  # Check each union member against expected type
+  has_compatible <- FALSE
+  has_incompatible <- FALSE
+
   for (member_ast in actual_ast$types) {
     member_string <- ast_to_string(member_ast)
-    if (!types_compatible(member_string, expected_type)) {
-      return(member_string)
+    if (types_compatible(member_string, expected_type)) {
+      has_compatible <- TRUE
+    } else {
+      has_incompatible <- TRUE
     }
   }
 
-  # All members are compatible (shouldn't happen if types_compatible returned FALSE)
-  return(NULL)
+  # Determine scenario
+  if (has_compatible && has_incompatible) {
+    # Scenario 1: Partial compatibility (some members work, some don't)
+    return(list(scenario = "partial", expected_display = type_to_s7_display(expected_type)))
+  } else if (has_incompatible && !has_compatible) {
+    # Scenario 2: Total incompatibility (no members work)
+    return(list(scenario = "total", expected_display = NULL))
+  } else {
+    # All members are compatible (shouldn't happen if types_compatible returned FALSE)
+    return(list(scenario = NULL, expected_display = NULL))
+  }
 }
 
 #' Check function calls against type signatures
@@ -178,16 +193,18 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
         actual_display
       )
 
-      # Add TypeScript-style explanation if actual type is a union
-      incompatible_member <- find_incompatible_union_member(actual_display, expected_type)
-      if (!is.null(incompatible_member)) {
+      # Analyze union incompatibility and add context-aware explanation
+      union_analysis <- analyze_union_incompatibility(actual_display, expected_type)
+
+      if (!is.null(union_analysis$scenario) && union_analysis$scenario == "partial") {
+        # Scenario 1: Some members compatible, some not (needs type narrowing)
         message <- sprintf(
-          "%s.\n  Not all union members are compatible: '%s' cannot be assigned to '%s'",
+          "%s.\n  Cannot narrow union to '%s' without type guard",
           message,
-          incompatible_member,
-          expected_display
+          union_analysis$expected_display
         )
       }
+      # Scenario 2: No members compatible - no explanation needed (total mismatch is obvious)
 
       lints[[length(lints) + 1]] <- create_lint(
         args[[i]]$node,

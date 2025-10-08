@@ -617,7 +617,7 @@ test_that("linter catches type mismatch with complex return types", {
   expect_true(any(grepl("class_list.*data.frame", vapply(lints, function(l) l$message, character(1)))))
 })
 
-test_that("union type errors show TypeScript-style explanation", {
+test_that("union type errors - scenario 1: partial compatibility (needs type narrowing)", {
   skip_if_not_installed("lintr")
 
   code <- "
@@ -639,9 +639,35 @@ test_that("union type errors show TypeScript-style explanation", {
   # Should have main error message
   expect_match(message, "Argument 'x' expects type 'class_double' but got 'class_integer\\[1\\] \\| class_double\\[1\\]'")
 
-  # Should have TypeScript-style explanation
-  expect_match(message, "Not all union members are compatible")
-  expect_match(message, "'class_integer\\[1\\]' cannot be assigned to 'class_double'")
+  # Scenario 1: Should explain type narrowing is needed
+  expect_match(message, "Cannot narrow union to 'class_double' without type guard")
+})
+
+test_that("union type errors - scenario 2: total incompatibility (no explanation)", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedReturn {class_numeric[1]} a number
+    get_number <- function() 42
+
+    #' @typedParam x {class_character} text
+    upper <- function(x) toupper(x)
+
+    num_result <- get_number()
+    upper(num_result)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  expect_length(lints, 1)
+  message <- lints[[1]]$message
+
+  # Should have main error message
+  expect_match(message, "Argument 'x' expects type 'class_character' but got 'class_integer\\[1\\] \\| class_double\\[1\\]'")
+
+  # Scenario 2: Should NOT have explanation (total mismatch is obvious)
+  expect_no_match(message, "Cannot narrow")
+  expect_no_match(message, "type guard")
 })
 
 # Actual types are never unions ----
