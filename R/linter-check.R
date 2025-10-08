@@ -1,3 +1,37 @@
+#' Find incompatible union member for error messages
+#'
+#' When a union type is incompatible with an expected type, identify which
+#' union member is incompatible (for TypeScript-style error messages).
+#'
+#' @param actual_type The actual type string (may contain unions with |)
+#' @param expected_type The expected type string
+#' @return Character string with incompatible member, or NULL if not a union mismatch
+#' @keywords internal
+find_incompatible_union_member <- function(actual_type, expected_type) {
+  # Check if actual type contains a union (has |)
+  if (!grepl("\\|", actual_type)) {
+    return(NULL)
+  }
+
+  # Split the union into individual types
+  # Parse to handle complex types properly
+  actual_ast <- parse_type_syntax(actual_type)
+  if (is.null(actual_ast) || actual_ast$node_type != "union") {
+    return(NULL)
+  }
+
+  # For each union member, check if it's incompatible with expected type
+  for (member_ast in actual_ast$types) {
+    member_string <- ast_to_string(member_ast)
+    if (!types_compatible(member_string, expected_type)) {
+      return(member_string)
+    }
+  }
+
+  # All members are compatible (shouldn't happen if types_compatible returned FALSE)
+  return(NULL)
+}
+
 #' Check function calls against type signatures
 #'
 #' @param xml XML parsed content
@@ -132,15 +166,33 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
 
     # Check type compatibility
     if (!types_compatible(actual_type, expected_type)) {
+      # Format types for display
+      expected_display <- type_to_s7_display(expected_type)
+      actual_display <- type_to_s7_display(actual_type)
+
+      # Build error message
+      message <- sprintf(
+        "Argument '%s' expects type '%s' but got '%s'",
+        param_name,
+        expected_display,
+        actual_display
+      )
+
+      # Add TypeScript-style explanation if actual type is a union
+      incompatible_member <- find_incompatible_union_member(actual_display, expected_type)
+      if (!is.null(incompatible_member)) {
+        message <- sprintf(
+          "%s.\n  Not all union members are compatible: '%s' cannot be assigned to '%s'",
+          message,
+          incompatible_member,
+          expected_display
+        )
+      }
+
       lints[[length(lints) + 1]] <- create_lint(
         args[[i]]$node,
         source_expression,
-        sprintf(
-          "Argument '%s' expects type '%s' but got '%s'",
-          param_name,
-          type_to_s7_display(expected_type),
-          type_to_s7_display(actual_type)
-        )
+        message
       )
     }
   }
