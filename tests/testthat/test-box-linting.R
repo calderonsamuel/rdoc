@@ -107,7 +107,7 @@ test_that("linter works with selective box imports", {
   lints <- lintr::lint(script_file, linters = type_consistency_linter())
 
   expect_length(lints, 1)
-  expect_match(lints[[1]]$message, "character.*integer.*double", ignore.case = TRUE)
+  expect_match(lints[[1]]$message, "character.*class_double", ignore.case = TRUE)
 })
 
 test_that("linter works with attach-all box imports", {

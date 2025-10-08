@@ -22,7 +22,7 @@ test_that("infer_argument_type detects numeric", {
 
   result <- infer_argument_type(num_node)
 
-  expect_equal(result, "class_numeric")
+  expect_equal(result, "class_double")
 })
 
 test_that("infer_argument_type detects integer literals (with L suffix)", {
@@ -72,7 +72,7 @@ test_that("extract_arguments handles positional arguments", {
 
   expect_equal(length(args), 2)
   expect_null(args[[1]]$name)
-  expect_equal(args[[1]]$type, "class_numeric")
+  expect_equal(args[[1]]$type, "class_double")
   expect_null(args[[2]]$name)
   expect_equal(args[[2]]$type, "class_character")
 })
@@ -88,19 +88,19 @@ test_that("extract_arguments handles named arguments", {
 
   expect_equal(length(args), 2)
   expect_equal(args[[1]]$name, "x")
-  expect_equal(args[[1]]$type, "class_numeric")
+  expect_equal(args[[1]]$type, "class_double")
   expect_equal(args[[2]]$name, "y")
   expect_equal(args[[2]]$type, "class_character")
 })
 
 test_that("types_compatible accepts matching types", {
-  expect_true(types_compatible("class_numeric", "class_numeric"))
+  expect_true(types_compatible("class_double", "class_double"))
   expect_true(types_compatible("class_character", "class_character"))
   expect_true(types_compatible("class_logical", "class_logical"))
 })
 
 test_that("types_compatible rejects mismatching types", {
-  expect_false(types_compatible("class_numeric", "class_character"))
+  expect_false(types_compatible("class_double", "class_character"))
   expect_false(types_compatible("class_character", "class_logical"))
 })
 
@@ -110,7 +110,7 @@ test_that("types_compatible handles union types", {
   expect_true(types_compatible("NULL", "NULL | class_character"))
 
   # Union → different type (invalid)
-  expect_false(types_compatible("NULL | class_character", "class_numeric"))
+  expect_false(types_compatible("NULL | class_character", "class_double"))
 
   # Union → Subtype (narrowing, unsafe - would be FALSE)
   expect_false(types_compatible("NULL | class_character", "class_character"))
@@ -118,8 +118,8 @@ test_that("types_compatible handles union types", {
 
 test_that("types_compatible handles numeric coercion", {
   # class_numeric[1] should be compatible with class_numeric
-  expect_true(types_compatible("class_numeric", "class_numeric[1]"))
-  expect_true(types_compatible("class_numeric[1]", "class_numeric"))
+  expect_true(types_compatible("class_double", "class_numeric[1]"))
+  expect_false(types_compatible("class_numeric[1]", "class_double"))
 })
 
 test_that("infer_argument_type detects c() with character", {
@@ -143,7 +143,7 @@ test_that("infer_argument_type detects c() with numeric", {
 
   result <- infer_argument_type(expr_node)
 
-  expect_equal(result, "class_numeric")
+  expect_equal(result, "class_double")
 })
 
 test_that("infer_argument_type detects list()", {

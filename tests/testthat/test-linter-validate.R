@@ -34,7 +34,7 @@ test_that("linter validates implicit return (last expression) matches @typedRetu
 
   # Should warn: declared character but returns numeric
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("Return.*character.*integer.*double", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("Return.*character.*class_double", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter passes when return type matches declaration", {

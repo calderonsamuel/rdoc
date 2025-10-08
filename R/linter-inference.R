@@ -117,8 +117,8 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
     if (grepl("\\.|e|E", text)) {
       return("class_double")
     }
-    # Otherwise numeric (integers without L suffix)
-    return("class_numeric")
+    # Otherwise double (bare numeric literals in R are doubles, not integers)
+    return("class_double")
   }
 
   # Check for variable reference (SYMBOL)

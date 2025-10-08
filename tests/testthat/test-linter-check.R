@@ -195,7 +195,7 @@ test_that("linter infers type from numeric vector variable", {
 
   # Should detect: foo expects character but a is numeric
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("class_character.*class_integer.*class_double", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("class_character.*class_double", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter infers type from logical variable", {
@@ -615,4 +615,42 @@ test_that("linter catches type mismatch with complex return types", {
   # Should detect: expects list but get_df() returns data.frame
   expect_equal(length(lints), 1)
   expect_true(any(grepl("class_list.*data.frame", vapply(lints, function(l) l$message, character(1)))))
+})
+
+# Actual types are never unions ----
+
+test_that("actual type is never a union - bare literals infer as class_double", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam name {NULL | class_character[1]} optional name
+    greet <- function(name) paste('Hello', name)
+
+    greet(123)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  expect_length(lints, 1)
+  # Should show class_double, NOT class_numeric (which is a union)
+  expect_match(lints[[1]]$message, "class_double", ignore.case = FALSE)
+  expect_no_match(lints[[1]]$message, "class_numeric")
+})
+
+test_that("actual type is never a union - integer literals with L suffix", {
+  skip_if_not_installed("lintr")
+
+  code <- "
+    #' @typedParam x {class_character} text
+    foo <- function(x) x
+
+    foo(123L)
+  "
+
+  lints <- lintr::lint(text = code, linters = type_consistency_linter())
+
+  expect_length(lints, 1)
+  # Should show class_integer, NOT class_numeric
+  expect_match(lints[[1]]$message, "class_integer", ignore.case = FALSE)
+  expect_no_match(lints[[1]]$message, "class_numeric")
 })
