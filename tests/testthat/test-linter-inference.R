@@ -227,3 +227,76 @@ test_that("infer_argument_type detects logical operators as logical", {
     expect_equal(result, "class_logical", info = paste("Failed for:", code))
   }
 })
+
+test_that("infer_argument_type detects double literals", {
+  skip_if_not_installed("xml2")
+
+  code <- "3.14"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  expr_node <- xml2::xml_find_first(xml, "//expr")
+
+  result <- infer_argument_type(expr_node)
+
+  expect_equal(result, "class_double")
+})
+
+test_that("infer_argument_type detects complex literals", {
+  skip_if_not_installed("xml2")
+
+  # Test complex literal like 1+2i
+  code <- "1+2i"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  expr_node <- xml2::xml_find_first(xml, "//expr")
+
+  result <- infer_argument_type(expr_node)
+
+  expect_equal(result, "class_complex")
+})
+
+test_that("infer_argument_type detects raw() constructor", {
+  skip_if_not_installed("xml2")
+
+  code <- "raw(10)"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  expr_node <- xml2::xml_find_first(xml, "//expr")
+
+  result <- infer_argument_type(expr_node)
+
+  expect_equal(result, "class_raw")
+})
+
+test_that("infer_argument_type detects new.env() constructor", {
+  skip_if_not_installed("xml2")
+
+  code <- "new.env()"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  expr_node <- xml2::xml_find_first(xml, "//expr")
+
+  result <- infer_argument_type(expr_node)
+
+  expect_equal(result, "class_environment")
+})
+
+test_that("infer_argument_type detects factor() constructor", {
+  skip_if_not_installed("xml2")
+
+  code <- "factor(c('a', 'b'))"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  expr_node <- xml2::xml_find_first(xml, "//expr")
+
+  result <- infer_argument_type(expr_node)
+
+  expect_equal(result, "class_factor")
+})
+
+test_that("infer_argument_type detects Sys.Date() constructor", {
+  skip_if_not_installed("xml2")
+
+  code <- "Sys.Date()"
+  xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
+  expr_node <- xml2::xml_find_first(xml, "//expr")
+
+  result <- infer_argument_type(expr_node)
+
+  expect_equal(result, "class_Date")
+})

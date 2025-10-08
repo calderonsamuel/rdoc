@@ -296,3 +296,55 @@ test_that("rdoc_union_to_s7 handles complex types (future-proofing)", {
   expect_s3_class(s7_union, "S7_union")
   expect_equal(s7_union$classes[[2]]$class, "integer")  # S7 internal name
 })
+
+# type_to_s7_display() tests - Union expansion for error messages ----
+
+test_that("type_to_s7_display expands class_numeric union", {
+  result <- type_to_s7_display("class_numeric")
+  expect_equal(result, "class_integer | class_double")
+})
+
+test_that("type_to_s7_display expands class_numeric in complex unions", {
+  result <- type_to_s7_display("class_numeric | class_character")
+  expect_equal(result, "class_integer | class_double | class_character")
+})
+
+test_that("type_to_s7_display preserves length constraints when expanding", {
+  result <- type_to_s7_display("class_numeric[1]")
+  expect_equal(result, "class_integer[1] | class_double[1]")
+})
+
+test_that("type_to_s7_display preserves element types when expanding", {
+  result <- type_to_s7_display("class_list<class_numeric>")
+  expect_equal(result, "class_list<class_integer | class_double>")
+})
+
+test_that("type_to_s7_display expands class_vector union", {
+  # class_vector: logical | integer | double | complex | character | raw | expression | list
+  result <- type_to_s7_display("class_vector")
+  expect_equal(result, "class_logical | class_integer | class_double | class_complex | class_character | class_raw | class_expression | class_list")
+})
+
+test_that("type_to_s7_display expands class_vector in unions", {
+  result <- type_to_s7_display("NULL | class_vector")
+  expect_equal(result, "NULL | class_logical | class_integer | class_double | class_complex | class_character | class_raw | class_expression | class_list")
+})
+
+test_that("type_to_s7_display expands class_atomic union", {
+  # class_atomic: logical | integer | double | complex | character | raw
+  result <- type_to_s7_display("class_atomic")
+  expect_equal(result, "class_logical | class_integer | class_double | class_complex | class_character | class_raw")
+})
+
+test_that("type_to_s7_display expands class_language union", {
+  # class_language: name | call
+  result <- type_to_s7_display("class_language")
+  expect_equal(result, "class_name | class_call")
+})
+
+test_that("type_to_s7_display leaves non-S7 types unchanged", {
+  expect_equal(type_to_s7_display("data.frame"), "data.frame")
+  expect_equal(type_to_s7_display("matrix"), "matrix")
+  expect_equal(type_to_s7_display("class_integer"), "class_integer")
+  expect_equal(type_to_s7_display("class_character"), "class_character")
+})

@@ -57,7 +57,7 @@ test_that("lenient mode: validates typed functions", {
   lints <- lintr::lint(text = code, linters = type_consistency_linter(mode = "lenient"))
 
   expect_gte(length(lints), 1)
-  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("integer.*double.*character", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("lenient mode: skips unknown types silently", {
@@ -137,7 +137,7 @@ test_that("exported mode: validates typed exported functions", {
   lints <- lintr::lint(text = code, linters = type_consistency_linter(mode = "exported"))
 
   expect_gte(length(lints), 1)
-  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("integer.*double.*character", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("exported mode: accepts fully typed exported function", {
@@ -368,7 +368,7 @@ test_that("strict mode: validates type errors", {
   lints <- lintr::lint(text = code, linters = type_consistency_linter(mode = "strict"))
 
   expect_gte(length(lints), 1)
-  expect_true(any(grepl("numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("integer.*double.*character", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("strict mode: handles multiple functions in one file", {
@@ -522,7 +522,7 @@ test_that("all modes: combines type errors with missing annotation warnings", {
   messages <- vapply(lints_exported, function(l) l$message, character(1))
   expect_true(any(grepl("Parameter 'y'", messages)))
   expect_true(any(grepl("return", messages, ignore.case = TRUE)))
-  expect_true(any(grepl("numeric.*character", messages)))
+  expect_true(any(grepl("integer.*double.*character", messages)))
 })
 
 test_that("exported mode: box module exported functions", {

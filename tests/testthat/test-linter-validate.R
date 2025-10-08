@@ -17,7 +17,7 @@ test_that("linter validates explicit return statement matches @typedReturn", {
 
   # Should warn: declared numeric but returns character
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("Return.*numeric.*character", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("Return.*integer.*double.*character", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter validates implicit return (last expression) matches @typedReturn", {
@@ -34,7 +34,7 @@ test_that("linter validates implicit return (last expression) matches @typedRetu
 
   # Should warn: declared character but returns numeric
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("Return.*character.*numeric", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("Return.*character.*integer.*double", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter passes when return type matches declaration", {
@@ -93,7 +93,7 @@ test_that("linter validates return from constructor calls", {
 
   # Should warn: declared numeric but returns list
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("Return.*numeric.*list", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("Return.*integer.*double.*list", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter handles functions without @typedReturn", {
@@ -142,7 +142,7 @@ test_that("linter catches wrong type with comparison operators", {
 
   # Should warn: declared numeric but returns logical
   expect_equal(length(lints), 1)
-  expect_true(any(grepl("Return.*numeric.*logical", vapply(lints, function(l) l$message, character(1)))))
+  expect_true(any(grepl("Return.*integer.*double.*logical", vapply(lints, function(l) l$message, character(1)))))
 })
 
 test_that("linter validates return from logical operators", {

@@ -210,9 +210,29 @@ s7_class_compatible <- function(actual_s7, expected_s7) {
     return(TRUE)
   }
 
-  # Handle unions (like class_numeric)
+  # Handle unions - CHECK EXPECTED FIRST (important for subtype checking)
+  # When expected is a union (A|B|C), actual is compatible if it matches any member
   if (inherits(expected_s7, "S7_union")) {
-    # Check if actual matches any class in the union
+    # Special case: If actual is also a union, check if all actual members
+    # are compatible with at least one expected member
+    if (inherits(actual_s7, "S7_union")) {
+      for (actual_class in actual_s7$classes) {
+        # Check if this actual member matches ANY expected member
+        found_match <- FALSE
+        for (expected_class in expected_s7$classes) {
+          if (s7_class_compatible(actual_class, expected_class)) {
+            found_match <- TRUE
+            break
+          }
+        }
+        if (!found_match) {
+          return(FALSE)
+        }
+      }
+      return(TRUE)
+    }
+
+    # Actual is not a union - check if it matches any member of expected union
     for (union_class in expected_s7$classes) {
       if (s7_class_compatible(actual_s7, union_class)) {
         return(TRUE)
@@ -221,14 +241,11 @@ s7_class_compatible <- function(actual_s7, expected_s7) {
     return(FALSE)
   }
 
+  # If we get here, expected is not a union
+  # If actual is a union but expected isn't, they're incompatible
+  # (can't assign a union to a non-union type)
   if (inherits(actual_s7, "S7_union")) {
-    # If actual is a union, check if all its members are compatible with expected
-    for (union_class in actual_s7$classes) {
-      if (!s7_class_compatible(union_class, expected_s7)) {
-        return(FALSE)
-      }
-    }
-    return(TRUE)
+    return(FALSE)
   }
 
   # Check inheritance for S7 classes (regular classes, not S3 wrappers)
@@ -280,21 +297,129 @@ string_based_compatible <- function(actual, expected) {
 
 #' Convert type to S7 display name for error messages
 #'
-#' Type names are already in S7 convention (class_ prefix) for S7 types
+#' Expands S7 union types (like class_numeric) to their constituent types
+#' for clearer error messages. E.g., "class_numeric | class_character" becomes
+#' "class_integer | class_double | class_character".
 #'
 #' @param type_string Type string to display
-#' @return Display name (unchanged for S7 types)
+#' @return Display name with S7 unions expanded
 #' @keywords internal
 #'
 #' @examples
 #' \dontrun{
 #' type_to_s7_display("class_integer")  # "class_integer"
-#' type_to_s7_display("class_numeric")  # "class_numeric"
-#' type_to_s7_display("NULL")           # "NULL"
+#' type_to_s7_display("class_numeric")  # "class_integer | class_double"
+#' type_to_s7_display("class_numeric | class_character")  # "class_integer | class_double | class_character"
+#' type_to_s7_display("NULL | class_numeric")  # "NULL | class_integer | class_double"
 #' }
 type_to_s7_display <- function(type_string) {
-  # Just normalize whitespace - type names already have correct form
-  normalize_type_name(type_string)
+  # Parse the type
+  ast <- tryCatch(
+    parse_type_syntax(type_string),
+    error = function(e) NULL
+  )
+
+  if (is.null(ast)) {
+    return(normalize_type_name(type_string))
+  }
+
+  # Expand the AST to flatten S7 unions
+  expanded <- expand_s7_unions_in_ast(ast)
+
+  # Convert back to string
+  ast_to_string(expanded)
+}
+
+#' Expand S7 union types in AST
+#'
+#' Recursively expands S7 union types (like class_numeric = class_integer | class_double)
+#' into their constituent types for display purposes.
+#'
+#' @param ast_node AST node from parse_type_syntax
+#' @return AST node with S7 unions expanded
+#' @keywords internal
+expand_s7_unions_in_ast <- function(ast_node) {
+  if (ast_node$node_type == "union") {
+    # Expand each type in the union
+    expanded_types <- list()
+    for (type_node in ast_node$types) {
+      expanded <- expand_s7_unions_in_ast(type_node)
+      if (expanded$node_type == "union") {
+        # If expansion resulted in a union, flatten it
+        expanded_types <- c(expanded_types, expanded$types)
+      } else {
+        expanded_types <- c(expanded_types, list(expanded))
+      }
+    }
+
+    return(list(
+      node_type = "union",
+      types = expanded_types
+    ))
+  }
+
+  # For simple types, check if it's an S7 union that should be expanded
+  if (ast_node$node_type == "type") {
+    type_name <- ast_node$base_type
+
+    # Recursively expand element type if present
+    expanded_element_type <- if (!is.null(ast_node$element_type)) {
+      expand_s7_unions_in_ast(ast_node$element_type)
+    } else {
+      NULL
+    }
+
+    # Expand all S7 unions (package developers control verbosity)
+    if (is.null(ast_node$package)) {
+      expanded_types <- NULL
+
+      # class_numeric: integer | double
+      if (type_name == "class_numeric") {
+        expanded_types <- list("class_integer", "class_double")
+      }
+      # class_atomic: logical | integer | double | complex | character | raw
+      else if (type_name == "class_atomic") {
+        expanded_types <- list("class_logical", "class_integer", "class_double",
+                                "class_complex", "class_character", "class_raw")
+      }
+      # class_vector: logical | integer | double | complex | character | raw | expression | list
+      else if (type_name == "class_vector") {
+        expanded_types <- list("class_logical", "class_integer", "class_double",
+                                "class_complex", "class_character", "class_raw",
+                                "class_expression", "class_list")
+      }
+      # class_language: name | call
+      else if (type_name == "class_language") {
+        expanded_types <- list("class_name", "class_call")
+      }
+
+      # If we found an expansion, create union AST
+      if (!is.null(expanded_types)) {
+        return(list(
+          node_type = "union",
+          types = lapply(expanded_types, function(type) {
+            list(node_type = "type", base_type = type, package = NULL,
+                 length_constraint = ast_node$length_constraint,
+                 element_type = expanded_element_type)
+          })
+        ))
+      }
+    }
+
+    # Return with expanded element type if present
+    if (!is.null(expanded_element_type)) {
+      return(list(
+        node_type = "type",
+        base_type = ast_node$base_type,
+        package = ast_node$package,
+        length_constraint = ast_node$length_constraint,
+        element_type = expanded_element_type
+      ))
+    }
+  }
+
+  # Return unchanged
+  ast_node
 }
 
 #' Convert rdoc union AST to S7 union object

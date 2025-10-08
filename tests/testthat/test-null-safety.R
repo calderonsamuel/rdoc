@@ -209,6 +209,27 @@ small_union(x)
   expect_length(lints, 0)
 })
 
+test_that("union subtype compatibility (numeric subset of numeric|character)", {
+  skip_if_not_installed("xml2")
+
+  # Regression test for union compatibility bug where numeric (integer|double)
+  # was not recognized as compatible with numeric|character (integer|double|character)
+  code <- "
+#' Accept number or string
+#' @typedParam value {class_numeric | class_character} input value
+#' @typedReturn {class_character} string representation
+to_string <- function(value) {
+  as.character(value)
+}
+
+# Should pass: 42 is class_numeric, which is subset of class_numeric | class_character
+to_string(42)
+"
+
+  lints <- lintr::lint(text = code, linters = list(type_consistency_linter()))
+  expect_length(lints, 0)
+})
+
 test_that("union narrowing detected in chains", {
   skip_if_not_installed("xml2")
 
@@ -224,7 +245,7 @@ requires_int(maybe_int())
 "
 
   lints <- lintr::lint(text = code, linters = list(type_consistency_linter()))
-  
+
   # Should have 1 lint for narrowing
   expect_length(lints, 1)
   expect_match(lints[[1]]$message, "NULL.*integer|union", ignore.case = TRUE)

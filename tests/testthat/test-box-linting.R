@@ -24,7 +24,7 @@ test_that("linter catches type errors in box module calls with full import", {
   lints <- lintr::lint(script_file, linters = type_consistency_linter())
 
   expect_length(lints, 1)
-  expect_match(lints[[1]]$message, "numeric.*character", ignore.case = TRUE)
+  expect_match(lints[[1]]$message, "integer.*double.*character", ignore.case = TRUE)
 })
 
 test_that("linter validates correct box module calls", {
@@ -76,7 +76,7 @@ test_that("linter works with aliased box imports", {
   lints <- lintr::lint(script_file, linters = type_consistency_linter())
 
   expect_length(lints, 1)
-  expect_match(lints[[1]]$message, "integer.*numeric", ignore.case = TRUE)
+  expect_match(lints[[1]]$message, "integer.*double", ignore.case = TRUE)
 })
 
 test_that("linter works with selective box imports", {
@@ -107,7 +107,7 @@ test_that("linter works with selective box imports", {
   lints <- lintr::lint(script_file, linters = type_consistency_linter())
 
   expect_length(lints, 1)
-  expect_match(lints[[1]]$message, "character.*numeric", ignore.case = TRUE)
+  expect_match(lints[[1]]$message, "character.*integer.*double", ignore.case = TRUE)
 })
 
 test_that("linter works with attach-all box imports", {
@@ -199,6 +199,6 @@ test_that("linter validates box module property access syntax", {
   lints <- lintr::lint(script_file, linters = type_consistency_linter())
 
   expect_length(lints, 1)
-  expect_match(lints[[1]]$message, "class_integer.*class_numeric", ignore.case = TRUE)
+  expect_match(lints[[1]]$message, "class_integer.*class_double", ignore.case = TRUE)
   expect_equal(lints[[1]]$line_number, 3)  # Error on line 3
 })

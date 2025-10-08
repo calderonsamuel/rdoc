@@ -22,7 +22,10 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
   for (fn_info in list(
     list(name = "list", type = "class_list"),
     list(name = "data.frame", type = "class_data.frame"),
-    list(name = "matrix", type = "matrix")  # matrix has no S7 class
+    list(name = "matrix", type = "matrix"),  # matrix has no S7 class
+    list(name = "raw", type = "class_raw"),
+    list(name = "new.env", type = "class_environment"),
+    list(name = "factor", type = "class_factor")
   )) {
     fn_call <- xml2::xml_find_first(arg_node, sprintf(".//SYMBOL_FUNCTION_CALL[text()='%s']", fn_info$name))
     if (!is.na(fn_call)) {
@@ -30,27 +33,35 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
     }
   }
 
+  # Check for Sys.Date() - appears as single SYMBOL_FUNCTION_CALL "Sys.Date"
+  sys_date <- xml2::xml_find_first(
+    arg_node,
+    ".//SYMBOL_FUNCTION_CALL[text()='Sys.Date']"
+  )
+  if (!is.na(sys_date)) {
+    return("class_Date")
+  }
+
   # Check for general function calls with @typedReturn
   # This handles user-defined functions and package functions
   # Must come AFTER specific constructors (c, list, data.frame, matrix) but BEFORE literals
-  if (!is.null(type_registry)) {
-    # Look for any function call
-    fn_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL")
-    if (!is.na(fn_call)) {
-      fn_name <- xml2::xml_text(fn_call)
+  # IMPORTANT: Always check for function calls first, even without type_registry
+  # This prevents falling through to literal inference (e.g., roxygen2::roclet("test") → "test")
+  fn_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL")
+  if (!is.na(fn_call)) {
+    fn_name <- xml2::xml_text(fn_call)
 
-      # Skip constructors we already handled
-      if (!fn_name %in% c("c", "list", "data.frame", "matrix")) {
-        # Look up function in type registry
-        if (fn_name %in% names(type_registry)) {
-          type_info <- type_registry[[fn_name]]
-          if (!is.null(type_info$return)) {
-            return(type_info$return$type)
-          }
+    # Skip constructors we already handled
+    if (!fn_name %in% c("c", "list", "data.frame", "matrix", "raw", "new.env", "factor", "Sys.Date")) {
+      # Look up function in type registry (if provided)
+      if (!is.null(type_registry) && fn_name %in% names(type_registry)) {
+        type_info <- type_registry[[fn_name]]
+        if (!is.null(type_info$return)) {
+          return(type_info$return$type)
         }
-        # Function call not in registry - unknown type
-        return("unknown")
       }
+      # Function call not in registry (or no registry) - unknown type
+      return("unknown")
     }
   }
 
@@ -82,14 +93,31 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
   # Check for TRUE/FALSE (they are NUM_CONST with specific text)
   num_const <- xml2::xml_find_all(arg_node, ".//NUM_CONST")
   if (length(num_const) > 0) {
-    text <- xml2::xml_text(num_const[1])
-    if (text %in% c("TRUE", "FALSE")) {
+    # Check all NUM_CONST nodes (for complex literals like 1+2i)
+    all_texts <- vapply(num_const, xml2::xml_text, character(1))
+
+    # Check for TRUE/FALSE
+    if (all_texts[1] %in% c("TRUE", "FALSE")) {
       return("class_logical")
     }
+
+    # Check for complex literal (any NUM_CONST ends with i, like "2i" in "1+2i")
+    if (any(grepl("i$", all_texts, ignore.case = TRUE))) {
+      return("class_complex")
+    }
+
+    # For remaining checks, use first NUM_CONST
+    text <- all_texts[1]
+
     # Check for integer literal (ends with L)
     if (grepl("L$", text)) {
       return("class_integer")
     }
+    # Check for double (contains decimal point or scientific notation)
+    if (grepl("\\.|e|E", text)) {
+      return("class_double")
+    }
+    # Otherwise numeric (integers without L suffix)
     return("class_numeric")
   }
 
