@@ -398,10 +398,37 @@ test_that("infer_argument_type handles chained arithmetic operations", {
   xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
   expr_node <- xml2::xml_find_first(xml, "//expr[OP-SLASH]")
   result <- infer_argument_type(expr_node)
-  # Our current implementation returns class_integer for int/int
-  # This is a known limitation - R's actual behavior is that division always returns double
-  # We'll accept class_integer for now (the test documents this behavior)
-  expect_equal(result, "class_integer", info = "integer / integer currently returns class_integer (known limitation)")
+  expect_equal(result, "class_double", info = "division always returns class_double")
+
+  # More division tests
+  test_divs <- list(
+    list(code = "10.0 / 2.0", expected = "class_double"),
+    list(code = "10L / 3L", expected = "class_double"),
+    list(code = "10.0 / 3L", expected = "class_double")
+  )
+
+  for (div_test in test_divs) {
+    xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = div_test$code, keep.source = TRUE)))
+    expr_node <- xml2::xml_find_first(xml, "//expr[OP-SLASH]")
+    result <- infer_argument_type(expr_node)
+    expect_equal(result, div_test$expected, info = paste("Failed for:", div_test$code))
+  }
+
+  # Test 10: Exponentiation also always returns double
+  # Note: In R, 2L ^ 3L returns 8.0 (double), not 8L (integer)
+  test_exps <- list(
+    list(code = "2L ^ 3L", expected = "class_double"),
+    list(code = "2.0 ^ 3.0", expected = "class_double"),
+    list(code = "4L ^ 0.5", expected = "class_double"),
+    list(code = "10L ^ 2L", expected = "class_double")
+  )
+
+  for (exp_test in test_exps) {
+    xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = exp_test$code, keep.source = TRUE)))
+    expr_node <- xml2::xml_find_first(xml, "//expr[OP-CARET]")
+    result <- infer_argument_type(expr_node)
+    expect_equal(result, exp_test$expected, info = paste("Failed for:", exp_test$code))
+  }
 })
 
 test_that("infer_argument_type detects function literals", {

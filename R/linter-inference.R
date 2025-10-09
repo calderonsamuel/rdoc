@@ -115,6 +115,15 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
   # Strategy: Infer types of both operands, then apply R's type promotion rules
   arithmetic_ops <- xml2::xml_find_first(arg_node, ".//OP-PLUS | .//OP-MINUS | .//OP-STAR | .//OP-SLASH | .//OP-CARET")
   if (!is.na(arithmetic_ops)) {
+    # Check operator type
+    operator_name <- xml2::xml_name(arithmetic_ops)
+
+    # Division and exponentiation ALWAYS return double in R
+    # Even 4L / 2L returns 2.0, and 2L ^ 3L returns 8.0 (not 2L or 8L)
+    if (operator_name %in% c("OP-SLASH", "OP-CARET")) {
+      return("class_double")
+    }
+
     # Find left and right operands
     # Structure: expr > expr (left) + OP + expr (right)
     children <- xml2::xml_children(arg_node)
@@ -125,7 +134,7 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
       left_type <- infer_argument_type(expr_children[[1]], var_context, current_line, type_registry)
       right_type <- infer_argument_type(expr_children[[2]], var_context, current_line, type_registry)
 
-      # Apply R's type promotion rules:
+      # Apply R's type promotion rules for +, -, *:
       # integer + integer = integer
       # double + double = double
       # integer + double = double (promotion to double)
