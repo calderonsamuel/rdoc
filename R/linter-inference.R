@@ -7,7 +7,29 @@
 #' @return Character string with inferred type or "unknown"
 #' @keywords internal
 infer_argument_type <- function(arg_node, var_context = NULL, current_line = NULL, type_registry = NULL) {
-  # Check for function calls FIRST (before checking their arguments/literals)
+  # Check for function literals FIRST (before drilling into their bodies)
+  # Function literals: function(...) { ... } or \(...) ...
+  # Use ./FUNCTION (direct child) not .//FUNCTION (any descendant)
+  # This prevents matching FUNCTION inside function arguments like: foo(function() {...})
+  fn_keyword <- xml2::xml_find_first(arg_node, "./FUNCTION")
+  if (!is.na(fn_keyword)) {
+    return("class_function")
+  }
+
+  # Check for parenthesized expressions: (expr)
+  # Structure: OP-LEFT-PAREN, expr, OP-RIGHT-PAREN
+  # Recursively infer the type of the inner expression
+  left_paren <- xml2::xml_find_first(arg_node, "./OP-LEFT-PAREN")
+  if (!is.na(left_paren)) {
+    children <- xml2::xml_children(arg_node)
+    expr_children <- Filter(function(x) xml2::xml_name(x) == "expr", children)
+    if (length(expr_children) == 1) {
+      # Single inner expression - infer its type
+      return(infer_argument_type(expr_children[[1]], var_context, current_line, type_registry))
+    }
+  }
+
+  # Check for function calls THIRD (before checking their arguments/literals)
 
   # Check for c() function calls - infer from first arg
   c_call <- xml2::xml_find_first(arg_node, ".//SYMBOL_FUNCTION_CALL[text()='c']")
@@ -76,6 +98,55 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
   logical_ops <- xml2::xml_find_first(arg_node, ".//AND | .//OR | .//OP-EXCLAMATION")
   if (!is.na(logical_ops)) {
     return("class_logical")
+  }
+
+  # Check for complex literals BEFORE arithmetic operators
+  # Complex literals like 1+2i contain OP-PLUS but should be class_complex, not class_numeric
+  num_const_complex <- xml2::xml_find_all(arg_node, ".//NUM_CONST")
+  if (length(num_const_complex) > 0) {
+    all_texts_complex <- vapply(num_const_complex, xml2::xml_text, character(1))
+    if (any(grepl("i$", all_texts_complex, ignore.case = TRUE))) {
+      return("class_complex")
+    }
+  }
+
+  # Arithmetic operators: +, -, *, /, ^
+  # MUST come AFTER complex literal check (1+2i has OP-PLUS but is complex, not numeric)
+  # Strategy: Infer types of both operands, then apply R's type promotion rules
+  arithmetic_ops <- xml2::xml_find_first(arg_node, ".//OP-PLUS | .//OP-MINUS | .//OP-STAR | .//OP-SLASH | .//OP-CARET")
+  if (!is.na(arithmetic_ops)) {
+    # Find left and right operands
+    # Structure: expr > expr (left) + OP + expr (right)
+    children <- xml2::xml_children(arg_node)
+    expr_children <- Filter(function(x) xml2::xml_name(x) == "expr", children)
+
+    if (length(expr_children) >= 2) {
+      # Infer types of operands (recursively)
+      left_type <- infer_argument_type(expr_children[[1]], var_context, current_line, type_registry)
+      right_type <- infer_argument_type(expr_children[[2]], var_context, current_line, type_registry)
+
+      # Apply R's type promotion rules:
+      # integer + integer = integer
+      # double + double = double
+      # integer + double = double (promotion to double)
+      # anything + unknown = class_numeric (fallback)
+
+      if (left_type == "class_integer" && right_type == "class_integer") {
+        return("class_integer")
+      } else if (left_type == "class_double" && right_type == "class_double") {
+        return("class_double")
+      } else if ((left_type == "class_integer" && right_type == "class_double") ||
+                 (left_type == "class_double" && right_type == "class_integer")) {
+        return("class_double")
+      } else if (left_type %in% c("class_integer", "class_double") &&
+                 right_type %in% c("class_integer", "class_double")) {
+        # Both are numeric types, return more general
+        return("class_double")
+      }
+    }
+
+    # Fallback: if we can't determine specific types, return generic numeric
+    return("class_numeric")
   }
 
   # Now check for literals (after ruling out function calls and operators)

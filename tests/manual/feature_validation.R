@@ -408,6 +408,387 @@ test_constructors(
 )
 
 # =============================================================================
+# FEATURE 16: Context-Aware Union Error Messages (Phase 26)
+# =============================================================================
+
+#' Needs specific double (not union)
+#' @typedParam x {class_double} double value
+#' @typedReturn {class_double} result
+needs_double <- function(x) {
+  x * 2
+}
+
+#' Returns numeric union
+#' @typedReturn {class_numeric[1]} integer or double
+get_numeric <- function() {
+  42
+}
+
+# ❌ FAIL: Scenario 1 - Partial compatibility (needs type narrowing)
+# Error should say: "Cannot narrow union to 'class_double' without type guard"
+result_numeric <- get_numeric()
+needs_double(result_numeric)  # class_numeric[1] → class_double (some compatible, some not)
+
+#' Needs character (completely different from numeric)
+#' @typedParam x {class_character} text
+#' @typedReturn {class_character} uppercased
+needs_char <- function(x) {
+  toupper(x)
+}
+
+# ❌ FAIL: Scenario 2 - Total incompatibility (no explanation needed)
+# Error should be brief: just "expects... but got..." (no explanation about narrowing)
+result_numeric2 <- get_numeric()
+needs_char(result_numeric2)   # class_numeric[1] → class_character (no members compatible)
+
+# Large union example - class_atomic (6 members)
+#' Returns atomic value
+#' @typedReturn {class_atomic[1]} any atomic value
+get_atomic <- function() {
+  42
+}
+
+# ❌ FAIL: Partial compatibility with large union
+# Should still say "Cannot narrow..." without listing all 6 types
+result_atomic <- get_atomic()
+needs_double(result_atomic)   # class_atomic[1] → class_double
+
+# ❌ FAIL: Total incompatibility with large union
+# Should be brief (no explanation)
+result_atomic2 <- get_atomic()
+needs_char(result_atomic2)    # class_atomic[1] → class_character
+
+# =============================================================================
+# FEATURE 17: Error Position Accuracy
+# =============================================================================
+
+# Test that errors point to the right locations:
+#
+# For missing parameter types:
+#   - Should underline the PARAMETER name (not function name)
+#
+# For missing return types:
+#   - Should underline the FUNCTION name (not FUNCTION keyword)
+#
+# For type mismatches:
+#   - Should underline the ARGUMENT (the problematic expression)
+
+# rdoc: strict
+
+#' Missing types - check positioning
+#' @export
+untyped_func <- function(missing_param) {
+  # ❌ Should underline 'missing_param' (not 'untyped_func')
+  # ❌ Should underline 'untyped_func' (not 'function' keyword)
+  missing_param + 1
+}
+
+#' Multiple params - check each position
+#' @export
+multi_untyped <- function(a, b, c) {
+  # ❌ Each parameter should be underlined at its own position
+  a + b + c
+}
+
+# =============================================================================
+# FEATURE 18: Complex Type Syntax Edge Cases
+# =============================================================================
+
+#' Nested generics
+#' @typedParam data {class_list<class_list<class_numeric>>} nested lists
+#' @typedReturn {class_numeric} sum
+sum_nested <- function(data) {
+  sum(unlist(data))
+}
+
+# ✅ PASS: Nested list structure (container type checked)
+nested_data <- list(list(1, 2), list(3, 4))
+sum_nested(nested_data)
+
+# ❌ FAIL: Wrong outer container
+sum_nested(c(1, 2, 3))  # Expects class_list, got class_numeric
+
+#' Combined constraints
+#' @typedParam items {class_list<class_numeric[1]>[3]} exactly 3 scalar numbers
+#' @typedReturn {class_numeric} sum
+sum_three <- function(items) {
+  sum(unlist(items))
+}
+
+# ✅ PASS: Correct structure (container checked)
+three_items <- list(1, 2, 3)
+sum_three(three_items)
+
+# ❌ FAIL: Wrong container type
+sum_three(c(1, 2, 3))  # Expects class_list, got class_numeric
+
+#' Union with length constraints
+#' @typedParam value {class_integer[1] | class_double[1]} scalar number
+#' @typedReturn {class_numeric} result
+process_scalar <- function(value) {
+  value * 2
+}
+
+# ✅ PASS: Both union members work
+process_scalar(1L)     # class_integer[1]
+process_scalar(3.14)   # class_double[1]
+
+# ❌ FAIL: Wrong type entirely
+process_scalar("text") # Expects class_integer | class_double, got class_character
+
+#' NULL in complex union
+#' @typedParam data {NULL | class_list<class_numeric> | class_data.frame} optional data
+#' @typedReturn {class_numeric} result
+process_data <- function(data) {
+  if (is.null(data)) 0 else sum(unlist(data))
+}
+
+# ✅ PASS: NULL accepted
+process_data(NULL)
+
+# ✅ PASS: List accepted
+process_data(list(1, 2, 3))
+
+# ❌ FAIL: Wrong type
+process_data("invalid")  # Expects NULL | class_list | class_data.frame, got class_character
+
+# =============================================================================
+# FEATURE 19: Type Inference Edge Cases
+# =============================================================================
+
+#' Needs numeric
+#' @typedParam x {class_numeric} number
+#' @typedReturn {class_numeric} result
+needs_numeric <- function(x) {
+  x * 2
+}
+
+# Variable shadowing (most recent assignment wins)
+shadowed <- 123       # Inferred as class_numeric
+needs_numeric(shadowed)  # ✅ PASS
+shadowed <- "text"    # Now inferred as class_character
+needs_numeric(shadowed)  # ❌ FAIL (new type)
+
+# Empty constructors
+empty_list <- list()
+# Should infer as class_list (not unknown)
+
+empty_vec <- c()
+# May infer as class_logical (R's default for empty c())
+
+# Complex expressions (inference may be limited)
+computed <- if (TRUE) 42 else "text"
+# rdoc may not infer type from if/else (complex control flow)
+
+# Function calls without @typedReturn
+#' No return type declared
+#' @keywords internal
+untyped_function <- function() {
+  42
+}
+
+unknown_result <- untyped_function()
+# May be inferred as 'unknown' type
+
+# =============================================================================
+# FEATURE 20: Operator Inference Comprehensive
+# =============================================================================
+
+#' Needs logical
+#' @typedParam condition {class_logical} boolean
+#' @typedReturn {class_character} result
+check_condition <- function(condition) {
+  if (condition) "yes" else "no"
+}
+
+a <- 5
+b <- 10
+
+# ✅ PASS: All comparison operators return logical
+check_condition(a > b)
+check_condition(a >= b)
+check_condition(a < b)
+check_condition(a <= b)
+check_condition(a == b)
+check_condition(a != b)
+
+# ✅ PASS: All logical operators return logical
+check_condition(TRUE & FALSE)
+check_condition(TRUE | FALSE)
+check_condition(!FALSE)
+check_condition(TRUE && FALSE)  # Short-circuit AND
+check_condition(TRUE || FALSE)  # Short-circuit OR
+
+# ❌ FAIL: Arithmetic operators return numeric (not logical)
+check_condition(a + b)    # Expects class_logical, got class_numeric
+check_condition(a - b)    # Expects class_logical, got class_numeric
+check_condition(a * b)    # Expects class_logical, got class_numeric
+
+# =============================================================================
+# FEATURE 21: Box Module Support (if using box package)
+# =============================================================================
+
+# Note: Requires box package installation
+# Uncomment if testing box integration:
+
+# box::use(./some_module)
+#
+# #' Use module function
+# #' @typedParam x {class_numeric} input
+# #' @typedReturn {class_numeric} output
+# use_module <- function(x) {
+#   some_module$typed_function(x)
+# }
+
+# =============================================================================
+# FEATURE 22: Stress Tests & Corner Cases
+# =============================================================================
+
+#' Many parameters
+#' @typedParam p1 {class_numeric} param 1
+#' @typedParam p2 {class_numeric} param 2
+#' @typedParam p3 {class_numeric} param 3
+#' @typedParam p4 {class_numeric} param 4
+#' @typedParam p5 {class_numeric} param 5
+#' @typedParam p6 {class_numeric} param 6
+#' @typedParam p7 {class_numeric} param 7
+#' @typedParam p8 {class_numeric} param 8
+#' @typedReturn {class_numeric} sum
+many_params <- function(p1, p2, p3, p4, p5, p6, p7, p8) {
+  p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8
+}
+
+# ✅ PASS: All correct types
+many_params(1, 2, 3, 4, 5, 6, 7, 8)
+
+# ❌ FAIL: Wrong type in middle
+many_params(1, 2, 3, "wrong", 5, 6, 7, 8)  # p4 is character
+
+# ❌ FAIL: Multiple wrong types
+many_params(1, "two", 3, "four", 5, TRUE, 7, 8)  # Multiple errors
+
+#' Long type union (8 types)
+#' @typedParam value {class_logical | class_integer | class_double | class_complex | class_character | class_raw | class_expression | class_list} any value
+#' @typedReturn {class_character} description
+describe_value <- function(value) {
+  class(value)[1]
+}
+
+# ✅ PASS: All union members work
+describe_value(TRUE)
+describe_value(1L)
+describe_value(3.14)
+describe_value(1+2i)
+describe_value("text")
+describe_value(raw(10))
+describe_value(list(1))
+
+# ❌ FAIL: Type not in union
+describe_value(new.env())  # class_environment not in union
+
+#' Default parameter values
+#' @typedParam x {class_numeric} number
+#' @typedParam multiplier {class_numeric} multiplier (default 2)
+#' @typedReturn {class_numeric} result
+with_default <- function(x, multiplier = 2) {
+  x * multiplier
+}
+
+# ✅ PASS: Using default
+with_default(5)
+
+# ✅ PASS: Overriding default
+with_default(5, 3)
+
+# ❌ FAIL: Wrong type for default param
+with_default(5, "wrong")  # multiplier is character
+
+#' Ellipsis parameter (...)
+#' @typedParam x {class_numeric} first number
+#' @typedParam ... additional arguments
+#' @typedReturn {class_list} all arguments
+collect_args <- function(x, ...) {
+  list(x, ...)
+}
+
+# ✅ PASS: Ellipsis not type-checked (by design)
+collect_args(1, "text", TRUE, list())
+
+# ❌ FAIL: First param wrong type
+collect_args("wrong", 1, 2, 3)  # x is character
+
+# =============================================================================
+# FEATURE 23: Anonymous and Nested Functions
+# =============================================================================
+
+# Anonymous function
+lapply_test <- lapply(1:3, function(x) x * 2)
+# Should not require type annotations on anonymous function (exported mode)
+
+# Nested function definition
+#' Outer function
+#' @typedParam x {class_numeric} input
+#' @typedReturn {class_function} a function
+#' @export
+make_adder <- function(x) {
+  function(y) x + y  # Inner function - should not require types in exported mode
+}
+
+# ✅ PASS: Nested function creation
+add_five <- make_adder(5)
+
+# =============================================================================
+# FEATURE 24: Return Value Validation Edge Cases
+# =============================================================================
+
+#' Simple literal return
+#' @typedReturn {class_numeric} number
+#' @keywords internal
+return_literal <- function() {
+  42  # ✅ Implicit return of literal
+}
+
+#' Explicit return statement
+#' @typedReturn {class_numeric} number
+#' @keywords internal
+return_explicit <- function() {
+  return(42)  # ✅ Explicit return
+}
+
+#' Constructor return
+#' @typedReturn {class_list} list
+#' @keywords internal
+return_constructor <- function() {
+  list(1, 2, 3)  # ✅ Implicit return of constructor
+}
+
+#' Wrong literal return
+#' @typedReturn {class_numeric} number
+#' @keywords internal
+return_wrong_literal <- function() {
+  "text"  # ❌ Returns character, declared numeric
+}
+
+#' Wrong constructor return
+#' @typedReturn {class_numeric} number
+#' @keywords internal
+return_wrong_constructor <- function() {
+  list(1, 2)  # ❌ Returns list, declared numeric
+}
+
+# Multiple returns (validation skipped - too complex)
+#' Multiple return paths (not validated)
+#' @typedReturn {class_numeric} number
+#' @keywords internal
+multiple_returns <- function(x) {
+  if (x > 0) {
+    return(42)  # numeric
+  } else {
+    return("text")  # character - won't be caught (control flow too complex)
+  }
+}
+
+# =============================================================================
 # VALIDATION CHECKLIST
 # =============================================================================
 #
@@ -429,12 +810,32 @@ test_constructors(
 # [ ] Named and positional arguments both work
 # [ ] Comparison operators (>, <, ==) inferred as logical
 # [ ] Logical operators (&, |, !) inferred as logical
+# [ ] Context-aware union errors (Phase 26):
+#     - Partial compatibility shows "Cannot narrow union..."
+#     - Total incompatibility shows just basic error (no explanation)
+# [ ] Error positioning (Phase 27):
+#     - Missing param type underlines parameter name
+#     - Missing return type underlines function name
+#     - Type mismatch underlines argument expression
+# [ ] Complex type syntax works:
+#     - Nested generics: class_list<class_list<T>>
+#     - Combined constraints: class_list<T>[n]
+#     - Union with constraints: T[1] | U[1]
+# [ ] Edge cases handled:
+#     - Variable shadowing (most recent assignment)
+#     - Empty constructors (list(), c())
+#     - Default parameter values
+#     - Ellipsis (...) parameters
+#     - Anonymous and nested functions
+#     - Multiple error detection (shows all errors)
 #
 # =============================================================================
 # EXPECTED ERRORS (should see these in VSCode)
 # =============================================================================
 #
-# Line ~29: add_numbers("text", 2)
+# BASIC TYPE CHECKING:
+#
+# Line ~28: add_numbers("text", 2)
 #   → Type mismatch for parameter 'x': expected class_numeric, got class_character
 #
 # Line ~30: add_numbers(1, TRUE)
@@ -481,5 +882,87 @@ test_constructors(
 #
 # Line ~327: test_constructors with wrong_vec
 #   → Type mismatch for parameter 'num': expected class_numeric, got class_character
+#
+# CONTEXT-AWARE UNION ERRORS (Phase 26):
+#
+# Line ~430: needs_double(result_numeric)  [PARTIAL COMPATIBILITY]
+#   → Argument 'x' expects type 'class_double' but got 'class_integer[1] | class_double[1]'.
+#      Cannot narrow union to 'class_double' without type guard
+#
+# Line ~442: needs_char(result_numeric2)  [TOTAL INCOMPATIBILITY]
+#   → Argument 'x' expects type 'class_character' but got 'class_integer[1] | class_double[1]'
+#   (NO extra explanation - mismatch is obvious)
+#
+# Line ~454: needs_double(result_atomic)  [LARGE UNION - PARTIAL]
+#   → Should say "Cannot narrow union..." without listing all 6 members
+#
+# Line ~459: needs_char(result_atomic2)  [LARGE UNION - TOTAL]
+#   → Should be brief (no explanation about union members)
+#
+# ERROR POSITIONING (Phase 27):
+#
+# Lines ~480-484: untyped_func function
+#   → Parameter 'missing_param' error: underline should be at 'missing_param' (~col 40)
+#   → Return type error: underline should be at 'untyped_func' (~col 1-12)
+#
+# Lines ~488-491: multi_untyped function
+#   → Each parameter (a, b, c) should have underline at its own position
+#
+# COMPLEX TYPE SYNTAX:
+#
+# Line ~509: sum_nested(c(1, 2, 3))
+#   → Type mismatch: expected class_list<class_list<class_numeric>>, got class_numeric
+#
+# Line ~523: sum_three(c(1, 2, 3))
+#   → Type mismatch: expected class_list<class_numeric[1]>[3], got class_numeric
+#
+# Line ~537: process_scalar("text")
+#   → Type mismatch: expected class_integer[1] | class_double[1], got class_character
+#
+# Line ~553: process_data("invalid")
+#   → Type mismatch: expected NULL | class_list<class_numeric> | class_data.frame, got class_character
+#
+# INFERENCE EDGE CASES:
+#
+# Line ~570: needs_numeric(shadowed) [after reassignment]
+#   → Type mismatch: expected class_numeric, got class_character
+#   (Variable shadowing - new assignment changes inferred type)
+#
+# OPERATOR INFERENCE:
+#
+# Line ~623: check_condition(a + b)
+#   → Type mismatch: expected class_logical, got class_numeric
+#
+# Lines ~624-625: Arithmetic operators
+#   → Similar errors (arithmetic returns numeric, not logical)
+#
+# STRESS TESTS:
+#
+# Line ~665: many_params(1, 2, 3, "wrong", 5, 6, 7, 8)
+#   → Type mismatch for parameter 'p4': expected class_numeric, got class_character
+#
+# Line ~668: many_params with multiple errors
+#   → Should show MULTIPLE errors (p2, p4, p6 all wrong)
+#
+# Line ~687: describe_value(new.env())
+#   → Type mismatch: expected class_logical | class_integer | ... (8 types), got class_environment
+#
+# Line ~704: with_default(5, "wrong")
+#   → Type mismatch for parameter 'multiplier': expected class_numeric, got class_character
+#
+# Line ~718: collect_args("wrong", 1, 2, 3)
+#   → Type mismatch for parameter 'x': expected class_numeric, got class_character
+#   (Ellipsis params not checked)
+#
+# RETURN VALUE VALIDATION:
+#
+# Line ~768-770: return_wrong_literal function
+#   → Return type mismatch: declared class_numeric, returns class_character
+#
+# Line ~775-777: return_wrong_constructor function
+#   → Return type mismatch: declared class_numeric, returns class_list
+#
+# Line ~783-789: multiple_returns function
+#   → NO ERROR (validation skipped for complex control flow)
 #
 # =============================================================================
