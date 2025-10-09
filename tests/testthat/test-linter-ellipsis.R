@@ -36,7 +36,7 @@ test_that("ellipsis without annotation is allowed", {
   expect_length(lints, 0)
 })
 
-test_that("ellipsis with description but no type works", {
+test_that("ellipsis without type produces lint error", {
   skip_if_not_installed("lintr")
 
   code <- "
@@ -50,10 +50,11 @@ test_that("ellipsis with description but no type works", {
   "
 
   lints <- lintr::lint(text = code, linters = list(type_consistency = type_consistency_linter()))
-  expect_length(lints, 0)
+  expect_length(lints, 1)
+  expect_match(lints[[1]]$message, "Invalid format: expected 'param \\{type\\} description'")
 })
 
-test_that("ellipsis without description and no type works", {
+test_that("ellipsis without type or description produces lint error", {
   skip_if_not_installed("lintr")
 
   code <- "
@@ -67,7 +68,8 @@ test_that("ellipsis without description and no type works", {
   "
 
   lints <- lintr::lint(text = code, linters = list(type_consistency = type_consistency_linter()))
-  expect_length(lints, 0)
+  expect_length(lints, 1)
+  expect_match(lints[[1]]$message, "Invalid format: expected 'param \\{type\\} description'")
 })
 
 test_that("ellipsis is not required in strict mode", {
@@ -196,7 +198,7 @@ test_that("ellipsis with non-class_any type produces lint error", {
   expect_length(lints, 1)
   expect_match(lints[[1]]$message, "Ellipsis parameter '...' only supports \\{class_any\\} type annotation")
   expect_match(lints[[1]]$message, "Got \\{class_numeric\\}")
-  expect_match(lints[[1]]$message, "use @typedParam ... \\{class_any\\} description")
+  expect_match(lints[[1]]$message, "Use: @typedParam ... \\{class_any\\} description")
 })
 
 test_that("ellipsis with class_character produces lint error", {
@@ -245,5 +247,5 @@ test_that("error message provides helpful guidance", {
 
   expect_length(lints, 1)
   expect_match(lints[[1]]$message, "only \\{class_any\\} is allowed")
-  expect_match(lints[[1]]$message, "use @typedParam ... \\{class_any\\} description")
+  expect_match(lints[[1]]$message, "Use: @typedParam ... \\{class_any\\} description")
 })

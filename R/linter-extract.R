@@ -329,27 +329,12 @@ process_comment_block <- function(block, parsed) {
 #' @return List with param, type, description
 #' @keywords internal
 parse_typed_param_text <- function(text) {
-  # Try to match standard format: param {type} description
+  # Match standard format: param {type} description
   pattern <- "^(\\S+)\\s+\\{([^}]+)\\}\\s*(.*)$"
   matches <- regmatches(text, regexec(pattern, text))[[1]]
 
-  # Check if it's ellipsis without type annotation: ... description
   if (length(matches) != 4) {
-    # Try ellipsis-only pattern: ... description (no type)
-    ellipsis_pattern <- "^(\\.\\.\\.)(\\s+(.*))?$"
-    ellipsis_matches <- regmatches(text, regexec(ellipsis_pattern, text))[[1]]
-
-    if (length(ellipsis_matches) >= 2 && ellipsis_matches[2] == "...") {
-      # Ellipsis without type - default to class_any
-      return(list(
-        param = "...",
-        type = "class_any",
-        description = if (length(ellipsis_matches) >= 4) ellipsis_matches[4] else ""
-      ))
-    }
-
-    # Neither format matched
-    stop("Invalid format")
+    stop("Invalid format: expected 'param {type} description'")
   }
 
   param_name <- matches[2]
@@ -368,7 +353,7 @@ parse_typed_param_text <- function(text) {
           type_spec
         ),
         "Ellipsis accepts any number of arguments of any type, so only {class_any} is allowed.\n",
-        "You can use @typedParam ... {class_any} description OR @typedParam ... description (type defaults to class_any)"
+        "Use: @typedParam ... {class_any} description"
       )
     }
   }
