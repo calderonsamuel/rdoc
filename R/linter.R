@@ -216,6 +216,10 @@ create_syntax_validation_lints <- function(comments, comment_nodes, source_expre
 
       if (!is.null(result)) {
         col_start <- as.integer(result$col)
+        # Ensure range doesn't exceed line length
+        line_len <- nchar(comment_text) + 1  # +1 for lintr convention
+        col_end <- min(col_start + nchar(comment_text), line_len)
+
         lints <- c(lints, list(lintr::Lint(
           filename = source_expression$filename,
           line_number = as.integer(result$line),
@@ -223,7 +227,7 @@ create_syntax_validation_lints <- function(comments, comment_nodes, source_expre
           type = "error",
           message = result$message,
           line = comment_text,
-          ranges = list(c(col_start, col_start + nchar(comment_text)))
+          ranges = list(c(col_start, col_end))
         )))
       }
     }
@@ -245,6 +249,10 @@ create_syntax_validation_lints <- function(comments, comment_nodes, source_expre
 
       if (!is.null(result)) {
         col_start <- as.integer(result$col)
+        # Ensure range doesn't exceed line length
+        line_len <- nchar(comment_text) + 1  # +1 for lintr convention
+        col_end <- min(col_start + nchar(comment_text), line_len)
+
         lints <- c(lints, list(lintr::Lint(
           filename = source_expression$filename,
           line_number = as.integer(result$line),
@@ -252,7 +260,7 @@ create_syntax_validation_lints <- function(comments, comment_nodes, source_expre
           type = "error",
           message = result$message,
           line = comment_text,
-          ranges = list(c(col_start, col_start + nchar(comment_text)))
+          ranges = list(c(col_start, col_end))
         )))
       }
     }
