@@ -1,13 +1,17 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://calderonsamuel.github.io/rdoc/404.html</loc></url>
+<url><loc>https://calderonsamuel.github.io/rdoc/CLAUDE.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/CODE_OF_CONDUCT.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/CONTRIBUTING.html</loc></url>
+<url><loc>https://calderonsamuel.github.io/rdoc/IMPLEMENTATION_PLAN.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/LICENSE-text.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/LICENSE.html</loc></url>
+<url><loc>https://calderonsamuel.github.io/rdoc/LOGBOOK.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/SUPPORT.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/authors.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/index.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/news/index.html</loc></url>
+<url><loc>https://calderonsamuel.github.io/rdoc/reference/analyze_union_incompatibility.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/ast_to_string.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/ast_validate.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/base_r_types.html</loc></url>
@@ -21,6 +25,7 @@
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/collect_path_components.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/create_lint.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/create_syntax_validation_lints.html</loc></url>
+<url><loc>https://calderonsamuel.github.io/rdoc/reference/expand_s7_unions_in_ast.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/extract_arguments.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/extract_box_imports.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/extract_box_use_arguments.html</loc></url>
@@ -48,6 +53,7 @@
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/infer_argument_type.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/infer_function_return_type.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/is_base_type.html</loc></url>
+<url><loc>https://calderonsamuel.github.io/rdoc/reference/is_function_top_level.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/is_s7_base_type.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/is_union_type.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/lex_type_syntax.html</loc></url>
@@ -71,6 +77,7 @@
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/process_comment_block.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/rdoc-package.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/rdoc_union_to_s7.html</loc></url>
+<url><loc>https://calderonsamuel.github.io/rdoc/reference/resolve_external_type.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/resolve_module_path.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/roclet_output.roclet_types.html</loc></url>
 <url><loc>https://calderonsamuel.github.io/rdoc/reference/roclet_process.roclet_types.html</loc></url>

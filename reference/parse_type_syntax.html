@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rdoc</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9001</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,7 +59,8 @@
     <p>Grammar (EBNF):</p><div class="sourceCode"><pre><code>
   type_expr         ::= union_type
   union_type        ::= primary_type ("|" primary_type)*
-  primary_type      ::= identifier element_type? length_constraint?
+  primary_type      ::= qualified_type element_type? length_constraint?
+  qualified_type    ::= identifier ("::" identifier)?
   element_type      ::= "&lt;" type_expr "&gt;"
   length_constraint ::= "[" number "]"
 </code></pre></div>

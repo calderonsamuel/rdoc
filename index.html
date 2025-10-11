@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">rdoc</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9001</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,8 +46,400 @@
   </div>
 </nav><div class="container template-home">
 <div class="row">
-  <main id="main" class="col-md-9">
-Provides JSDoc-style type annotations for R functions using custom roxygen2 tags. Enables static type checking through lintr integration, allowing IDEs to catch type errors before runtime.
+  <main id="main" class="col-md-9"><div class="section level1">
+<div class="page-header"><h1 id="rdoc">rdoc<a class="anchor" aria-label="anchor" href="#rdoc"></a>
+</h1></div>
+<!-- badges: start -->
+
+<p><strong>rdoc</strong> enables static type checking for R functions through JSDoc-style annotations. Type information is extracted from roxygen2 comments and validated by lintr integration, allowing IDEs to catch type errors before runtime.</p>
+<p><strong>rdoc uses S7 as its type system</strong>. Type annotations map to S7 class objects, leveraging S7’s metadata for type validation and inheritance support.</p>
+<div class="section level2">
+<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
+</h2>
+<p>You can install the development version of rdoc from GitHub:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
+<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"calderonsamuel/rdoc"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
+</h2>
+<div class="section level3">
+<h3 id="id_1-add-type-annotations">1. Add Type Annotations<a class="anchor" aria-label="anchor" href="#id_1-add-type-annotations"></a>
+</h3>
+<p>Use <code>@typedParam</code> and <code>@typedReturn</code> tags in your roxygen2 comments:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#' Calculate the mean of a numeric vector</span></span>
+<span><span class="co">#'</span></span>
+<span><span class="co">#' @typedParam x {class_numeric} Vector of values</span></span>
+<span><span class="co">#' @typedParam na.rm {class_logical[1]} Remove NA values?</span></span>
+<span><span class="co">#' @typedReturn {class_numeric[1]} The mean value</span></span>
+<span><span class="co">#' @export</span></span>
+<span><span class="va">calculate_mean</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">na.rm</span> <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span>, na.rm <span class="op">=</span> <span class="va">na.rm</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>These tags replace <code>@param</code> and <code>@return</code> - they generate standard R documentation while providing type information for validation.</p>
+</div>
+<div class="section level3">
+<h3 id="id_2-configure-lintr">2. Configure lintr<a class="anchor" aria-label="anchor" href="#id_2-configure-lintr"></a>
+</h3>
+<p>Create or update your <code>.lintr</code> file:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Lenient mode (default) - only checks typed functions</span></span>
+<span><span class="va">linters</span><span class="op">:</span> <span class="fu">lintr</span><span class="fu">::</span><span class="fu"><a href="https://lintr.r-lib.org/reference/linters_with_defaults.html" class="external-link">linters_with_defaults</a></span><span class="op">(</span></span>
+<span>  type_consistency <span class="op">=</span> <span class="fu">rdoc</span><span class="fu">::</span><span class="fu"><a href="reference/type_consistency_linter.html">type_consistency_linter</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Exported mode - requires types on @export functions</span></span>
+<span><span class="va">linters</span><span class="op">:</span> <span class="fu">lintr</span><span class="fu">::</span><span class="fu"><a href="https://lintr.r-lib.org/reference/linters_with_defaults.html" class="external-link">linters_with_defaults</a></span><span class="op">(</span></span>
+<span>  type_consistency <span class="op">=</span> <span class="fu">rdoc</span><span class="fu">::</span><span class="fu"><a href="reference/type_consistency_linter.html">type_consistency_linter</a></span><span class="op">(</span>mode <span class="op">=</span> <span class="st">"exported"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Strict mode - requires types on all functions</span></span>
+<span><span class="va">linters</span><span class="op">:</span> <span class="fu">lintr</span><span class="fu">::</span><span class="fu"><a href="https://lintr.r-lib.org/reference/linters_with_defaults.html" class="external-link">linters_with_defaults</a></span><span class="op">(</span></span>
+<span>  type_consistency <span class="op">=</span> <span class="fu">rdoc</span><span class="fu">::</span><span class="fu"><a href="reference/type_consistency_linter.html">type_consistency_linter</a></span><span class="op">(</span>mode <span class="op">=</span> <span class="st">"strict"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="id_3-get-type-checking">3. Get Type Checking<a class="anchor" aria-label="anchor" href="#id_3-get-type-checking"></a>
+</h3>
+<p>The linter validates function calls against type signatures:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">calculate_mean</span><span class="op">(</span><span class="st">"not a number"</span><span class="op">)</span></span>
+<span><span class="co"># Warning: Argument 'x' expects type 'class_numeric' but got 'class_character'</span></span>
+<span></span>
+<span><span class="fu">calculate_mean</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span>  <span class="co"># No warning - correct type</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="type-system">Type System<a class="anchor" aria-label="anchor" href="#type-system"></a>
+</h2>
+<div class="section level3">
+<h3 id="s7-type-names">S7 Type Names<a class="anchor" aria-label="anchor" href="#s7-type-names"></a>
+</h3>
+<p>rdoc requires S7 class names in type annotations:</p>
+<table class="table">
+<thead><tr class="header">
+<th>Type</th>
+<th>S7 Class Name</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Logical</td>
+<td><code>class_logical</code></td>
+</tr>
+<tr class="even">
+<td>Integer</td>
+<td><code>class_integer</code></td>
+</tr>
+<tr class="odd">
+<td>Double</td>
+<td><code>class_double</code></td>
+</tr>
+<tr class="even">
+<td>Numeric</td>
+<td>
+<code>class_numeric</code> (union of integer and double)</td>
+</tr>
+<tr class="odd">
+<td>Character</td>
+<td><code>class_character</code></td>
+</tr>
+<tr class="even">
+<td>List</td>
+<td><code>class_list</code></td>
+</tr>
+<tr class="odd">
+<td>Data frame</td>
+<td><code>class_data.frame</code></td>
+</tr>
+<tr class="even">
+<td>Function</td>
+<td><code>class_function</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level3">
+<h3 id="type-resolution">Type Resolution<a class="anchor" aria-label="anchor" href="#type-resolution"></a>
+</h3>
+<p>When you write <code>{class_integer}</code>, rdoc:</p>
+<ol style="list-style-type: decimal">
+<li>Maps the string to <code><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">S7::class_integer</a></code>
+</li>
+<li>Uses S7’s type compatibility checking</li>
+<li>Supports S7 inheritance chains automatically</li>
+</ol>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Define S7 class hierarchy</span></span>
+<span><span class="va">Parent</span> <span class="op">&lt;-</span> <span class="fu">S7</span><span class="fu">::</span><span class="fu"><a href="https://rconsortium.github.io/S7/reference/new_class.html" class="external-link">new_class</a></span><span class="op">(</span><span class="st">"Parent"</span><span class="op">)</span></span>
+<span><span class="va">Child</span> <span class="op">&lt;-</span> <span class="fu">S7</span><span class="fu">::</span><span class="fu"><a href="https://rconsortium.github.io/S7/reference/new_class.html" class="external-link">new_class</a></span><span class="op">(</span><span class="st">"Child"</span>, parent <span class="op">=</span> <span class="va">Parent</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co">#' @typedParam x {Parent}</span></span>
+<span><span class="va">foo</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span> <span class="op">}</span></span>
+<span></span>
+<span><span class="fu">foo</span><span class="op">(</span><span class="fu">Parent</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>  <span class="co"># OK</span></span>
+<span><span class="fu">foo</span><span class="op">(</span><span class="fu">Child</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>   <span class="co"># OK - child inherits from parent</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="union-types">Union Types<a class="anchor" aria-label="anchor" href="#union-types"></a>
+</h3>
+<p>Use <code>|</code> to specify multiple allowed types. NULL must come first in union types:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#' @typedParam input {NULL | class_character}</span></span>
+<span><span class="co">#' @typedReturn {class_character}</span></span>
+<span><span class="va">process_input</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">input</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">""</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/trimws.html" class="external-link">trimws</a></span><span class="op">(</span><span class="va">input</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="length-constraints">Length Constraints<a class="anchor" aria-label="anchor" href="#length-constraints"></a>
+</h3>
+<p>Use square brackets to specify vector length:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#' @typedParam key {class_character[1]} scalar string</span></span>
+<span><span class="co">#' @typedParam value {class_numeric[1]} scalar number</span></span>
+<span><span class="va">set_config</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">key</span>, <span class="va">value</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">config</span><span class="op">[[</span><span class="va">key</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">value</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="element-type-constraints">Element Type Constraints<a class="anchor" aria-label="anchor" href="#element-type-constraints"></a>
+</h3>
+<p>Use angle brackets to specify list element types:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#' @typedParam items {class_list&lt;class_integer&gt;} list of integers</span></span>
+<span><span class="co">#' @typedParam names {class_list&lt;class_character[1]&gt;} list of scalar strings</span></span>
+<span><span class="va">process_items</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">items</span>, <span class="va">names</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="co"># ...</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="function-types">Function Types<a class="anchor" aria-label="anchor" href="#function-types"></a>
+</h3>
+<p>Use <code>class_function</code> for function parameters:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#' @typedParam fn {class_function} filter predicate</span></span>
+<span><span class="va">apply_filter</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data</span>, <span class="va">fn</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">data</span><span class="op">[</span><span class="fu">fn</span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">value</span><span class="op">)</span>, <span class="op">]</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>Note: Detailed function signatures (parameter and return types) are not currently supported.</p>
+</div>
+<div class="section level3">
+<h3 id="external-types">External Types<a class="anchor" aria-label="anchor" href="#external-types"></a>
+</h3>
+<p>Reference types from other packages using <code>package::class</code> syntax:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#' @typedParam roclet {roxygen2::roclet} A roxygen2 roclet object</span></span>
+<span><span class="co">#' @typedReturn {roxygen2::roclet} Modified roclet</span></span>
+<span><span class="va">customize_roclet</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">roclet</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="co"># Modify roclet...</span></span>
+<span>  <span class="va">roclet</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>External types work in unions and constraints:</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#' @typedParam parser {NULL | xml2::xml_node} Optional XML node</span></span>
+<span><span class="co">#' @typedParam roclets {class_list&lt;roxygen2::roclet&gt;} List of roclet objects</span></span>
+<span><span class="co">#' @typedReturn {roxygen2::roclet | lintr::Linter} A roclet or linter</span></span>
+<span><span class="va">process_config</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">parser</span>, <span class="va">roclets</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="co"># ...</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="type-inference">Type Inference<a class="anchor" aria-label="anchor" href="#type-inference"></a>
+</h2>
+<p>rdoc infers types from:</p>
+<p><strong>Literals:</strong></p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fl">42</span>          <span class="co"># class_numeric</span></span>
+<span><span class="va">y</span> <span class="op">&lt;-</span> <span class="st">"hello"</span>     <span class="co"># class_character</span></span>
+<span><span class="va">z</span> <span class="op">&lt;-</span> <span class="cn">TRUE</span>        <span class="co"># class_logical</span></span></code></pre></div>
+<p><strong>Constructors:</strong></p>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span>    <span class="co"># class_data.frame</span></span>
+<span><span class="va">lst</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span>         <span class="co"># class_list</span></span>
+<span><span class="va">vec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span>            <span class="co"># class_numeric</span></span>
+<span><span class="va">mat</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">9</span>, <span class="fl">3</span>, <span class="fl">3</span><span class="op">)</span>     <span class="co"># class_matrix</span></span></code></pre></div>
+<p><strong>Function calls:</strong></p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#' @typedReturn {class_data.frame}</span></span>
+<span><span class="va">load_data</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu">load_data</span><span class="op">(</span><span class="op">)</span>          <span class="co"># inferred as class_data.frame</span></span></code></pre></div>
+<p><strong>Operators:</strong></p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">x</span> <span class="op">&gt;</span> <span class="fl">5</span>              <span class="co"># class_logical</span></span>
+<span><span class="va">check</span> <span class="op">&lt;-</span> <span class="op">(</span><span class="va">x</span> <span class="op">&gt;=</span> <span class="fl">0</span><span class="op">)</span> <span class="op">&amp;</span> <span class="op">(</span><span class="va">x</span> <span class="op">&lt;=</span> <span class="fl">10</span><span class="op">)</span> <span class="co"># class_logical</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="return-value-validation">Return Value Validation<a class="anchor" aria-label="anchor" href="#return-value-validation"></a>
+</h2>
+<p>rdoc validates that function implementations match their declared return types:</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#' @typedReturn {class_character}</span></span>
+<span><span class="va">get_name</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fl">42</span>  <span class="co"># Warning: declares {class_character} but returns {class_numeric}</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="co">#' @typedReturn {class_logical}</span></span>
+<span><span class="va">is_valid</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">x</span> <span class="op">&gt;</span> <span class="fl">0</span>  <span class="co"># OK - comparison returns logical</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p>Validation handles: - Explicit <code><a href="https://rdrr.io/r/base/function.html" class="external-link">return()</a></code> statements - Implicit returns (last expression) - Literal values and constructors - Comparison and logical operators</p>
+<p>Complex cases (multiple returns, control flow) are skipped to avoid false positives.</p>
+</div>
+<div class="section level2">
+<h2 id="for-package-authors">For Package Authors<a class="anchor" aria-label="anchor" href="#for-package-authors"></a>
+</h2>
+<div class="section level3">
+<h3 id="generate-type-metadata">Generate Type Metadata<a class="anchor" aria-label="anchor" href="#generate-type-metadata"></a>
+</h3>
+<p>Add rdoc’s roclet to your <code>DESCRIPTION</code>:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="fu">Roxygen</span><span class="kw">:</span><span class="at"> list(markdown = TRUE, roclets = c("collate", "rd", "namespace", "rdoc::roclet_types"))</span></span></code></pre></div>
+<p>Run <code>devtools::document()</code>:</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">document</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co"># Generated type metadata for 5 functions</span></span></code></pre></div>
+<p>This creates <code>inst/types.rds</code>, which is installed with your package.</p>
+</div>
+<div class="section level3">
+<h3 id="users-get-type-checking">Users Get Type Checking<a class="anchor" aria-label="anchor" href="#users-get-type-checking"></a>
+</h3>
+<p>When users configure the rdoc linter and load your package, they automatically get type checking:</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">yourpackage</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">your_function</span><span class="op">(</span><span class="st">"wrong type"</span><span class="op">)</span>  <span class="co"># Linter catches the error</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="box-module-support">Box Module Support<a class="anchor" aria-label="anchor" href="#box-module-support"></a>
+</h2>
+<p>rdoc integrates with the <a href="https://klmr.me/box/" class="external-link">box</a> package for modular R code:</p>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># In R/math.r</span></span>
+<span><span class="fu">box</span><span class="fu">::</span><span class="fu">use</span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co">#' @typedParam x {class_numeric}</span></span>
+<span><span class="co">#' @typedReturn {class_numeric}</span></span>
+<span><span class="co">#' @export</span></span>
+<span><span class="va">square</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="va">x</span><span class="op">^</span><span class="fl">2</span></span>
+<span></span>
+<span><span class="co"># In analysis.r</span></span>
+<span><span class="fu">box</span><span class="fu">::</span><span class="fu">use</span><span class="op">(</span><span class="va">.</span><span class="op">/</span><span class="va">math</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">math</span><span class="op">$</span><span class="fu">square</span><span class="op">(</span><span class="fl">42</span><span class="op">)</span>      <span class="co"># OK</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="va">math</span><span class="op">$</span><span class="fu">square</span><span class="op">(</span><span class="st">"text"</span><span class="op">)</span>  <span class="co"># Warning: expects class_numeric</span></span></code></pre></div>
+<p>Type information is extracted from box modules and cached for validation.</p>
+</div>
+<div class="section level2">
+<h2 id="limitations">Limitations<a class="anchor" aria-label="anchor" href="#limitations"></a>
+</h2>
+<p>rdoc:</p>
+<ul>
+<li>Performs single-file analysis only (no cross-file type inference)</li>
+<li>Skips complex control flow in return validation</li>
+<li>Does not support type narrowing from conditionals</li>
+<li>Infers types from common constructors only (c, list, data.frame, matrix)</li>
+<li>Requires roxygen2 comments for local function types</li>
+</ul>
+<p>These limitations allow rdoc to provide fast, useful type checking without complex static analysis.</p>
+</div>
+<div class="section level2">
+<h2 id="workflow">Workflow<a class="anchor" aria-label="anchor" href="#workflow"></a>
+</h2>
+<div class="section level3">
+<h3 id="script-authors">Script Authors<a class="anchor" aria-label="anchor" href="#script-authors"></a>
+</h3>
+<ol style="list-style-type: decimal">
+<li>Add <code>@typedParam</code> and <code>@typedReturn</code> to functions</li>
+<li>Configure <code>.lintr</code> with <code><a href="reference/type_consistency_linter.html">type_consistency_linter()</a></code>
+</li>
+<li>See type errors in your IDE</li>
+</ol>
+</div>
+<div class="section level3">
+<h3 id="package-developers">Package Developers<a class="anchor" aria-label="anchor" href="#package-developers"></a>
+</h3>
+<ol style="list-style-type: decimal">
+<li>Add type annotations to exported functions</li>
+<li>Add rdoc roclet to <code>DESCRIPTION</code>
+</li>
+<li>Run <code>devtools::document()</code>
+</li>
+<li>Type metadata is included in the package automatically</li>
+</ol>
+</div>
+</div>
+<div class="section level2">
+<h2 id="examples">Examples<a class="anchor" aria-label="anchor" href="#examples"></a>
+</h2>
+<div class="section level3">
+<h3 id="call-chains">Call Chains<a class="anchor" aria-label="anchor" href="#call-chains"></a>
+</h3>
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#' @typedReturn {class_data.frame}</span></span>
+<span><span class="va">load_data</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co">#' @typedParam df {class_data.frame}</span></span>
+<span><span class="co">#' @typedReturn {class_list}</span></span>
+<span><span class="va">process_data</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">df</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>mean <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">x</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co">#' @typedParam results {class_list}</span></span>
+<span><span class="va">show_results</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">results</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">results</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Type-safe chain</span></span>
+<span><span class="fu">show_results</span><span class="op">(</span><span class="fu">process_data</span><span class="op">(</span><span class="fu">load_data</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>  <span class="co"># OK</span></span>
+<span></span>
+<span><span class="co"># Type error caught</span></span>
+<span><span class="co">#' @typedParam x {class_numeric}</span></span>
+<span><span class="va">double_it</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="va">x</span> <span class="op">*</span> <span class="fl">2</span></span>
+<span></span>
+<span><span class="fu">double_it</span><span class="op">(</span><span class="fu">load_data</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>  <span class="co"># Warning: expects class_numeric, got class_data.frame</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="constructor-detection">Constructor Detection<a class="anchor" aria-label="anchor" href="#constructor-detection"></a>
+</h3>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#' @typedParam data {class_data.frame}</span></span>
+<span><span class="co">#' @typedParam metadata {class_list}</span></span>
+<span><span class="va">process_data</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data</span>, <span class="va">metadata</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="co"># ...</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span></span>
+<span><span class="va">meta</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>author <span class="op">=</span> <span class="st">"Alice"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu">process_data</span><span class="op">(</span><span class="va">df</span>, <span class="va">meta</span><span class="op">)</span>  <span class="co"># OK</span></span>
+<span></span>
+<span><span class="va">wrong</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">9</span>, <span class="fl">3</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="fu">process_data</span><span class="op">(</span><span class="va">wrong</span>, <span class="va">meta</span><span class="op">)</span>  <span class="co"># Warning: expects class_data.frame, got class_matrix</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="related-work">Related Work<a class="anchor" aria-label="anchor" href="#related-work"></a>
+</h2>
+<ul>
+<li>
+<strong>TypeScript</strong> - Inspiration for type annotation syntax</li>
+<li>
+<strong>lintr</strong> - Static code analysis framework (integration point)</li>
+<li>
+<strong>roxygen2</strong> - Documentation system (foundation)</li>
+<li>
+<strong>S7</strong> - Type system foundation</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
+</h2>
+<p>MIT © Samuel Calderon</p>
+</div>
+</div>
   </main><aside class="col-md-3"><div class="links">
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
@@ -88,7 +480,15 @@ Provides JSDoc-style type annotations for R functions using custom roxygen2 tags
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></li>
+<li><a href="https://CRAN.R-project.org/package=rdoc" class="external-link"><img src="https://www.r-pkg.org/badges/version/rdoc" alt="CRAN status"></a></li>
+<li><a href="https://github.com/calderonsamuel/rdoc/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/calderonsamuel/rdoc/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://app.codecov.io/gh/calderonsamuel/rdoc" class="external-link"><img src="https://codecov.io/gh/calderonsamuel/rdoc/graph/badge.svg" alt="Codecov test coverage"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>

@@ -9,7 +9,7 @@ to S7 class objects, which are the source of truth for type checking."></head><b
 
     <a class="navbar-brand me-2" href="../index.html">rdoc</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9001</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -50,7 +50,7 @@ to S7 class objects, which are the source of truth for type checking.</p>
 
 
 <dl><dt id="arg-type-string">type_string<a class="anchor" aria-label="anchor" href="#arg-type-string"></a></dt>
-<dd><p>Full S7 class name (e.g., "class_integer")</p></dd>
+<dd><p>Full S7 class name (e.g., "class_integer") or external type (e.g., "roxygen2::roclet")</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -69,6 +69,9 @@ to S7 class objects, which are the source of truth for type checking.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># NULL is special case</span></span></span>
 <span class="r-in"><span><span class="fu">type_string_to_s7_class</span><span class="op">(</span><span class="st">"NULL"</span><span class="op">)</span>           <span class="co"># NULL</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># External types (Phase 24.1)</span></span></span>
+<span class="r-in"><span><span class="fu">type_string_to_s7_class</span><span class="op">(</span><span class="st">"roxygen2::roclet"</span><span class="op">)</span>  <span class="co"># S7 wrapper or exported S7 class</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>
