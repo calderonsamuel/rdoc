@@ -11,8 +11,8 @@ test_that("extract_module_types extracts types from exported function", {
 
   expect_length(types, 1)
   expect_named(types, "double")
-  expect_equal(types$double$params$x$type, "class_numeric")
-  expect_equal(types$double$return$type, "class_numeric")
+  expect_equal(types$double@params$x@type, "class_numeric")
+  expect_equal(types$double@return@type, "class_numeric")
 })
 
 test_that("extract_module_types ignores non-exported functions", {
@@ -49,9 +49,9 @@ test_that("extract_module_types handles multiple exported functions", {
 
   expect_length(types, 2)
   expect_named(types, c("add", "multiply"))
-  expect_equal(types$add$params$a$type, "class_numeric")
-  expect_equal(types$add$params$b$type, "class_numeric")
-  expect_equal(types$multiply$return$type, "class_numeric")
+  expect_equal(types$add@params$a@type, "class_numeric")
+  expect_equal(types$add@params$b@type, "class_numeric")
+  expect_equal(types$multiply@return@type, "class_numeric")
 })
 
 test_that("extract_module_types handles mixed exported/non-exported", {
@@ -195,10 +195,10 @@ test_that("extract_module_types handles complex real-world module", {
 
   expect_length(types, 2)
   expect_named(types, c("add", "multiply"))
-  expect_equal(types$add$params$a$type, "class_numeric[1]")
-  expect_equal(types$add$params$b$type, "class_numeric[1]")
-  expect_equal(types$add$return$type, "class_numeric[1]")
-  expect_equal(types$multiply$return$type, "class_numeric[1]")
+  expect_equal(types$add@params$a@type, "class_numeric[1]")
+  expect_equal(types$add@params$b@type, "class_numeric[1]")
+  expect_equal(types$add@return@type, "class_numeric[1]")
+  expect_equal(types$multiply@return@type, "class_numeric[1]")
 })
 
 test_that("extract_module_types handles @typedParam with no @typedReturn", {
@@ -213,8 +213,8 @@ test_that("extract_module_types handles @typedParam with no @typedReturn", {
 
   expect_length(types, 1)
   expect_named(types, "print_number")
-  expect_equal(types$print_number$params$x$type, "class_numeric")
-  expect_null(types$print_number$return)
+  expect_equal(types$print_number@params$x@type, "class_numeric")
+  expect_null(types$print_number@return)
 })
 
 test_that("extract_module_types handles @typedReturn with no @typedParam", {
@@ -229,6 +229,6 @@ test_that("extract_module_types handles @typedReturn with no @typedParam", {
 
   expect_length(types, 1)
   expect_named(types, "get_pi")
-  expect_equal(types$get_pi$return$type, "class_numeric[1]")
-  expect_length(types$get_pi$params, 0)
+  expect_equal(types$get_pi@return@type, "class_numeric[1]")
+  expect_length(types$get_pi@params, 0)
 })

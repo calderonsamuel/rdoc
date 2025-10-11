@@ -10,7 +10,7 @@ extract_type_info_from_block(block)
 \item{block}{A roxy_block object}
 }
 \value{
-A list with params and return type info
+FunctionSignature S7 object or NULL
 }
 \description{
 Extract type information from a roxygen block

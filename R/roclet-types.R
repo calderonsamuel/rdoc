@@ -74,6 +74,7 @@ roclet_output.roclet_types <- function(x, results, base_path, ..., is_first = TR
   }
 
   # Write types to RDS file
+  # S7 objects serialize perfectly with saveRDS
   types_file <- file.path(inst_dir, "types.rds")
   saveRDS(results, types_file, version = 2)
 
@@ -111,7 +112,7 @@ get_function_name <- function(block) {
 #' Extract type information from a roxygen block
 #'
 #' @param block A roxy_block object
-#' @return A list with params and return type info
+#' @return FunctionSignature S7 object or NULL
 #' @keywords internal
 extract_type_info_from_block <- function(block) {
   params <- list()
@@ -120,13 +121,12 @@ extract_type_info_from_block <- function(block) {
   for (tag in block$tags) {
     if (inherits(tag, "roxy_tag_typedParam")) {
       param_name <- tag$val$param
-      params[[param_name]] <- list(
+      params[[param_name]] <- ParamType(
         type = tag$val$type,
         description = tag$val$description
       )
     } else if (inherits(tag, "roxy_tag_typedReturn")) {
-      # For typedReturn, val is now a list with type and description
-      return_type <- list(
+      return_type <- ReturnType(
         type = tag$val$type,
         description = tag$val$description
       )
@@ -135,14 +135,10 @@ extract_type_info_from_block <- function(block) {
 
   # Only return if we have at least params or return type
   if (length(params) > 0 || !is.null(return_type)) {
-    result <- list()
-    if (length(params) > 0) {
-      result$params <- params
-    }
-    if (!is.null(return_type)) {
-      result$return <- return_type
-    }
-    result
+    FunctionSignature(
+      params = params,
+      return = return_type
+    )
   } else {
     NULL
   }

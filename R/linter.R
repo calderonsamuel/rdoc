@@ -104,8 +104,8 @@ type_consistency_linter <- function(mode = c("lenient", "exported", "strict")) {
           cache$types[[fn_name]] <- type_info
 
           # Validate return type if declared (Phase 7.2)
-          if (!is.null(type_info$return)) {
-            validation_lints <- validate_return_type(fn_assign, type_info$return$type, source_expression)
+          if (!is.null(type_info@return)) {
+            validation_lints <- validate_return_type(fn_assign, type_info@return@type, source_expression)
             if (length(validation_lints) > 0) {
               return_validation_lints <- c(return_validation_lints, validation_lints)
             }

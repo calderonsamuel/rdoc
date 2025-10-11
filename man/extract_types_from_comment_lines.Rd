@@ -10,7 +10,7 @@ extract_types_from_comment_lines(comments)
 \item{comments}{Character vector of comment lines}
 }
 \value{
-List with params and return type info
+FunctionSignature object or NULL if no types found
 }
 \description{
 Extract types from a vector of comment lines

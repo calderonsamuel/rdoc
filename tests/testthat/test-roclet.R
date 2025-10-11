@@ -59,10 +59,10 @@ test_that("extract_type_info_from_block extracts params and return", {
 
   result <- extract_type_info_from_block(block)
 
-  expect_equal(result$params$x$type, "class_numeric")
-  expect_equal(result$params$x$description, "input")
-  expect_equal(result$return$type, "class_numeric")
-  expect_equal(result$return$description, "output")
+  expect_equal(result@params$x@type, "class_numeric")
+  expect_equal(result@params$x@description, "input")
+  expect_equal(result@return@type, "class_numeric")
+  expect_equal(result@return@description, "output")
 })
 
 test_that("extract_type_info_from_block handles multiple params", {
@@ -80,9 +80,9 @@ test_that("extract_type_info_from_block handles multiple params", {
 
   result <- extract_type_info_from_block(block)
 
-  expect_length(result$params, 2)
-  expect_equal(result$params$x$type, "class_numeric")
-  expect_equal(result$params$y$type, "class_character")
+  expect_length(result@params, 2)
+  expect_equal(result@params$x@type, "class_numeric")
+  expect_equal(result@params$y@type, "class_character")
 })
 
 test_that("extract_type_info_from_block returns NULL if no typed tags", {
@@ -111,7 +111,7 @@ test_that("roclet_process extracts types from blocks", {
 
   expect_length(results, 1)
   expect_equal(names(results), "test_function")
-  expect_equal(results$test_function$params$x$type, "class_numeric")
+  expect_equal(results$test_function@params$x@type, "class_numeric")
 })
 
 test_that("roclet_output creates inst/types.rds", {

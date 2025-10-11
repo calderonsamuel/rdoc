@@ -135,11 +135,11 @@ check_single_call <- function(call_node, all_types, var_context, source_expressi
 #' @return List of Lint objects
 #' @keywords internal
 check_arguments <- function(fn_name, args, type_info, call_node, source_expression, mode = "lenient") {
-  if (is.null(type_info$params)) {
+  if (is.null(type_info@params) || length(type_info@params) == 0) {
     return(list())
   }
 
-  param_names <- names(type_info$params)
+  param_names <- names(type_info@params)
   positional_index <- 1
   lints <- list()
 
@@ -163,7 +163,7 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
       positional_index <- positional_index + 1
     }
 
-    expected_type <- type_info$params[[param_name]]$type
+    expected_type <- type_info@params[[param_name]]@type
     actual_type <- arg$type
 
     # Handle unknown types
@@ -342,6 +342,7 @@ load_package_types <- function(packages) {
       pkg_types <- readRDS(types_file)
 
       # Prefix function names with package name to avoid conflicts
+      # types.rds contains S7 FunctionSignature objects directly
       for (fn_name in names(pkg_types)) {
         all_types[[paste0(pkg, "::", fn_name)]] <- pkg_types[[fn_name]]
       }
@@ -488,8 +489,8 @@ check_strict_mode_annotations_impl <- function(fn_assign_node, type_info, source
 
     # Check if this parameter has a type annotation
     has_annotation <- FALSE
-    if (!is.null(type_info) && !is.null(type_info$params)) {
-      has_annotation <- param_name %in% names(type_info$params)
+    if (!is.null(type_info) && !is.null(type_info@params)) {
+      has_annotation <- param_name %in% names(type_info@params)
     }
 
     if (!has_annotation) {
@@ -510,7 +511,7 @@ check_strict_mode_annotations_impl <- function(fn_assign_node, type_info, source
   }
 
   # Check for missing @typedReturn
-  has_return_annotation <- !is.null(type_info) && !is.null(type_info$return)
+  has_return_annotation <- !is.null(type_info) && !is.null(type_info@return)
 
   if (!has_return_annotation) {
     # Use function name node for positioning (not FUNCTION keyword)

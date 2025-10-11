@@ -32,8 +32,8 @@ test_that("linter loads types from box module with full import", {
 
   expect_length(types, 1)
   expect_named(types, "math$add")
-  expect_equal(types$`math$add`$params$a$type, "class_numeric[1]")
-  expect_equal(types$`math$add`$return$type, "class_numeric[1]")
+  expect_equal(types$`math$add`@params$a@type, "class_numeric[1]")
+  expect_equal(types$`math$add`@return@type, "class_numeric[1]")
 })
 
 test_that("linter loads types from box module with aliased import", {
@@ -65,7 +65,7 @@ test_that("linter loads types from box module with aliased import", {
 
   expect_length(types, 1)
   expect_named(types, "m$double")
-  expect_equal(types$`m$double`$params$x$type, "class_numeric")
+  expect_equal(types$`m$double`@params$x@type, "class_numeric")
 })
 
 test_that("linter loads types from box module with selective import", {
@@ -104,7 +104,7 @@ test_that("linter loads types from box module with selective import", {
 
   expect_length(types, 1)
   expect_named(types, "add")  # No prefix for selective import
-  expect_equal(types$add$params$a$type, "class_numeric")
+  expect_equal(types$add@params$a@type, "class_numeric")
 })
 
 test_that("linter loads types from box module with attach-all", {

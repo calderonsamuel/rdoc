@@ -78,8 +78,8 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
       # Look up function in type registry (if provided)
       if (!is.null(type_registry) && fn_name %in% names(type_registry)) {
         type_info <- type_registry[[fn_name]]
-        if (!is.null(type_info$return)) {
-          return(type_info$return$type)
+        if (!is.null(type_info@return)) {
+          return(type_info@return@type)
         }
       }
       # Function call not in registry (or no registry) - unknown type

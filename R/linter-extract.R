@@ -1,7 +1,7 @@
 #' Extract types from a vector of comment lines
 #'
 #' @param comments Character vector of comment lines
-#' @return List with params and return type info
+#' @return FunctionSignature object or NULL if no types found
 #' @keywords internal
 #' @importFrom utils tail
 extract_types_from_comment_lines <- function(comments) {
@@ -18,7 +18,7 @@ extract_types_from_comment_lines <- function(comments) {
       parsed_param <- try(parse_typed_param_text(param_text), silent = TRUE)
 
       if (!inherits(parsed_param, "try-error")) {
-        param_types[[parsed_param$param]] <- list(
+        param_types[[parsed_param$param]] <- ParamType(
           type = parsed_param$type,
           description = parsed_param$description
         )
@@ -33,7 +33,7 @@ extract_types_from_comment_lines <- function(comments) {
       parsed_return <- try(parse_typed_return_text(return_text), silent = TRUE)
 
       if (!inherits(parsed_return, "try-error")) {
-        return_type <- list(
+        return_type <- ReturnType(
           type = parsed_return$type,
           description = parsed_return$description
         )
@@ -42,20 +42,15 @@ extract_types_from_comment_lines <- function(comments) {
     }
   }
 
-  # Build result
+  # Build result - return S7 FunctionSignature or NULL
   if (length(param_types) == 0 && is.null(return_type)) {
     return(NULL)
   }
 
-  result <- list()
-  if (length(param_types) > 0) {
-    result$params <- param_types
-  }
-  if (!is.null(return_type)) {
-    result$return <- return_type
-  }
-
-  result
+  FunctionSignature(
+    params = param_types,
+    return = return_type
+  )
 }
 
 #' Extract type signatures from local roxygen comments
@@ -129,10 +124,11 @@ extract_types_from_xml <- function(xml) {
     }
 
     # Extract types from accumulated comments (reuses common logic)
+    # Returns S7 FunctionSignature, keep as S7 for internal use
     type_info <- extract_types_from_comment_lines(relevant_comments)
 
     if (!is.null(type_info)) {
-      types[[fn_name]] <- type_info
+      types[[fn_name]] <- type_info  # Keep as S7 internally
     }
   }
 
@@ -209,6 +205,7 @@ extract_types_from_comments <- function(comments, parsed) {
 #' @keywords internal
 process_comment_block <- function(block, parsed) {
   # Extract type information from comments (reuses common logic)
+  # Returns S7 FunctionSignature, keep as S7 for internal use
   type_info <- extract_types_from_comment_lines(block$text)
 
   # Find function name - look for SYMBOL followed by LEFT_ASSIGN or EQ_ASSIGN

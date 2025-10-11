@@ -660,12 +660,11 @@ extract_module_types <- function(module_file) {
 
           if (is_exported && length(current_comments) > 0) {
             # Extract types from accumulated comments
-            # Keep the full structure: list(type = "...", description = "...")
-            # This matches what the linter expects
+            # Returns FunctionSignature S7 object - keep as S7 for linter use
             types <- extract_types_from_comment_lines(current_comments)
 
-            if (length(types$params) > 0 || !is.null(types$return)) {
-              all_types[[func_name]] <- types
+            if (!is.null(types)) {
+              all_types[[func_name]] <- types  # Keep as S7
             }
           }
         }

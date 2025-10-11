@@ -12,6 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **rdoc** enables static type checking for R functions using JSDoc-style annotations, similar to TypeScript. Type annotations use S7 as the foundation - S7 class objects are the source of truth, not type strings.
 
+This project is still in development, not even reaching public beta. There is no stable internal implementation yet. No refactoring needs to consider backward compatibility.
+
 ### Goal
 Provide type annotations for R functions that IDEs (especially VSCode) can use to lint code and catch type errors before runtime.
 
