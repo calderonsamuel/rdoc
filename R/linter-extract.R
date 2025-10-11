@@ -128,55 +128,11 @@ extract_types_from_xml <- function(xml) {
       }
     }
 
-    # Parse the comments for type info
-    param_types <- list()
-    return_type <- NULL
+    # Extract types from accumulated comments (reuses common logic)
+    type_info <- extract_types_from_comment_lines(relevant_comments)
 
-    for (comment_text in relevant_comments) {
-      content <- sub("^#'\\s*", "", comment_text)
-
-      # Check for @typedParam
-      if (grepl("^@typedParam\\s+", content)) {
-        param_text <- sub("^@typedParam\\s+", "", content)
-        # Parse - catch errors to allow linting to continue
-        parsed_param <- try(parse_typed_param_text(param_text), silent = TRUE)
-
-        if (!inherits(parsed_param, "try-error")) {
-          param_types[[parsed_param$param]] <- list(
-            type = parsed_param$type,
-            description = parsed_param$description
-          )
-        }
-        # Note: Validation errors will be reported separately by syntax validation linter
-      }
-
-      # Check for @typedReturn
-      if (grepl("^@typedReturn\\s+", content)) {
-        return_text <- sub("^@typedReturn\\s+", "", content)
-        # Parse - catch errors to allow linting to continue
-        parsed_return <- try(parse_typed_return_text(return_text), silent = TRUE)
-
-        if (!inherits(parsed_return, "try-error")) {
-          return_type <- list(
-            type = parsed_return$type,
-            description = parsed_return$description
-          )
-        }
-        # Note: Validation errors will be reported separately by syntax validation linter
-      }
-    }
-
-    # Save if we found type info
-    if (length(param_types) > 0 || !is.null(return_type)) {
-      result_types <- list()
-      if (length(param_types) > 0) {
-        result_types$params <- param_types
-      }
-      if (!is.null(return_type)) {
-        result_types$return <- return_type
-      }
-
-      types[[fn_name]] <- result_types
+    if (!is.null(type_info)) {
+      types[[fn_name]] <- type_info
     }
   }
 
@@ -252,45 +208,8 @@ extract_types_from_comments <- function(comments, parsed) {
 #' @return List with fn_name and types
 #' @keywords internal
 process_comment_block <- function(block, parsed) {
-  param_types <- list()
-  return_type <- NULL
-  fn_name <- NULL
-
-  # Extract type information from comments
-  for (line_text in block$text) {
-    content <- sub("^#'\\s*", "", line_text)
-
-    # Check for @typedParam
-    if (grepl("^@typedParam\\s+", content)) {
-      param_text <- sub("^@typedParam\\s+", "", content)
-      # Parse - catch errors to allow linting to continue
-      parsed_param <- try(parse_typed_param_text(param_text), silent = TRUE)
-
-      if (!inherits(parsed_param, "try-error")) {
-        if (is.null(param_types)) param_types <- list()
-        param_types[[parsed_param$param]] <- list(
-          type = parsed_param$type,
-          description = parsed_param$description
-        )
-      }
-      # Note: Validation errors will be reported separately by syntax validation linter
-    }
-
-    # Check for @typedReturn
-    if (grepl("^@typedReturn\\s+", content)) {
-      return_text <- sub("^@typedReturn\\s+", "", content)
-      # Parse - catch errors to allow linting to continue
-      parsed_return <- try(parse_typed_return_text(return_text), silent = TRUE)
-
-      if (!inherits(parsed_return, "try-error")) {
-        return_type <- list(
-          type = parsed_return$type,
-          description = parsed_return$description
-        )
-      }
-      # Note: Validation errors will be reported separately by syntax validation linter
-    }
-  }
+  # Extract type information from comments (reuses common logic)
+  type_info <- extract_types_from_comment_lines(block$text)
 
   # Find function name - look for SYMBOL followed by LEFT_ASSIGN or EQ_ASSIGN
   # on the line after the comment block
@@ -300,6 +219,7 @@ process_comment_block <- function(block, parsed) {
   fn_lines <- parsed[parsed$line1 >= last_comment_line + 1 &
                       parsed$line1 <= last_comment_line + 3, , drop = FALSE]
 
+  fn_name <- NULL
   if (nrow(fn_lines) > 0) {
     # Find SYMBOL before assignment or FUNCTION keyword
     symbols <- fn_lines[fn_lines$token == "SYMBOL", , drop = FALSE]
@@ -308,18 +228,9 @@ process_comment_block <- function(block, parsed) {
     }
   }
 
-  # Build result
-  result_types <- list()
-  if (length(param_types) > 0) {
-    result_types$params <- param_types
-  }
-  if (!is.null(return_type)) {
-    result_types$return <- return_type
-  }
-
   list(
     fn_name = fn_name,
-    types = result_types
+    types = type_info  # May be NULL if no types found
   )
 }
 
