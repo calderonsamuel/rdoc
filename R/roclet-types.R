@@ -121,12 +121,12 @@ extract_type_info_from_block <- function(block) {
   for (tag in block$tags) {
     if (inherits(tag, "roxy_tag_typedParam")) {
       param_name <- tag$val$param
-      params[[param_name]] <- ParamType(
+      params[[param_name]] <- param_type(
         type = tag$val$type,
         description = tag$val$description
       )
     } else if (inherits(tag, "roxy_tag_typedReturn")) {
-      return_type <- ReturnType(
+      return_type <- return_type(
         type = tag$val$type,
         description = tag$val$description
       )
@@ -135,7 +135,7 @@ extract_type_info_from_block <- function(block) {
 
   # Only return if we have at least params or return type
   if (length(params) > 0 || !is.null(return_type)) {
-    FunctionSignature(
+    function_signature(
       params = params,
       return = return_type
     )

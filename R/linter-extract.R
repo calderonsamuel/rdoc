@@ -18,7 +18,7 @@ extract_types_from_comment_lines <- function(comments) {
       parsed_param <- try(parse_typed_param_text(param_text), silent = TRUE)
 
       if (!inherits(parsed_param, "try-error")) {
-        param_types[[parsed_param$param]] <- ParamType(
+        param_types[[parsed_param$param]] <- param_type(
           type = parsed_param$type,
           description = parsed_param$description
         )
@@ -33,7 +33,7 @@ extract_types_from_comment_lines <- function(comments) {
       parsed_return <- try(parse_typed_return_text(return_text), silent = TRUE)
 
       if (!inherits(parsed_return, "try-error")) {
-        return_type <- ReturnType(
+        return_type <- return_type(
           type = parsed_return$type,
           description = parsed_return$description
         )
@@ -47,7 +47,7 @@ extract_types_from_comment_lines <- function(comments) {
     return(NULL)
   }
 
-  FunctionSignature(
+  function_signature(
     params = param_types,
     return = return_type
   )
