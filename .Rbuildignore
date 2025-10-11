@@ -12,5 +12,6 @@
 ^\.claude$
 ^CLAUDE\.md$
 ^IMPLEMENTATION_PLAN\.md$
+^LOGBOOK\.md$
 ^examples$
 ^NEWS\.md$

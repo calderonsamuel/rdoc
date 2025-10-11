@@ -1,30 +1,27 @@
----
-output: github_document
----
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  fig.path = "man/figures/README-",
-  out.width = "100%"
-)
-```
 
 # rdoc
 
 <!-- badges: start -->
-[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![CRAN status](https://www.r-pkg.org/badges/version/rdoc)](https://CRAN.R-project.org/package=rdoc)
+
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![CRAN
+status](https://www.r-pkg.org/badges/version/rdoc)](https://CRAN.R-project.org/package=rdoc)
 [![R-CMD-check](https://github.com/calderonsamuel/rdoc/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/calderonsamuel/rdoc/actions/workflows/R-CMD-check.yaml)
-[![Codecov test coverage](https://codecov.io/gh/calderonsamuel/rdoc/graph/badge.svg)](https://app.codecov.io/gh/calderonsamuel/rdoc)
+[![Codecov test
+coverage](https://codecov.io/gh/calderonsamuel/rdoc/graph/badge.svg)](https://app.codecov.io/gh/calderonsamuel/rdoc)
 <!-- badges: end -->
 
-**rdoc** enables static type checking for R functions through JSDoc-style annotations. Type information is extracted from roxygen2 comments and validated by lintr integration, allowing IDEs to catch type errors before runtime.
+**rdoc** enables static type checking for R functions through
+JSDoc-style annotations. Type information is extracted from roxygen2
+comments and validated by lintr integration, allowing IDEs to catch type
+errors before runtime.
 
-**rdoc uses S7 as its type system**. Type annotations map to S7 class objects, leveraging S7's metadata for type validation and inheritance support.
+**rdoc uses S7 as its type system**. Type annotations map to S7 class
+objects, leveraging S7’s metadata for type validation and inheritance
+support.
 
 ## Installation
 
@@ -41,7 +38,7 @@ pak::pak("calderonsamuel/rdoc")
 
 Use `@typedParam` and `@typedReturn` tags in your roxygen2 comments:
 
-```r
+``` r
 #' Calculate the mean of a numeric vector
 #'
 #' @typedParam x {class_numeric} Vector of values
@@ -53,13 +50,14 @@ calculate_mean <- function(x, na.rm = FALSE) {
 }
 ```
 
-These tags replace `@param` and `@return` - they generate standard R documentation while providing type information for validation.
+These tags replace `@param` and `@return` - they generate standard R
+documentation while providing type information for validation.
 
 ### 2. Configure lintr
 
 Create or update your `.lintr` file:
 
-```r
+``` r
 # Lenient mode (default) - only checks typed functions
 linters: lintr::linters_with_defaults(
   type_consistency = rdoc::type_consistency_linter()
@@ -80,7 +78,7 @@ linters: lintr::linters_with_defaults(
 
 The linter validates function calls against type signatures:
 
-```r
+``` r
 calculate_mean("not a number")
 # Warning: Argument 'x' expects type 'class_numeric' but got 'class_character'
 
@@ -93,26 +91,26 @@ calculate_mean(c(1, 2, 3))  # No warning - correct type
 
 rdoc requires S7 class names in type annotations:
 
-| Type | S7 Class Name |
-|------|---------------|
-| Logical | `class_logical` |
-| Integer | `class_integer` |
-| Double | `class_double` |
-| Numeric | `class_numeric` (union of integer and double) |
-| Character | `class_character` |
-| List | `class_list` |
-| Data frame | `class_data.frame` |
-| Function | `class_function` |
+| Type       | S7 Class Name                                 |
+|------------|-----------------------------------------------|
+| Logical    | `class_logical`                               |
+| Integer    | `class_integer`                               |
+| Double     | `class_double`                                |
+| Numeric    | `class_numeric` (union of integer and double) |
+| Character  | `class_character`                             |
+| List       | `class_list`                                  |
+| Data frame | `class_data.frame`                            |
+| Function   | `class_function`                              |
 
 ### Type Resolution
 
 When you write `{class_integer}`, rdoc:
 
-1. Maps the string to `S7::class_integer`
-2. Uses S7's type compatibility checking
-3. Supports S7 inheritance chains automatically
+1.  Maps the string to `S7::class_integer`
+2.  Uses S7’s type compatibility checking
+3.  Supports S7 inheritance chains automatically
 
-```r
+``` r
 # Define S7 class hierarchy
 Parent <- S7::new_class("Parent")
 Child <- S7::new_class("Child", parent = Parent)
@@ -126,9 +124,10 @@ foo(Child())   # OK - child inherits from parent
 
 ### Union Types
 
-Use `|` to specify multiple allowed types. NULL must come first in union types:
+Use `|` to specify multiple allowed types. NULL must come first in union
+types:
 
-```r
+``` r
 #' @typedParam input {NULL | class_character}
 #' @typedReturn {class_character}
 process_input <- function(input) {
@@ -141,7 +140,7 @@ process_input <- function(input) {
 
 Use square brackets to specify vector length:
 
-```r
+``` r
 #' @typedParam key {class_character[1]} scalar string
 #' @typedParam value {class_numeric[1]} scalar number
 set_config <- function(key, value) {
@@ -153,7 +152,7 @@ set_config <- function(key, value) {
 
 Use angle brackets to specify list element types:
 
-```r
+``` r
 #' @typedParam items {class_list<class_integer>} list of integers
 #' @typedParam names {class_list<class_character[1]>} list of scalar strings
 process_items <- function(items, names) {
@@ -165,20 +164,21 @@ process_items <- function(items, names) {
 
 Use `class_function` for function parameters:
 
-```r
+``` r
 #' @typedParam fn {class_function} filter predicate
 apply_filter <- function(data, fn) {
   data[fn(data$value), ]
 }
 ```
 
-Note: Detailed function signatures (parameter and return types) are not currently supported.
+Note: Detailed function signatures (parameter and return types) are not
+currently supported.
 
 ### External Types
 
 Reference types from other packages using `package::class` syntax:
 
-```r
+``` r
 #' @typedParam roclet {roxygen2::roclet} A roxygen2 roclet object
 #' @typedReturn {roxygen2::roclet} Modified roclet
 customize_roclet <- function(roclet) {
@@ -189,7 +189,7 @@ customize_roclet <- function(roclet) {
 
 External types work in unions and constraints:
 
-```r
+``` r
 #' @typedParam parser {NULL | xml2::xml_node} Optional XML node
 #' @typedParam roclets {class_list<roxygen2::roclet>} List of roclet objects
 #' @typedReturn {roxygen2::roclet | lintr::Linter} A roclet or linter
@@ -203,14 +203,16 @@ process_config <- function(parser, roclets) {
 rdoc infers types from:
 
 **Literals:**
-```r
+
+``` r
 x <- 42          # class_numeric
 y <- "hello"     # class_character
 z <- TRUE        # class_logical
 ```
 
 **Constructors:**
-```r
+
+``` r
 df <- data.frame(x = 1:3)    # class_data.frame
 lst <- list(1, 2, 3)         # class_list
 vec <- c(1, 2, 3)            # class_numeric
@@ -218,7 +220,8 @@ mat <- matrix(1:9, 3, 3)     # class_matrix
 ```
 
 **Function calls:**
-```r
+
+``` r
 #' @typedReturn {class_data.frame}
 load_data <- function() {
   data.frame(x = 1:10)
@@ -228,16 +231,18 @@ data <- load_data()          # inferred as class_data.frame
 ```
 
 **Operators:**
-```r
+
+``` r
 result <- x > 5              # class_logical
 check <- (x >= 0) & (x <= 10) # class_logical
 ```
 
 ## Return Value Validation
 
-rdoc validates that function implementations match their declared return types:
+rdoc validates that function implementations match their declared return
+types:
 
-```r
+``` r
 #' @typedReturn {class_character}
 get_name <- function() {
   42  # Warning: declares {class_character} but returns {class_numeric}
@@ -249,27 +254,26 @@ is_valid <- function(x) {
 }
 ```
 
-Validation handles:
-- Explicit `return()` statements
-- Implicit returns (last expression)
-- Literal values and constructors
-- Comparison and logical operators
+Validation handles: - Explicit `return()` statements - Implicit returns
+(last expression) - Literal values and constructors - Comparison and
+logical operators
 
-Complex cases (multiple returns, control flow) are skipped to avoid false positives.
+Complex cases (multiple returns, control flow) are skipped to avoid
+false positives.
 
 ## For Package Authors
 
 ### Generate Type Metadata
 
-Add rdoc's roclet to your `DESCRIPTION`:
+Add rdoc’s roclet to your `DESCRIPTION`:
 
-```yaml
+``` yaml
 Roxygen: list(markdown = TRUE, roclets = c("collate", "rd", "namespace", "rdoc::roclet_types"))
 ```
 
 Run `devtools::document()`:
 
-```r
+``` r
 devtools::document()
 # Generated type metadata for 5 functions
 ```
@@ -278,9 +282,10 @@ This creates `inst/types.rds`, which is installed with your package.
 
 ### Users Get Type Checking
 
-When users configure the rdoc linter and load your package, they automatically get type checking:
+When users configure the rdoc linter and load your package, they
+automatically get type checking:
 
-```r
+``` r
 library(yourpackage)
 
 your_function("wrong type")  # Linter catches the error
@@ -288,9 +293,10 @@ your_function("wrong type")  # Linter catches the error
 
 ## Box Module Support
 
-rdoc integrates with the [box](https://klmr.me/box/) package for modular R code:
+rdoc integrates with the [box](https://klmr.me/box/) package for modular
+R code:
 
-```r
+``` r
 # In R/math.r
 box::use(...)
 
@@ -306,7 +312,8 @@ result <- math$square(42)      # OK
 result <- math$square("text")  # Warning: expects class_numeric
 ```
 
-Type information is extracted from box modules and cached for validation.
+Type information is extracted from box modules and cached for
+validation.
 
 ## Limitations
 
@@ -315,31 +322,33 @@ rdoc:
 - Performs single-file analysis only (no cross-file type inference)
 - Skips complex control flow in return validation
 - Does not support type narrowing from conditionals
-- Infers types from common constructors only (c, list, data.frame, matrix)
+- Infers types from common constructors only (c, list, data.frame,
+  matrix)
 - Requires roxygen2 comments for local function types
 
-These limitations allow rdoc to provide fast, useful type checking without complex static analysis.
+These limitations allow rdoc to provide fast, useful type checking
+without complex static analysis.
 
 ## Workflow
 
 ### Script Authors
 
-1. Add `@typedParam` and `@typedReturn` to functions
-2. Configure `.lintr` with `type_consistency_linter()`
-3. See type errors in your IDE
+1.  Add `@typedParam` and `@typedReturn` to functions
+2.  Configure `.lintr` with `type_consistency_linter()`
+3.  See type errors in your IDE
 
 ### Package Developers
 
-1. Add type annotations to exported functions
-2. Add rdoc roclet to `DESCRIPTION`
-3. Run `devtools::document()`
-4. Type metadata is included in the package automatically
+1.  Add type annotations to exported functions
+2.  Add rdoc roclet to `DESCRIPTION`
+3.  Run `devtools::document()`
+4.  Type metadata is included in the package automatically
 
 ## Examples
 
 ### Call Chains
 
-```r
+``` r
 #' @typedReturn {class_data.frame}
 load_data <- function() data.frame(x = 1:10)
 
@@ -362,7 +371,7 @@ double_it(load_data())  # Warning: expects class_numeric, got class_data.frame
 
 ### Constructor Detection
 
-```r
+``` r
 #' @typedParam data {class_data.frame}
 #' @typedParam metadata {class_list}
 process_data <- function(data, metadata) {
