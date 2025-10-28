@@ -99,3 +99,39 @@ function_signature <- S7::new_class(
     NULL
   }
 )
+
+#' Function Call Argument Information
+#'
+#' Represents information about an argument in a function call, including
+#' its inferred type, position, and optional name (for named arguments).
+#' Used during static type checking to validate function calls.
+#'
+#' @field node XML node representing the argument expression
+#' @field type Character string with inferred type (e.g., "class_integer", "unknown")
+#' @field position Integer position of the argument (1-indexed)
+#' @field name Character string with argument name for named arguments, or NULL for positional
+#' @keywords internal
+call_argument <- S7::new_class(
+  "call_argument",
+  properties = list(
+    node = S7::class_any,  # XML node from xml2 package
+    type = S7::class_character,
+    position = S7::class_integer,
+    name = S7::class_character | NULL
+  ),
+  validator = function(self) {
+    if (length(self@type) != 1) {
+      return("@type must be a scalar character")
+    }
+    if (length(self@position) != 1) {
+      return("@position must be a scalar integer")
+    }
+    if (self@position < 1) {
+      return("@position must be positive (got %d)", self@position)
+    }
+    if (!is.null(self@name) && length(self@name) != 1) {
+      return("@name must be a scalar character or NULL")
+    }
+    NULL
+  }
+)

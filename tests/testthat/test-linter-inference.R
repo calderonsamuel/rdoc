@@ -71,10 +71,10 @@ test_that("extract_arguments handles positional arguments", {
   args <- extract_arguments(call_node)
 
   expect_equal(length(args), 2)
-  expect_null(args[[1]]$name)
-  expect_equal(args[[1]]$type, "class_double")
-  expect_null(args[[2]]$name)
-  expect_equal(args[[2]]$type, "class_character")
+  expect_null(args[[1]]@name)
+  expect_equal(args[[1]]@type, "class_double")
+  expect_null(args[[2]]@name)
+  expect_equal(args[[2]]@type, "class_character")
 })
 
 test_that("extract_arguments handles named arguments", {
@@ -87,10 +87,10 @@ test_that("extract_arguments handles named arguments", {
   args <- extract_arguments(call_node)
 
   expect_equal(length(args), 2)
-  expect_equal(args[[1]]$name, "x")
-  expect_equal(args[[1]]$type, "class_double")
-  expect_equal(args[[2]]$name, "y")
-  expect_equal(args[[2]]$type, "class_character")
+  expect_equal(args[[1]]@name, "x")
+  expect_equal(args[[1]]@type, "class_double")
+  expect_equal(args[[2]]@name, "y")
+  expect_equal(args[[2]]@type, "class_character")
 })
 
 test_that("types_compatible accepts matching types", {

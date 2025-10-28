@@ -127,7 +127,7 @@ check_single_call <- function(call_node, all_types, var_context, source_expressi
 #' Check arguments against type signature
 #'
 #' @param fn_name Function name
-#' @param args List of arguments
+#' @param args List of call_argument S7 objects
 #' @param type_info Type information for function
 #' @param call_node XML node of the call
 #' @param source_expression Source expression
@@ -147,9 +147,9 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
     arg <- args[[i]]
 
     # Determine which parameter this argument corresponds to
-    if (!is.null(arg$name) && !is.na(arg$name)) {
+    if (!is.null(arg@name) && !is.na(arg@name)) {
       # Named argument - match by name
-      param_name <- arg$name
+      param_name <- arg@name
       if (!param_name %in% param_names) {
         # Unknown parameter, skip
         next
@@ -164,14 +164,14 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
     }
 
     expected_type <- type_info@params[[param_name]]@type
-    actual_type <- arg$type
+    actual_type <- arg@type
 
     # Handle unknown types
     if (actual_type == "unknown") {
       # In strict mode, warn about unknown types
       if (mode == "strict") {
         lints[[length(lints) + 1]] <- create_lint(
-          args[[i]]$node,
+          args[[i]]@node,
           source_expression,
           sprintf("Cannot verify type of argument '%s' (unknown type) in %s mode", param_name, mode)
         )
@@ -207,7 +207,7 @@ check_arguments <- function(fn_name, args, type_info, call_node, source_expressi
       # Scenario 2: No members compatible - no explanation needed (total mismatch is obvious)
 
       lints[[length(lints) + 1]] <- create_lint(
-        args[[i]]$node,
+        args[[i]]@node,
         source_expression,
         message
       )

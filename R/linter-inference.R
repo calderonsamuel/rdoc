@@ -240,7 +240,7 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
 #' @param current_line Optional line number for variable lookup
 #' @param type_registry Optional list of function type signatures for return type lookup
 #' @param param_types Optional named list of parameter types (param_name -> type_string)
-#' @return List of argument information
+#' @return List of call_argument S7 objects
 #' @keywords internal
 extract_arguments <- function(call_node, var_context = NULL, current_line = NULL, type_registry = NULL, param_types = list()) {
   # The call_node structure is: expr containing:
@@ -274,10 +274,10 @@ extract_arguments <- function(call_node, var_context = NULL, current_line = NULL
         value_node <- all_children[[i]]
         if (xml2::xml_name(value_node) == "expr") {
           arg_type <- infer_argument_type(value_node, var_context, current_line, type_registry, param_types)
-          args[[length(args) + 1]] <- list(
+          args[[length(args) + 1]] <- call_argument(
             node = value_node,
             type = arg_type,
-            position = position,
+            position = as.integer(position),
             name = arg_name
           )
           position <- position + 1
@@ -296,10 +296,10 @@ extract_arguments <- function(call_node, var_context = NULL, current_line = NULL
       }
       # This is a positional argument
       arg_type <- infer_argument_type(child, var_context, current_line, type_registry, param_types)
-      args[[length(args) + 1]] <- list(
+      args[[length(args) + 1]] <- call_argument(
         node = child,
         type = arg_type,
-        position = position,
+        position = as.integer(position),
         name = NULL
       )
       position <- position + 1
