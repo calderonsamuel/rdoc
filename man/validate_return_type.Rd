@@ -4,7 +4,12 @@
 \alias{validate_return_type}
 \title{Validate function return type matches declaration}
 \usage{
-validate_return_type(fn_assign_node, declared_type, source_expression)
+validate_return_type(
+  fn_assign_node,
+  declared_type,
+  source_expression,
+  param_info = NULL
+)
 }
 \arguments{
 \item{fn_assign_node}{XML node of function assignment}
@@ -12,6 +17,8 @@ validate_return_type(fn_assign_node, declared_type, source_expression)
 \item{declared_type}{Declared return type from @typedReturn}
 
 \item{source_expression}{Source expression for creating lints}
+
+\item{param_info}{Optional list of parameter type info from @typedParam}
 }
 \value{
 List of Lint objects (empty if validation passes or cannot be performed)

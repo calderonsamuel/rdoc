@@ -8,7 +8,8 @@ infer_argument_type(
   arg_node,
   var_context = NULL,
   current_line = NULL,
-  type_registry = NULL
+  type_registry = NULL,
+  param_types = list()
 )
 }
 \arguments{
@@ -19,6 +20,8 @@ infer_argument_type(
 \item{current_line}{Optional line number where argument is used (for variable lookup)}
 
 \item{type_registry}{Optional list of function type signatures for return type lookup}
+
+\item{param_types}{Optional named list of parameter types (param_name -> type_string)}
 }
 \value{
 Character string with inferred type or "unknown"

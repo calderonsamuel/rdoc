@@ -8,7 +8,8 @@ extract_arguments(
   call_node,
   var_context = NULL,
   current_line = NULL,
-  type_registry = NULL
+  type_registry = NULL,
+  param_types = list()
 )
 }
 \arguments{
@@ -19,9 +20,11 @@ extract_arguments(
 \item{current_line}{Optional line number for variable lookup}
 
 \item{type_registry}{Optional list of function type signatures for return type lookup}
+
+\item{param_types}{Optional named list of parameter types (param_name -> type_string)}
 }
 \value{
-List of argument information
+List of call_argument S7 objects
 }
 \description{
 Extract arguments from function call

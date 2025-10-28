@@ -16,7 +16,7 @@ check_arguments(
 \arguments{
 \item{fn_name}{Function name}
 
-\item{args}{List of arguments}
+\item{args}{List of call_argument S7 objects}
 
 \item{type_info}{Type information for function}
 

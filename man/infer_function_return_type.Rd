@@ -4,10 +4,16 @@
 \alias{infer_function_return_type}
 \title{Infer actual return type from function body}
 \usage{
-infer_function_return_type(body_node, return_node = FALSE)
+infer_function_return_type(
+  body_node,
+  param_types = list(),
+  return_node = FALSE
+)
 }
 \arguments{
 \item{body_node}{XML node of function body}
+
+\item{param_types}{Optional named list of parameter types (param_name -> type_string)}
 
 \item{return_node}{Logical, if TRUE returns list(type=..., node=...) instead of just type}
 }

@@ -10,7 +10,7 @@ extract_variable_assignments(xml)
 \item{xml}{XML parsed content}
 }
 \value{
-List of assignments with variable names, line numbers, and value nodes
+Named list mapping variable names to lists of variable_assignment S7 objects
 }
 \description{
 Extract variable assignments from XML AST
