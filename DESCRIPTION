@@ -12,6 +12,7 @@ Imports:
     cli,
     xml2,
     S7 (>= 0.2.0),
+    R6,
     rlang
 Suggests:
     lintr (>= 3.0.0),
