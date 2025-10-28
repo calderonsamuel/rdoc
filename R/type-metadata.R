@@ -33,6 +33,23 @@ NULL
 #' @keywords internal
 xml_node <- S7::new_S3_class("xml_node")
 
+#' S7 Wrapper for ParserState R6 Class
+#'
+#' Wraps the ParserState R6 class for type-safe usage in S7 classes.
+#' This allows ParserState to be used as a property type in S7 objects
+#' while maintaining R6's mutable state machine semantics.
+#'
+#' ParserState is an R6 class (not S7) because it manages mutable state:
+#' - Advances position during parsing (mutates in place)
+#' - Provides imperative state machine API
+#' - Encapsulates private fields (tokens, position)
+#'
+#' The S7 wrapper enables type-safe composition in S7 classes while
+#' preserving R6's reference semantics for performance.
+#'
+#' @keywords internal
+parser_state <- S7::new_S3_class("ParserState")
+
 #' Lexer Token
 #'
 #' Represents a single token from the type syntax lexer.

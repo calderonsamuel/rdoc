@@ -4,7 +4,7 @@
 
 **Audience**: Blog post readers, case study researchers, future contributors
 
-**Last Updated**: 2025-10-28 03:14:47 UTC (Phase 31)
+**Last Updated**: 2025-10-28 05:30:00 UTC (Phase 32)
 
 ---
 
@@ -1285,6 +1285,191 @@ variable_assignment <- S7::new_class(
 
 ---
 
+## Phase 32: Hybrid R6+S7 Architecture for State Machines
+
+**Date**: 2025-10-28 05:30:00 UTC
+**Effort**: 4 hours of design exploration
+**Status**: ✅ Design Complete (implementation pending)
+
+### Design Decision: R6 for State Machines, S7 for Data Structures
+
+**Problem**: After formalizing call arguments, tokens, and variable assignments with S7 (Phases 29-31), the question arose: should we formalize parser state with S7 to complete the type system formalization?
+
+Parser state is fundamentally different from the data structures we'd formalized:
+- **Data structures** (token, call_argument): Created once, immutable, passed around
+- **Parser state**: Created once, mutates constantly (advance() called 15-20 times per parse)
+
+Forcing S7 (value semantics) onto inherently mutable state created awkward designs.
+
+**Exploration Process**: Four approaches considered:
+
+1. **S7 wrapper with mutable environment** - Store position/tokens in environment property
+   - Pro: Zero performance overhead (mutate in place)
+   - Con: Validation only at construction, could still corrupt state
+
+2. **Pure S7 with immutable state** - Thread new state through all parse functions
+   - Pro: Functional purity, fully testable
+   - Con: Every parse function must change, high refactor cost, breaks clean recursive structure
+
+3. **S7 class with function properties** - Store methods as S7 properties
+   - Pro: Type-safe functions, similar API
+   - Con: Unusual pattern, all parse functions change (`$` → `@`)
+
+4. **Runtime validation without S7** - Add bounds checks to existing closure
+   - Pro: Minimal changes, no overhead
+   - Con: Not formalized type system, just defensive programming
+
+**None felt right.** All were forcing S7 onto the wrong problem.
+
+**The Insight**: State machines ≠ Data structures
+
+| Characteristic | Data Structures | State Machines |
+|----------------|-----------------|----------------|
+| **Mutability** | Immutable (value semantics) | Mutable (reference semantics) |
+| **Lifecycle** | Created → passed → read | Created → mutated repeatedly |
+| **Right tool** | S7 (type-safe values) | R6 (encapsulated mutable objects) |
+| **Examples** | token, call_argument, AST nodes | Parser, linter cache |
+
+**Solution**: Hybrid architecture - use both R6 and S7 for their strengths.
+
+**Architecture**:
+```
+Data Layer (S7 - Immutable):
+├── token                    # Lexer output
+├── call_argument            # Function call args
+├── variable_assignment      # Variable tracking
+├── function_signature       # Type signatures
+└── AST nodes               # Type syntax AST
+
+State Machines (R6 - Mutable):
+├── ParserState             # Token stream parser
+└── [Future] LinterFileCache # Multi-pass type cache
+
+Interaction Contract:
+- R6 constructors validate S7 inputs
+- R6 methods return S7 outputs
+- Type-safe boundaries enforced
+```
+
+**R6 Implementation**:
+```r
+ParserState <- R6::R6Class(
+  "ParserState",
+  private = list(
+    tokens = NULL,      # List of S7 token objects
+    position = NULL,
+
+    check_bounds = function() {
+      if (private$position < 1 || private$position > length(private$tokens)) {
+        stop(sprintf("Position %d out of bounds", private$position))
+      }
+    }
+  ),
+
+  public = list(
+    initialize = function(tokens) {
+      # Validate S7 inputs
+      if (!all(vapply(tokens, function(t) S7::S7_inherits(t, token), logical(1)))) {
+        stop("All tokens must be S7 token objects")
+      }
+      private$tokens <- tokens
+      private$position <- 1L
+    },
+
+    current = function() {
+      private$check_bounds()
+      private$tokens[[private$position]]  # Returns S7 token
+    },
+
+    advance = function() {
+      if (private$position < length(private$tokens)) {
+        private$position <- private$position + 1L
+      }
+      private$check_bounds()
+      private$tokens[[private$position]]  # Returns S7 token
+    }
+  )
+)
+
+# S7 wrapper for type-safe composition
+parser_state <- S7::new_S3_class("ParserState")
+```
+
+**Benefits**:
+- ✅ **Semantic correctness**: R6 designed for mutable state machines
+- ✅ **Zero performance overhead**: Mutate in place, no object creation
+- ✅ **Encapsulation**: Private fields protect internal state
+- ✅ **Type-safe boundaries**: R6 validates S7 inputs, returns S7 outputs
+- ✅ **Zero API changes**: Parser interface stays `parser$current()`
+- ✅ **Honest architecture**: Acknowledges different needs (data vs. state)
+
+### Strategic Decision: Defer R6 Typing Support
+
+**Question raised**: If rdoc uses R6 internally, should it support typing R6 method signatures?
+
+**Three options considered**:
+
+**Option A: Use R6 internally, don't type it yet**
+- Ship 1.0 focused on typing regular R functions (95% of use cases)
+- Internal R6 remains untyped (simple, well-tested code)
+- Add R6 typing in 2.0 if user demand emerges
+
+**Option B: Full R6 support now**
+- Type R6 methods with `@typedParam`/`@typedReturn`
+- Handle R6 semantics (self, private, super, inheritance)
+- Effort: 2-3 months additional development
+- Risk: Delays shipping core functionality
+
+**Option C: Minimal R6 support now**
+- Basic method typing (skip inheritance, private methods)
+- Covers 80% of R6 use cases
+- Effort: 2-3 weeks
+- Risk: Moderate scope increase
+
+**Decision: Option A** - Use R6 internally, defer typing support.
+
+**Rationale**:
+1. **Focus on core value**: Regular function typing is primary use case
+2. **Ship faster**: Get user feedback before expanding scope
+3. **Validate demand**: See if users ask for R6 typing
+4. **Internal R6 is simple**: ParserState ~100 lines, low risk
+5. **Pragmatic**: Right tool for the job (R6 for state), but don't over-commit
+
+**User perspective**: "rdoc types my functions using roxygen2 tags. It uses R6 internally for performance, but doesn't type R6 yet."
+
+**Future path**: If users request R6 typing and rdoc gains traction, add minimal R6 support in 2.0.
+
+**Documentation**: Added to CLAUDE.md:
+```markdown
+## R6 Usage
+
+rdoc uses R6 internally for stateful objects (e.g., ParserState) while using S7
+for data structures. R6 provides the right semantics for mutable state machines.
+
+**Architecture**: R6 state machines validate S7 inputs and return S7 outputs,
+creating type-safe boundaries.
+
+**Future**: R6 method typing support planned for 2.0, pending user demand.
+```
+
+**Key Insight**: Not everything should be S7. Choosing the right tool for the problem is more important than architectural purity. State machines (mutable, imperative) need different abstractions than data structures (immutable, declarative). R6 and S7 complement each other perfectly when used for their intended purposes.
+
+This mirrors mature ecosystems:
+- **Rust**: Immutable by default, but has `mut` for when you need it
+- **Haskell**: Pure functional, but has `IORef` for mutable state
+- **Clojure**: Immutable data, but has `atoms` for coordinated state
+
+rdoc's hybrid R6+S7 architecture follows this pattern: immutable data (S7) with mutable state machines (R6) when semantically appropriate.
+
+**What This Enabled**:
+- Clean separation between data and state concerns
+- Performance-optimized state machines without S7 overhead
+- Foundation for future stateful components (linter cache formalization)
+- Honest architecture that doesn't force wrong abstractions
+- Clear upgrade path for R6 typing if demand emerges
+
+---
+
 ## Cross-Cutting Insights
 
 ### 1. Leverage Existing Infrastructure
@@ -1525,7 +1710,7 @@ Both TypeScript and Python:
 ## Document Metadata
 
 **Created**: January 2025
-**Last Updated**: 2025-10-28 03:14:47 UTC (Phase 31)
-**Total Phases Documented**: 23 major phases
+**Last Updated**: 2025-10-28 05:30:00 UTC (Phase 32)
+**Total Phases Documented**: 24 major phases
 **Maintained By**: rdoc contributors
 **Purpose**: Technical reference for understanding rdoc's evolution

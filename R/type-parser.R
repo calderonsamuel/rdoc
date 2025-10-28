@@ -50,32 +50,85 @@ parse_type_syntax <- function(input) {
   invisible(ast)
 }
 
-#' Create parser state object
+#' Parser State (R6 Class)
+#'
+#' Mutable state machine for parsing type syntax. Manages token stream
+#' and current position with bounds checking and validation.
+#'
 #' @keywords internal
-new_parser <- function(tokens) {
-  env <- new.env(parent = emptyenv())
-  env$tokens <- tokens
-  env$position <- 1
+ParserState <- R6::R6Class(
+  "ParserState",
+  private = list(
+    tokens = NULL,
+    position = NULL,
 
-  list(
-    current = function() {
-      env$tokens[[env$position]]
-    },
-
-    peek = function(offset = 1) {
-      pos <- env$position + offset
-      if (pos <= length(env$tokens)) env$tokens[[pos]] else env$tokens[[length(env$tokens)]]
-    },
-
-    advance = function() {
-      if (env$position < length(env$tokens)) {
-        env$position <- env$position + 1
+    check_bounds = function() {
+      if (private$position < 1 || private$position > length(private$tokens)) {
+        cli::cli_abort(
+          c(
+            "Parser position out of bounds",
+            "x" = "Position {private$position} exceeds token list length {length(private$tokens)}"
+          ),
+          call = NULL
+        )
       }
-      env$tokens[[env$position]]
+    }
+  ),
+
+  public = list(
+    #' @description Initialize parser with token list
+    #' @param tokens List of S7 token objects from lexer
+    initialize = function(tokens) {
+      # Validate all tokens are S7 token objects
+      if (!all(vapply(tokens, function(t) S7::S7_inherits(t, token), logical(1)))) {
+        cli::cli_abort(
+          c(
+            "Invalid token list",
+            "x" = "All tokens must be S7 token objects"
+          ),
+          call = NULL
+        )
+      }
+
+      private$tokens <- tokens
+      private$position <- 1L
     },
 
+    #' @description Get current token without advancing
+    #' @return Current S7 token object
+    current = function() {
+      private$check_bounds()
+      private$tokens[[private$position]]
+    },
+
+    #' @description Peek ahead at future token without advancing
+    #' @param offset Integer offset from current position (default: 1)
+    #' @return S7 token object at offset position, or last token if beyond end
+    peek = function(offset = 1) {
+      pos <- private$position + offset
+      if (pos <= length(private$tokens)) {
+        private$tokens[[pos]]
+      } else {
+        private$tokens[[length(private$tokens)]]
+      }
+    },
+
+    #' @description Advance to next token
+    #' @return New current S7 token object after advancing
+    advance = function() {
+      if (private$position < length(private$tokens)) {
+        private$position <- private$position + 1L
+      }
+      private$check_bounds()
+      private$tokens[[private$position]]
+    },
+
+    #' @description Expect specific token type and advance
+    #' @param token_type Character string with expected token type
+    #' @param context Optional context message for error reporting
+    #' @return S7 token object that was matched
     expect = function(token_type, context = NULL) {
-      token <- env$tokens[[env$position]]
+      token <- private$tokens[[private$position]]
       if (token@type != token_type) {
         msg <- c(
           "Expected {token_type} at position {token@position}",
@@ -83,18 +136,34 @@ new_parser <- function(tokens) {
         )
         cli::cli_abort(msg, call = NULL)
       }
-      env$position <- env$position + 1
+      private$position <- private$position + 1L
+      private$check_bounds()
       token
     },
 
+    #' @description Try to match token type and advance if successful
+    #' @param token_type Character string with token type to match
+    #' @return TRUE if matched and advanced, FALSE otherwise
     match = function(token_type) {
-      if (env$tokens[[env$position]]@type == token_type) {
-        env$position <- env$position + 1
+      if (private$tokens[[private$position]]@type == token_type) {
+        private$position <- private$position + 1L
         return(TRUE)
       }
       FALSE
     }
   )
+)
+
+#' Create parser state object
+#'
+#' Factory function that creates a ParserState R6 object.
+#' Validates tokens and initializes mutable state machine.
+#'
+#' @param tokens List of S7 token objects from lexer
+#' @return ParserState R6 object with methods: current(), peek(), advance(), expect(), match()
+#' @keywords internal
+new_parser <- function(tokens) {
+  ParserState$new(tokens)
 }
 
 #' Parse type expression (top level)

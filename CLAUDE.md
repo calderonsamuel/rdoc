@@ -196,6 +196,29 @@ linters: with_defaults(
 
 Internal utilities accessible via `:::` but not part of public API.
 
+### R6 Usage
+
+rdoc uses R6 internally for stateful objects (e.g., ParserState) while using S7 for data structures. R6 provides the right semantics for mutable state machines.
+
+**Architecture**: Hybrid R6+S7 design
+- **S7 for data**: Immutable value types (token, call_argument, variable_assignment, function_signature, AST nodes)
+- **R6 for state machines**: Mutable objects that manage internal state (ParserState, future: LinterFileCache)
+- **Type-safe boundaries**: R6 constructors validate S7 inputs, R6 methods return S7 outputs
+
+**Why this hybrid?**
+- S7 excels at immutable data structures with value semantics
+- R6 excels at mutable state machines with reference semantics
+- Forcing S7 onto mutable state creates awkward designs (performance overhead, complexity)
+- Using the right tool for each problem is more important than architectural purity
+
+**Example** (ParserState):
+- Stores list of S7 `token` objects
+- Mutates position during parsing (advance() called 15-20 times)
+- Returns S7 tokens from current() method
+- Validates S7 inputs on construction, provides bounds checking
+
+**Future**: R6 method typing support planned for 2.0, pending user demand. Current focus is typing regular R functions (95% of use cases).
+
 ## Test Coverage
 
 **989 passing tests, 2 skipped, 0 failures**
