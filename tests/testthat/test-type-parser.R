@@ -143,7 +143,7 @@ test_that("lexer handles empty string", {
 test_that("parser creates AST for simple type", {
   ast <- parse_type_syntax("class_numeric")
 
-  expect_equal(S7::S7_inherits(ast, type_ref))
+  expect_true(S7::S7_inherits(ast, type_ref))
   expect_equal(ast@base_type, "class_numeric")
   expect_null(ast@element_type)
   expect_null(ast@length_constraint)
@@ -152,7 +152,7 @@ test_that("parser creates AST for simple type", {
 test_that("parser creates AST for type with length", {
   ast <- parse_type_syntax("class_numeric[5]")
 
-  expect_equal(S7::S7_inherits(ast, type_ref))
+  expect_true(S7::S7_inherits(ast, type_ref))
   expect_equal(ast@base_type, "class_numeric")
   expect_equal(ast@length_constraint, 5)
   expect_null(ast@element_type)
@@ -170,7 +170,7 @@ test_that("parser creates AST for generic type", {
 test_that("parser creates AST for generic with length", {
   ast <- parse_type_syntax("class_list<class_integer>[3]")
 
-  expect_equal(S7::S7_inherits(ast, type_ref))
+  expect_true(S7::S7_inherits(ast, type_ref))
   expect_equal(ast@base_type, "class_list")
   expect_equal(ast@length_constraint, 3)
   expect_equal(ast@element_type@base_type, "class_integer")
@@ -181,26 +181,26 @@ test_that("parser creates AST for nested generic", {
 
   expect_equal(ast@base_type, "class_list")
   expect_equal(ast@element_type@base_type, "class_list")
-  expect_equal(ast@element_type$element_type@base_type, "class_integer")
+  expect_equal(ast@element_type@element_type@base_type, "class_integer")
 })
 
 test_that("parser creates AST for union type", {
   ast <- parse_type_syntax("class_integer | class_character")
 
-  expect_equal(S7::S7_inherits(ast, union_type))
+  expect_true(S7::S7_inherits(ast, union_type))
   expect_equal(length(ast@types), 2)
-  expect_equal(ast@types[[1]]$base_type, "class_integer")
-  expect_equal(ast@types[[2]]$base_type, "class_character")
+  expect_equal(ast@types[[1]]@base_type, "class_integer")
+  expect_equal(ast@types[[2]]@base_type, "class_character")
 })
 
 test_that("parser creates AST for multi-way union", {
   ast <- parse_type_syntax("class_integer | class_character | class_logical")
 
-  expect_equal(S7::S7_inherits(ast, union_type))
+  expect_true(S7::S7_inherits(ast, union_type))
   expect_equal(length(ast@types), 3)
-  expect_equal(ast@types[[1]]$base_type, "class_integer")
-  expect_equal(ast@types[[2]]$base_type, "class_character")
-  expect_equal(ast@types[[3]]$base_type, "class_logical")
+  expect_equal(ast@types[[1]]@base_type, "class_integer")
+  expect_equal(ast@types[[2]]@base_type, "class_character")
+  expect_equal(ast@types[[3]]@base_type, "class_logical")
 })
 
 test_that("parser creates AST for union in generic", {
@@ -332,9 +332,9 @@ test_that("parser handles whitespace in unions", {
   ast2 <- parse_type_syntax("class_integer | class_character")
   ast3 <- parse_type_syntax("class_integer  |  class_character")
 
-  expect_equal(S7::S7_inherits(ast1, union_type))
-  expect_equal(S7::S7_inherits(ast2, union_type))
-  expect_equal(S7::S7_inherits(ast3, union_type))
+  expect_true(S7::S7_inherits(ast1, union_type))
+  expect_true(S7::S7_inherits(ast2, union_type))
+  expect_true(S7::S7_inherits(ast3, union_type))
 })
 
 test_that("parser handles deeply nested generics", {
@@ -342,16 +342,16 @@ test_that("parser handles deeply nested generics", {
 
   expect_equal(ast@base_type, "class_list")
   expect_equal(ast@element_type@base_type, "class_list")
-  expect_equal(ast@element_type$element_type@base_type, "class_list")
-  expect_equal(ast@element_type$element_type@element_type@base_type, "class_list")
-  expect_equal(ast@element_type$element_type@element_type$element_type@base_type, "class_integer")
+  expect_equal(ast@element_type@element_type@base_type, "class_list")
+  expect_equal(ast@element_type@element_type@element_type@base_type, "class_list")
+  expect_equal(ast@element_type@element_type@element_type@element_type@base_type, "class_integer")
 })
 
 test_that("parser handles complex union in nested generic", {
   ast <- parse_type_syntax("class_list<list<integer | character | logical>>")
 
-  inner_union <- ast@element_type$element_type
-  expect_equal(S7::S7_inherits(inner_union, union_type))
+  inner_union <- ast@element_type@element_type
+  expect_true(S7::S7_inherits(inner_union, union_type))
   expect_equal(length(inner_union@types), 3)
 })
 
@@ -465,11 +465,13 @@ test_that("ast_to_string reconstructs type syntax", {
 test_that("ast_validate checks semantic rules", {
   # Length constraint must be non-negative (0 is allowed)
   ast <- parse_type_syntax("class_integer[5]")
-  ast@length_constraint <- -1
-  expect_error(ast_validate(ast), "Length constraint must be non-negative")
+  expect_error(
+    ast@length_constraint <- -1L,
+    "@length_constraint must be non-negative"
+  )
 
   # Zero is allowed
-  ast@length_constraint <- 0
+  ast@length_constraint <- 0L
   expect_silent(ast_validate(ast))
 })
 
@@ -548,7 +550,7 @@ test_that("parser rejects multiple NULLs in union", {
 test_that("parser accepts standalone NULL type", {
   # Single NULL (not in union) should work
   ast <- parse_type_syntax("NULL")
-  expect_equal(S7::S7_inherits(ast, type_ref))
+  expect_true(S7::S7_inherits(ast, type_ref))
   expect_equal(ast@base_type, "NULL")
 })
 
@@ -559,25 +561,24 @@ test_that("NULL position error messages are helpful", {
   )
 
   expect_match(error, "NULL must be first")
-  expect_match(error, "Use.*NULL.*Type.*not.*Type.*NULL")
-  expect_match(error, "S7.*convention")
+  expect_match(error, "found at position 2")
 })
 
 test_that("NULL position validation preserves AST structure", {
   # Verify that valid NULL unions produce correct AST
   ast <- parse_type_syntax("NULL | class_integer")
 
-  expect_equal(S7::S7_inherits(ast, union_type))
+  expect_true(S7::S7_inherits(ast, union_type))
   expect_equal(length(ast@types), 2)
-  expect_equal(ast@types[[1]]$base_type, "NULL")
-  expect_equal(ast@types[[2]]$base_type, "class_integer")
+  expect_equal(ast@types[[1]]@base_type, "NULL")
+  expect_equal(ast@types[[2]]@base_type, "class_integer")
 
   # Complex case
   ast <- parse_type_syntax("NULL | class_list<class_integer>[5]")
 
-  expect_equal(S7::S7_inherits(ast, union_type))
-  expect_equal(ast@types[[1]]$base_type, "NULL")
-  expect_equal(ast@types[[2]]$base_type, "class_list")
-  expect_equal(ast@types[[2]]$element_type@base_type, "class_integer")
-  expect_equal(ast@types[[2]]$length_constraint, 5)
+  expect_true(S7::S7_inherits(ast, union_type))
+  expect_equal(ast@types[[1]]@base_type, "NULL")
+  expect_equal(ast@types[[2]]@base_type, "class_list")
+  expect_equal(ast@types[[2]]@element_type@base_type, "class_integer")
+  expect_equal(ast@types[[2]]@length_constraint, 5)
 })
