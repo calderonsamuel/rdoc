@@ -50,49 +50,6 @@ parse_type_syntax <- function(input) {
   invisible(ast)
 }
 
-#' Validate NULL position in union types
-#'
-#' Enforces rdoc's opinionated rule: NULL must come first in unions.
-#' This matches S7's convention where union order determines default value.
-#'
-#' @param types List of type AST nodes from a union
-#' @keywords internal
-validate_null_position <- function(types) {
-  # Find all NULL positions
-  null_indices <- which(sapply(types, function(t) {
-    t$node_type == "type" && t$base_type == "NULL"
-  }))
-
-  # If NULL exists and is not first, error
-  if (length(null_indices) > 0 && null_indices[1] != 1) {
-    # Get the first NULL's position for error message
-    first_null <- types[[null_indices[1]]]
-
-    cli::cli_abort(
-      c(
-        "NULL must be first in union type",
-        "x" = "Found NULL at position {null_indices[1]} in union",
-        "i" = "Use {.code NULL | Type} not {.code Type | NULL}",
-        "i" = "This matches S7's convention where NULL-first creates optional types with NULL default"
-      ),
-      call = NULL
-    )
-  }
-
-  # Check for multiple NULLs
-  if (length(null_indices) > 1) {
-    cli::cli_abort(
-      c(
-        "NULL can only appear once in union type",
-        "x" = "Found NULL at positions: {paste(null_indices, collapse = ', ')}"
-      ),
-      call = NULL
-    )
-  }
-
-  invisible(NULL)
-}
-
 #' Create parser state object
 #' @keywords internal
 new_parser <- function(tokens) {
@@ -199,13 +156,8 @@ parse_union_type <- function(parser) {
   if (length(types) == 1) {
     types[[1]]
   } else {
-    # Validate NULL position in unions
-    validate_null_position(types)
-
-    list(
-      node_type = "union",
-      types = types
-    )
+    # S7 validator will check NULL position and other invariants
+    union_type(types = types)
   }
 }
 
@@ -366,8 +318,7 @@ parse_primary_type <- function(parser) {
     parser$advance()
   }
 
-  list(
-    node_type = "type",
+  type_ref(
     base_type = base_type,
     package = package,
     element_type = element_type,
@@ -378,50 +329,45 @@ parse_primary_type <- function(parser) {
 #' Convert AST back to string representation
 #' @keywords internal
 ast_to_string <- function(ast) {
-  if (ast$node_type == "union") {
-    types_str <- sapply(ast$types, ast_to_string)
+  if (S7::S7_inherits(ast, union_type)) {
+    types_str <- sapply(ast@types, ast_to_string)
     return(paste(types_str, collapse = " | "))
   }
 
-  # Type node
-  result <- if (!is.null(ast$package)) {
-    paste0(ast$package, "::", ast$base_type)
+  # Type reference node
+  result <- if (!is.null(ast@package)) {
+    paste0(ast@package, "::", ast@base_type)
   } else {
-    ast$base_type
+    ast@base_type
   }
 
-  if (!is.null(ast$element_type)) {
-    result <- paste0(result, "<", ast_to_string(ast$element_type), ">")
+  if (!is.null(ast@element_type)) {
+    result <- paste0(result, "<", ast_to_string(ast@element_type), ">")
   }
 
-  if (!is.null(ast$length_constraint)) {
-    result <- paste0(result, "[", ast$length_constraint, "]")
+  if (!is.null(ast@length_constraint)) {
+    result <- paste0(result, "[", ast@length_constraint, "]")
   }
 
   result
 }
 
 #' Validate AST semantic rules
+#'
+#' Note: S7 validators already enforce most invariants at construction time.
+#' This function is kept for recursive validation of nested structures.
+#'
 #' @keywords internal
 ast_validate <- function(ast) {
-  if (ast$node_type == "union") {
-    # Validate each type in union
-    for (type in ast$types) {
+  # S7 constructors already validated structure at creation time
+  # Just recurse for nested nodes
+  if (S7::S7_inherits(ast, union_type)) {
+    for (type in ast@types) {
       ast_validate(type)
     }
-  } else {
-    # Validate type node
-    if (!is.null(ast$length_constraint)) {
-      if (ast$length_constraint < 0) {
-        cli::cli_abort(
-          "Length constraint must be non-negative, got {ast$length_constraint}",
-          call = NULL
-        )
-      }
-    }
-
-    if (!is.null(ast$element_type)) {
-      ast_validate(ast$element_type)
+  } else if (S7::S7_inherits(ast, type_ref)) {
+    if (!is.null(ast@element_type)) {
+      ast_validate(ast@element_type)
     }
   }
 

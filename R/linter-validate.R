@@ -3,11 +3,22 @@
 #' @param fn_assign_node XML node of function assignment
 #' @param declared_type Declared return type from @typedReturn
 #' @param source_expression Source expression for creating lints
+#' @param param_info Optional list of parameter type info from @typedParam
 #' @return List of Lint objects (empty if validation passes or cannot be performed)
 #' @keywords internal
-validate_return_type <- function(fn_assign_node, declared_type, source_expression) {
+validate_return_type <- function(fn_assign_node, declared_type, source_expression, param_info = NULL) {
   # Structure: expr[assignment] > expr[var] + LEFT_ASSIGN + expr[function]
   # The expr[function] contains: FUNCTION + OP-LEFT-PAREN + [params] + OP-RIGHT-PAREN + expr[body]
+
+  # Extract parameter types for inference
+  # param_info is an S7 object with properties accessed via @
+  # We need: list(x = "class_double", y = "class_double")
+  param_types <- list()
+  if (!is.null(param_info) && length(param_info) > 0) {
+    for (param_name in names(param_info)) {
+      param_types[[param_name]] <- param_info[[param_name]]@type
+    }
+  }
 
   # Get the expr containing the function (third child of assignment)
   fn_expr <- xml2::xml_find_first(fn_assign_node, "./expr[.//FUNCTION]")
@@ -30,7 +41,7 @@ validate_return_type <- function(fn_assign_node, declared_type, source_expressio
   }
 
   # Try to infer actual return type and get the return expression node
-  result <- infer_function_return_type(body_node, return_node = TRUE)
+  result <- infer_function_return_type(body_node, param_types, return_node = TRUE)
   actual_type <- result$type
   return_expr_node <- result$node
 
@@ -92,10 +103,11 @@ validate_return_type <- function(fn_assign_node, declared_type, source_expressio
 #' Infer actual return type from function body
 #'
 #' @param body_node XML node of function body
+#' @param param_types Optional named list of parameter types (param_name -> type_string)
 #' @param return_node Logical, if TRUE returns list(type=..., node=...) instead of just type
 #' @return Character string with inferred type or "unknown"/"complex", or list if return_node=TRUE
 #' @keywords internal
-infer_function_return_type <- function(body_node, return_node = FALSE) {
+infer_function_return_type <- function(body_node, param_types = list(), return_node = FALSE) {
   # Helper to return result in correct format
   make_result <- function(type, node = NULL) {
     if (return_node) {
@@ -123,7 +135,7 @@ infer_function_return_type <- function(body_node, return_node = FALSE) {
     return_args <- xml2::xml_find_all(return_expr, "./expr[position() > 1]")
     if (length(return_args) > 0) {
       # Infer type from the returned expression
-      type <- infer_argument_type(return_args[[1]])
+      type <- infer_argument_type(return_args[[1]], param_types = param_types)
       return(make_result(type, return_args[[1]]))
     }
   }
@@ -162,7 +174,7 @@ infer_function_return_type <- function(body_node, return_node = FALSE) {
 
     # If body has single expr, infer from it
     if (length(expr_children) == 1) {
-      type <- infer_argument_type(expr_children[[1]])
+      type <- infer_argument_type(expr_children[[1]], param_types = param_types)
       return(make_result(type, expr_children[[1]]))
     }
 
@@ -175,7 +187,7 @@ infer_function_return_type <- function(body_node, return_node = FALSE) {
     has_constructor <- length(xml2::xml_find_all(last_expr, ".//SYMBOL_FUNCTION_CALL[text()='c' or text()='list' or text()='data.frame' or text()='matrix']")) > 0
 
     if (has_literal || has_constructor) {
-      type <- infer_argument_type(last_expr)
+      type <- infer_argument_type(last_expr, param_types = param_types)
       return(make_result(type, last_expr))
     }
 
@@ -184,7 +196,7 @@ infer_function_return_type <- function(body_node, return_node = FALSE) {
   } else {
     # No braces - body_node itself is the return expression
     # Just infer its type directly
-    type <- infer_argument_type(body_node)
+    type <- infer_argument_type(body_node, param_types = param_types)
     return(make_result(type, body_node))
   }
 

@@ -4,9 +4,10 @@
 #' @param var_context Optional list of variable assignments for lookup
 #' @param current_line Optional line number where argument is used (for variable lookup)
 #' @param type_registry Optional list of function type signatures for return type lookup
+#' @param param_types Optional named list of parameter types (param_name -> type_string)
 #' @return Character string with inferred type or "unknown"
 #' @keywords internal
-infer_argument_type <- function(arg_node, var_context = NULL, current_line = NULL, type_registry = NULL) {
+infer_argument_type <- function(arg_node, var_context = NULL, current_line = NULL, type_registry = NULL, param_types = list()) {
   # Check for function literals FIRST (before drilling into their bodies)
   # Function literals: function(...) { ... } or \(...) ...
   # Use ./FUNCTION (direct child) not .//FUNCTION (any descendant)
@@ -25,7 +26,7 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
     expr_children <- Filter(function(x) xml2::xml_name(x) == "expr", children)
     if (length(expr_children) == 1) {
       # Single inner expression - infer its type
-      return(infer_argument_type(expr_children[[1]], var_context, current_line, type_registry))
+      return(infer_argument_type(expr_children[[1]], var_context, current_line, type_registry, param_types))
     }
   }
 
@@ -36,7 +37,7 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
   if (!is.na(c_call)) {
     first_arg <- xml2::xml_find_first(arg_node, ".//expr[SYMBOL_FUNCTION_CALL[text()='c']]/parent::expr/following-sibling::expr[1]")
     if (!is.na(first_arg)) {
-      return(infer_argument_type(first_arg, var_context, current_line, type_registry))
+      return(infer_argument_type(first_arg, var_context, current_line, type_registry, param_types))
     }
   }
 
@@ -131,8 +132,8 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
 
     if (length(expr_children) >= 2) {
       # Infer types of operands (recursively)
-      left_type <- infer_argument_type(expr_children[[1]], var_context, current_line, type_registry)
-      right_type <- infer_argument_type(expr_children[[2]], var_context, current_line, type_registry)
+      left_type <- infer_argument_type(expr_children[[1]], var_context, current_line, type_registry, param_types)
+      right_type <- infer_argument_type(expr_children[[2]], var_context, current_line, type_registry, param_types)
 
       # Apply R's type promotion rules for +, -, *:
       # integer + integer = integer
@@ -154,8 +155,9 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
       }
     }
 
-    # Fallback: if we can't determine specific types, return generic numeric
-    return("class_numeric")
+    # Fallback: if we can't determine specific types, return unknown
+    # (This happens when operands are parameters without @typedParam annotations)
+    return("unknown")
   }
 
   # Now check for literals (after ruling out function calls and operators)
@@ -203,19 +205,26 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
 
   # Check for variable reference (SYMBOL)
   symbol_node <- xml2::xml_find_first(arg_node, "./SYMBOL[not(self::SYMBOL_FUNCTION_CALL)]")
-  if (!is.na(symbol_node) && !is.null(var_context) && !is.null(current_line)) {
+  if (!is.na(symbol_node)) {
     var_name <- xml2::xml_text(symbol_node)
 
-    # Look up variable in context
-    if (var_name %in% names(var_context)) {
-      # Find the most recent assignment before current_line
-      assignments <- var_context[[var_name]]
-      valid_assignments <- Filter(function(a) a$line < current_line, assignments)
+    # Check parameter types FIRST (function-scoped, most specific)
+    if (var_name %in% names(param_types)) {
+      return(param_types[[var_name]])
+    }
 
-      if (length(valid_assignments) > 0) {
-        # Get the most recent one (highest line number)
-        most_recent <- valid_assignments[[length(valid_assignments)]]
-        return(most_recent$type)
+    # Then check variable assignments (line-scoped)
+    if (!is.null(var_context) && !is.null(current_line)) {
+      if (var_name %in% names(var_context)) {
+        # Find the most recent assignment before current_line
+        assignments <- var_context[[var_name]]
+        valid_assignments <- Filter(function(a) a$line < current_line, assignments)
+
+        if (length(valid_assignments) > 0) {
+          # Get the most recent one (highest line number)
+          most_recent <- valid_assignments[[length(valid_assignments)]]
+          return(most_recent$type)
+        }
       }
     }
   }
@@ -230,9 +239,10 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
 #' @param var_context Optional list of variable assignments for type inference
 #' @param current_line Optional line number for variable lookup
 #' @param type_registry Optional list of function type signatures for return type lookup
+#' @param param_types Optional named list of parameter types (param_name -> type_string)
 #' @return List of argument information
 #' @keywords internal
-extract_arguments <- function(call_node, var_context = NULL, current_line = NULL, type_registry = NULL) {
+extract_arguments <- function(call_node, var_context = NULL, current_line = NULL, type_registry = NULL, param_types = list()) {
   # The call_node structure is: expr containing:
   #   - expr with SYMBOL_FUNCTION_CALL (the function name)
   #   - OP-LEFT-PAREN
@@ -263,7 +273,7 @@ extract_arguments <- function(call_node, var_context = NULL, current_line = NULL
       if (i <= length(all_children)) {
         value_node <- all_children[[i]]
         if (xml2::xml_name(value_node) == "expr") {
-          arg_type <- infer_argument_type(value_node, var_context, current_line, type_registry)
+          arg_type <- infer_argument_type(value_node, var_context, current_line, type_registry, param_types)
           args[[length(args) + 1]] <- list(
             node = value_node,
             type = arg_type,
@@ -285,7 +295,7 @@ extract_arguments <- function(call_node, var_context = NULL, current_line = NULL
         }
       }
       # This is a positional argument
-      arg_type <- infer_argument_type(child, var_context, current_line, type_registry)
+      arg_type <- infer_argument_type(child, var_context, current_line, type_registry, param_types)
       args[[length(args) + 1]] <- list(
         node = child,
         type = arg_type,
@@ -397,18 +407,18 @@ types_compatible <- function(actual, expected, actual_length = NULL) {
 
   # Phase 24.1: Check for external types (package::class syntax)
   # External types should use exact string matching (no inheritance checking in Phase 24.1)
-  has_external_actual <- if (actual_ast$node_type == "type") {
-    !is.null(actual_ast$package)
-  } else if (actual_ast$node_type == "union") {
-    any(sapply(actual_ast$types, function(t) !is.null(t$package)))
+  has_external_actual <- if (S7::S7_inherits(actual_ast, type_ref)) {
+    !is.null(actual_ast@package)
+  } else if (S7::S7_inherits(actual_ast, union_type)) {
+    any(sapply(actual_ast@types, function(t) !is.null(t@package)))
   } else {
     FALSE
   }
 
-  has_external_expected <- if (expected_ast$node_type == "type") {
-    !is.null(expected_ast$package)
-  } else if (expected_ast$node_type == "union") {
-    any(sapply(expected_ast$types, function(t) !is.null(t$package)))
+  has_external_expected <- if (S7::S7_inherits(expected_ast, type_ref)) {
+    !is.null(expected_ast@package)
+  } else if (S7::S7_inherits(expected_ast, union_type)) {
+    any(sapply(expected_ast@types, function(t) !is.null(t@package)))
   } else {
     FALSE
   }
@@ -416,20 +426,20 @@ types_compatible <- function(actual, expected, actual_length = NULL) {
   # If either type is external, use string-based matching (Phase 24.1)
   if (has_external_actual || has_external_expected) {
     # Handle union types specially
-    if (expected_ast$node_type == "union") {
+    if (S7::S7_inherits(expected_ast, union_type)) {
       # Check if actual matches any member of the union
       actual_full <- ast_to_string(actual_ast)
 
-      for (member in expected_ast$types) {
-        member_str <- if (!is.null(member$package)) {
-          paste0(member$package, "::", member$base_type)
+      for (member in expected_ast@types) {
+        member_str <- if (!is.null(member@package)) {
+          paste0(member@package, "::", member@base_type)
         } else {
-          member$base_type
+          member@base_type
         }
 
         if (actual_full == member_str) {
           # Match found, check length constraint
-          expected_length <- member$length_constraint
+          expected_length <- member@length_constraint
           return(check_length_constraint(actual_length, expected_length))
         }
       }
@@ -449,8 +459,8 @@ types_compatible <- function(actual, expected, actual_length = NULL) {
     }
 
     # Types match, now check constraints
-    expected_length <- if (expected_ast$node_type == "type") {
-      expected_ast$length_constraint
+    expected_length <- if (S7::S7_inherits(expected_ast, type_ref)) {
+      expected_ast@length_constraint
     } else {
       NULL
     }
@@ -478,8 +488,8 @@ types_compatible <- function(actual, expected, actual_length = NULL) {
 
     # Base types are compatible, now check constraints
     # Extract constraints from AST
-    expected_length <- if (expected_ast$node_type == "type") {
-      expected_ast$length_constraint
+    expected_length <- if (S7::S7_inherits(expected_ast, type_ref)) {
+      expected_ast@length_constraint
     } else {
       NULL
     }
@@ -491,8 +501,8 @@ types_compatible <- function(actual, expected, actual_length = NULL) {
 
     # Check element type constraint if specified
     # (Currently placeholder - returns TRUE)
-    expected_element <- if (expected_ast$node_type == "type") {
-      expected_ast$element_type
+    expected_element <- if (S7::S7_inherits(expected_ast, type_ref)) {
+      expected_ast@element_type
     } else {
       NULL
     }
@@ -507,21 +517,21 @@ types_compatible <- function(actual, expected, actual_length = NULL) {
 
   # FALLBACK: String-based compatibility for non-S7 types
   # Extract base types for comparison (with package qualification if present)
-  actual_base <- if (actual_ast$node_type == "type") {
-    if (!is.null(actual_ast$package)) {
-      paste0(actual_ast$package, "::", actual_ast$base_type)
+  actual_base <- if (S7::S7_inherits(actual_ast, type_ref)) {
+    if (!is.null(actual_ast@package)) {
+      paste0(actual_ast@package, "::", actual_ast@base_type)
     } else {
-      actual_ast$base_type
+      actual_ast@base_type
     }
   } else {
     actual  # Shouldn't happen, but be safe
   }
 
-  expected_base <- if (expected_ast$node_type == "type") {
-    if (!is.null(expected_ast$package)) {
-      paste0(expected_ast$package, "::", expected_ast$base_type)
+  expected_base <- if (S7::S7_inherits(expected_ast, type_ref)) {
+    if (!is.null(expected_ast@package)) {
+      paste0(expected_ast@package, "::", expected_ast@base_type)
     } else {
-      expected_ast$base_type
+      expected_ast@base_type
     }
   } else {
     expected

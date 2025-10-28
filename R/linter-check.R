@@ -17,7 +17,7 @@ analyze_union_incompatibility <- function(actual_type, expected_type) {
   # Split the union into individual types
   # Parse to handle complex types properly
   actual_ast <- parse_type_syntax(actual_type)
-  if (is.null(actual_ast) || actual_ast$node_type != "union") {
+  if (is.null(actual_ast) || !S7::S7_inherits(actual_ast, union_type)) {
     return(list(scenario = NULL, expected_display = NULL))
   }
 
@@ -25,7 +25,7 @@ analyze_union_incompatibility <- function(actual_type, expected_type) {
   has_compatible <- FALSE
   has_incompatible <- FALSE
 
-  for (member_ast in actual_ast$types) {
+  for (member_ast in actual_ast@types) {
     member_string <- ast_to_string(member_ast)
     if (types_compatible(member_string, expected_type)) {
       has_compatible <- TRUE

@@ -24,62 +24,62 @@ test_that("parser handles package-qualified types", {
   ast <- parse_type_syntax("roxygen2::roclet")
 
   expect_equal(ast$node_type, "type")
-  expect_equal(ast$base_type, "roclet")
-  expect_equal(ast$package, "roxygen2")
-  expect_null(ast$element_type)
-  expect_null(ast$length_constraint)
+  expect_equal(ast@base_type, "roclet")
+  expect_equal(ast@package, "roxygen2")
+  expect_null(ast@element_type)
+  expect_null(ast@length_constraint)
 })
 
 test_that("parser handles package-qualified types with length constraint", {
   ast <- parse_type_syntax("roxygen2::roclet[1]")
 
   expect_equal(ast$node_type, "type")
-  expect_equal(ast$base_type, "roclet")
-  expect_equal(ast$package, "roxygen2")
-  expect_equal(ast$length_constraint, 1)
+  expect_equal(ast@base_type, "roclet")
+  expect_equal(ast@package, "roxygen2")
+  expect_equal(ast@length_constraint, 1)
 })
 
 test_that("parser handles list with external element type", {
   ast <- parse_type_syntax("list<roxygen2::roclet>")
 
   expect_equal(ast$node_type, "type")
-  expect_equal(ast$base_type, "list")
-  expect_null(ast$package)
-  expect_equal(ast$element_type$node_type, "type")
-  expect_equal(ast$element_type$base_type, "roclet")
-  expect_equal(ast$element_type$package, "roxygen2")
+  expect_equal(ast@base_type, "list")
+  expect_null(ast@package)
+  expect_equal(ast@element_type$node_type, "type")
+  expect_equal(ast@element_type@base_type, "roclet")
+  expect_equal(ast@element_type@package, "roxygen2")
 })
 
 test_that("parser handles complex external type combinations", {
   ast <- parse_type_syntax("list<roxygen2::roclet>[3]")
 
-  expect_equal(ast$base_type, "list")
-  expect_null(ast$package)
-  expect_equal(ast$length_constraint, 3)
-  expect_equal(ast$element_type$base_type, "roclet")
-  expect_equal(ast$element_type$package, "roxygen2")
+  expect_equal(ast@base_type, "list")
+  expect_null(ast@package)
+  expect_equal(ast@length_constraint, 3)
+  expect_equal(ast@element_type@base_type, "roclet")
+  expect_equal(ast@element_type@package, "roxygen2")
 })
 
 test_that("parser handles unions with external types", {
   ast <- parse_type_syntax("roxygen2::roclet | lintr::Linter")
 
   expect_equal(ast$node_type, "union")
-  expect_equal(length(ast$types), 2)
-  expect_equal(ast$types[[1]]$base_type, "roclet")
-  expect_equal(ast$types[[1]]$package, "roxygen2")
-  expect_equal(ast$types[[2]]$base_type, "Linter")
-  expect_equal(ast$types[[2]]$package, "lintr")
+  expect_equal(length(ast@types), 2)
+  expect_equal(ast@types[[1]]$base_type, "roclet")
+  expect_equal(ast@types[[1]]$package, "roxygen2")
+  expect_equal(ast@types[[2]]$base_type, "Linter")
+  expect_equal(ast@types[[2]]$package, "lintr")
 })
 
 test_that("parser handles mixed internal and external types in unions", {
   ast <- parse_type_syntax("class_integer | roxygen2::roclet")
 
   expect_equal(ast$node_type, "union")
-  expect_equal(length(ast$types), 2)
-  expect_equal(ast$types[[1]]$base_type, "class_integer")
-  expect_null(ast$types[[1]]$package)
-  expect_equal(ast$types[[2]]$base_type, "roclet")
-  expect_equal(ast$types[[2]]$package, "roxygen2")
+  expect_equal(length(ast@types), 2)
+  expect_equal(ast@types[[1]]$base_type, "class_integer")
+  expect_null(ast@types[[1]]$package)
+  expect_equal(ast@types[[2]]$base_type, "roclet")
+  expect_equal(ast@types[[2]]$package, "roxygen2")
 })
 
 test_that("parser rejects incomplete package qualification", {
@@ -274,11 +274,11 @@ test_that("parser handles NULL | external type unions", {
   ast <- parse_type_syntax("NULL | roxygen2::roclet")
 
   expect_equal(ast$node_type, "union")
-  expect_equal(length(ast$types), 2)
-  expect_equal(ast$types[[1]]$base_type, "NULL")
-  expect_null(ast$types[[1]]$package)
-  expect_equal(ast$types[[2]]$base_type, "roclet")
-  expect_equal(ast$types[[2]]$package, "roxygen2")
+  expect_equal(length(ast@types), 2)
+  expect_equal(ast@types[[1]]$base_type, "NULL")
+  expect_null(ast@types[[1]]$package)
+  expect_equal(ast@types[[2]]$base_type, "roclet")
+  expect_equal(ast@types[[2]]$package, "roxygen2")
 })
 
 test_that("types_compatible: NULL | external type works correctly", {
@@ -305,13 +305,13 @@ test_that("external types in complex nested unions", {
   # Correct order
   ast_correct <- parse_type_syntax("NULL | class_integer | roxygen2::roclet | lintr::Linter")
   expect_equal(ast_correct$node_type, "union")
-  expect_equal(length(ast_correct$types), 4)
-  expect_equal(ast_correct$types[[1]]$base_type, "NULL")
-  expect_equal(ast_correct$types[[2]]$base_type, "class_integer")
-  expect_equal(ast_correct$types[[3]]$base_type, "roclet")
-  expect_equal(ast_correct$types[[3]]$package, "roxygen2")
-  expect_equal(ast_correct$types[[4]]$base_type, "Linter")
-  expect_equal(ast_correct$types[[4]]$package, "lintr")
+  expect_equal(length(ast_correct@types), 4)
+  expect_equal(ast_correct@types[[1]]$base_type, "NULL")
+  expect_equal(ast_correct@types[[2]]$base_type, "class_integer")
+  expect_equal(ast_correct@types[[3]]$base_type, "roclet")
+  expect_equal(ast_correct@types[[3]]$package, "roxygen2")
+  expect_equal(ast_correct@types[[4]]$base_type, "Linter")
+  expect_equal(ast_correct@types[[4]]$package, "lintr")
 })
 
 test_that("external type doesn't conflict with S7 built-in of same name", {

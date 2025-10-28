@@ -342,38 +342,35 @@ type_to_s7_display <- function(type_string) {
 #' @return AST node with S7 unions expanded
 #' @keywords internal
 expand_s7_unions_in_ast <- function(ast_node) {
-  if (ast_node$node_type == "union") {
+  if (S7::S7_inherits(ast_node, union_type)) {
     # Expand each type in the union
     expanded_types <- list()
-    for (type_node in ast_node$types) {
+    for (type_node in ast_node@types) {
       expanded <- expand_s7_unions_in_ast(type_node)
-      if (expanded$node_type == "union") {
+      if (S7::S7_inherits(expanded, union_type)) {
         # If expansion resulted in a union, flatten it
-        expanded_types <- c(expanded_types, expanded$types)
+        expanded_types <- c(expanded_types, expanded@types)
       } else {
         expanded_types <- c(expanded_types, list(expanded))
       }
     }
 
-    return(list(
-      node_type = "union",
-      types = expanded_types
-    ))
+    return(union_type(types = expanded_types))
   }
 
   # For simple types, check if it's an S7 union that should be expanded
-  if (ast_node$node_type == "type") {
-    type_name <- ast_node$base_type
+  if (S7::S7_inherits(ast_node, type_ref)) {
+    type_name <- ast_node@base_type
 
     # Recursively expand element type if present
-    expanded_element_type <- if (!is.null(ast_node$element_type)) {
-      expand_s7_unions_in_ast(ast_node$element_type)
+    expanded_element_type <- if (!is.null(ast_node@element_type)) {
+      expand_s7_unions_in_ast(ast_node@element_type)
     } else {
       NULL
     }
 
     # Expand all S7 unions (package developers control verbosity)
-    if (is.null(ast_node$package)) {
+    if (is.null(ast_node@package)) {
       expanded_types <- NULL
 
       # class_numeric: integer | double
@@ -398,12 +395,11 @@ expand_s7_unions_in_ast <- function(ast_node) {
 
       # If we found an expansion, create union AST
       if (!is.null(expanded_types)) {
-        return(list(
-          node_type = "union",
+        return(union_type(
           types = lapply(expanded_types, function(type) {
-            list(node_type = "type", base_type = type, package = NULL,
-                 length_constraint = ast_node$length_constraint,
-                 element_type = expanded_element_type)
+            type_ref(base_type = type, package = NULL,
+                     length_constraint = ast_node@length_constraint,
+                     element_type = expanded_element_type)
           })
         ))
       }
@@ -411,11 +407,10 @@ expand_s7_unions_in_ast <- function(ast_node) {
 
     # Return with expanded element type if present
     if (!is.null(expanded_element_type)) {
-      return(list(
-        node_type = "type",
-        base_type = ast_node$base_type,
-        package = ast_node$package,
-        length_constraint = ast_node$length_constraint,
+      return(type_ref(
+        base_type = ast_node@base_type,
+        package = ast_node@package,
+        length_constraint = ast_node@length_constraint,
         element_type = expanded_element_type
       ))
     }
@@ -449,15 +444,15 @@ expand_s7_unions_in_ast <- function(ast_node) {
 rdoc_union_to_s7 <- function(ast_node) {
   # Helper to construct full type string from AST node
   ast_to_type_string <- function(type_node) {
-    if (!is.null(type_node$package)) {
-      paste0(type_node$package, "::", type_node$base_type)
+    if (!is.null(type_node@package)) {
+      paste0(type_node@package, "::", type_node@base_type)
     } else {
-      type_node$base_type
+      type_node@base_type
     }
   }
 
   # If not a union node, just convert single type
-  if (ast_node$node_type != "union") {
+  if (!S7::S7_inherits(ast_node, union_type)) {
     type_name <- ast_to_type_string(ast_node)
 
     # Handle NULL specially
@@ -470,7 +465,7 @@ rdoc_union_to_s7 <- function(ast_node) {
   }
 
   # Extract S7 class objects for each type in union
-  s7_classes <- lapply(ast_node$types, function(type_node) {
+  s7_classes <- lapply(ast_node@types, function(type_node) {
     type_name <- ast_to_type_string(type_node)
 
     # Handle NULL specially - represented as R's NULL

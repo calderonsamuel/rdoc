@@ -290,12 +290,12 @@ test_that("infer_argument_type infers arithmetic operations correctly", {
   result <- infer_argument_type(expr_node, var_context = var_context, current_line = 3)
   expect_equal(result, "class_double", info = "integer var + double var should be class_double")
 
-  # Test 3: Unknown operands (fallback to class_numeric)
-  code <- "x + y"  # No context provided
+  # Test 3: Unknown operands (no type info available)
+  code <- "x + y"  # No context provided - x and y are unknown
   xml <- xml2::read_xml(xmlparsedata::xml_parse_data(parse(text = code, keep.source = TRUE)))
   expr_node <- xml2::xml_find_first(xml, "//expr[OP-PLUS]")
   result <- infer_argument_type(expr_node)
-  expect_equal(result, "class_numeric", info = "unknown + unknown should fallback to class_numeric")
+  expect_equal(result, "unknown", info = "unknown + unknown returns unknown (need param_types or var_context)")
 
   # Test 4: All arithmetic operators
   operators <- list(
