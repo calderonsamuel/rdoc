@@ -19,6 +19,20 @@
 #' @name type-metadata
 NULL
 
+#' S7 Wrapper for xml2::xml_node
+#'
+#' Wraps the xml_node S3 class from xml2 package for type-safe usage in S7 classes.
+#' This allows us to specify xml_node as a property type instead of using class_any.
+#'
+#' Used throughout rdoc for:
+#' - Argument nodes in call_argument
+#' - Variable assignment value nodes
+#' - Return expression nodes
+#' - Any XML AST node from xmlparsedata
+#'
+#' @keywords internal
+xml_node <- S7::new_S3_class("xml_node")
+
 #' Parameter Type Information
 #'
 #' Represents type information for a single function parameter.
@@ -114,7 +128,7 @@ function_signature <- S7::new_class(
 call_argument <- S7::new_class(
   "call_argument",
   properties = list(
-    node = S7::class_any,  # XML node from xml2 package
+    node = xml_node,
     type = S7::class_character,
     position = S7::class_integer,
     name = S7::class_character | NULL
