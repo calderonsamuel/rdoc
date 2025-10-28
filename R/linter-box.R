@@ -186,12 +186,14 @@ parse_box_import_arg <- function(arg_nodes, line) {
     attach_all <- import_result$attach_all
   }
 
-  list(
-    module_path = module_path,
-    module_name = module_name,
-    alias = alias,
-    imports = selective_imports,
+  namespace_import(
+    source_type = if (grepl("/", module_path)) "module" else "package",
+    source_path = module_path,
+    namespace_name = module_name,
+    namespace_alias = alias,
+    selected_objects = selective_imports,
     attach_all = attach_all,
+    import_mechanism = "box",
     line = line
   )
 }
@@ -733,7 +735,7 @@ load_box_module_types <- function(xml, current_file) {
   # Process each import
   for (import_info in imports) {
     # Resolve module path to file
-    module_file <- resolve_module_path(import_info$module_path, current_file)
+    module_file <- resolve_module_path(import_info@source_path, current_file)
 
     if (is.null(module_file)) {
       # Module not found - skip silently (could add lint warning in future)
@@ -753,16 +755,16 @@ load_box_module_types <- function(xml, current_file) {
     # 2. Full module import: box::use(mod/math) → math$add
     # 3. Selective import: box::use(mod/math[add]) → add (no prefix)
 
-    if (!is.null(import_info$imports) || import_info$attach_all) {
+    if (!is.null(import_info@selected_objects) || import_info@attach_all) {
       # Selective import or attach-all: functions accessible without prefix
-      if (import_info$attach_all) {
+      if (import_info@attach_all) {
         # [...] syntax: all functions accessible directly
         for (func_name in names(module_types)) {
           all_module_types[[func_name]] <- module_types[[func_name]]
         }
       } else {
         # [func1, func2] syntax: only specified functions accessible
-        for (func_name in import_info$imports) {
+        for (func_name in import_info@selected_objects) {
           if (func_name %in% names(module_types)) {
             all_module_types[[func_name]] <- module_types[[func_name]]
           }
@@ -770,10 +772,10 @@ load_box_module_types <- function(xml, current_file) {
       }
     } else {
       # Full module import: functions accessible via module_name$func or alias$func
-      prefix <- if (!is.null(import_info$alias)) {
-        import_info$alias
+      prefix <- if (!is.null(import_info@namespace_alias)) {
+        import_info@namespace_alias
       } else {
-        import_info$module_name
+        import_info@namespace_name
       }
 
       # Add types with prefix

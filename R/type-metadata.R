@@ -264,3 +264,110 @@ call_argument <- S7::new_class(
     NULL
   }
 )
+
+#' Namespace Import Information
+#'
+#' Represents a namespace import from library(), require(), or box::use().
+#' Unifies the concept of namespace imports across different R mechanisms.
+#'
+#' This class supports three import mechanisms:
+#' - `library(pkg)`: Traditional package loading (attaches all exports)
+#' - `require(pkg)`: Conditional package loading (attaches all exports)
+#' - `box::use(...)`: Modern module/package imports (flexible attachment)
+#'
+#' Import modes for box::use():
+#' - Full module: `box::use(mod/math)` → qualified access via `math$func`
+#' - Aliased: `box::use(m = mod/math)` → qualified access via `m$func`
+#' - Selective: `box::use(mod/math[add])` → unqualified access to `add()`
+#' - Attach all: `box::use(mod/math[...])` → unqualified access to all exports
+#'
+#' @field source_type Character: "package" or "module"
+#' @field source_path Character: Package name or module path
+#' @field namespace_name Character: Derived namespace name (last component of path)
+#' @field namespace_alias Character or NULL: Optional alias for the namespace
+#' @field selected_objects Character vector or NULL: Selectively imported objects (NULL = none selected)
+#' @field attach_all Logical: Whether all exports are attached to namespace
+#' @field import_mechanism Character: "library", "require", or "box"
+#' @field line Integer: Source line number where import occurs
+#' @keywords internal
+#' @export
+namespace_import <- S7::new_class(
+  "namespace_import",
+  properties = list(
+    source_type = S7::class_character,
+    source_path = S7::class_character,
+    namespace_name = S7::class_character,
+    namespace_alias = S7::class_character | NULL,
+    selected_objects = S7::class_character | NULL,
+    attach_all = S7::class_logical,
+    import_mechanism = S7::class_character,
+    line = S7::class_integer
+  ),
+  validator = function(self) {
+    # Validate source_type enum
+    if (length(self@source_type) != 1 || !self@source_type %in% c("package", "module")) {
+      return("@source_type must be 'package' or 'module'")
+    }
+
+    # Validate import_mechanism enum
+    if (length(self@import_mechanism) != 1 || !self@import_mechanism %in% c("library", "require", "box")) {
+      return("@import_mechanism must be 'library', 'require', or 'box'")
+    }
+
+    # Validate scalar character properties
+    if (length(self@source_path) != 1) {
+      return("@source_path must be a scalar character")
+    }
+    if (length(self@namespace_name) != 1) {
+      return("@namespace_name must be a scalar character")
+    }
+
+    # Validate scalar logical
+    if (length(self@attach_all) != 1) {
+      return("@attach_all must be a scalar logical")
+    }
+
+    # Validate line number
+    if (length(self@line) != 1 || self@line < 1) {
+      return("@line must be a positive scalar integer")
+    }
+
+    # library/require constraints
+    if (self@import_mechanism %in% c("library", "require")) {
+      if (!is.null(self@namespace_alias)) {
+        return("library/require do not support aliasing")
+      }
+      if (!is.null(self@selected_objects)) {
+        return("library/require do not support selective imports")
+      }
+      if (!self@attach_all) {
+        return("library/require always attach all exports")
+      }
+    }
+
+    # Box: mutual exclusion between selective imports and attach_all
+    if (self@import_mechanism == "box") {
+      if (!is.null(self@selected_objects) && self@attach_all) {
+        return("Cannot have both selective imports and attach_all")
+      }
+    }
+
+    # Modules can only be imported via box
+    if (self@source_type == "module" && self@import_mechanism != "box") {
+      return("Modules can only be imported via box")
+    }
+
+    # Validate namespace_name is last component of source_path
+    path_parts <- strsplit(self@source_path, "/")[[1]]
+    expected_name <- path_parts[length(path_parts)]
+    if (self@namespace_name != expected_name) {
+      return(sprintf(
+        "@namespace_name '%s' must match last component of @source_path '%s'",
+        self@namespace_name,
+        expected_name
+      ))
+    }
+
+    NULL
+  }
+)

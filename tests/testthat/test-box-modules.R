@@ -10,11 +10,11 @@ box::use(mod/math)
   imports <- extract_box_imports(xml)
 
   expect_length(imports, 1)
-  expect_equal(imports[[1]]$module_path, "mod/math")
-  expect_equal(imports[[1]]$module_name, "math")
-  expect_null(imports[[1]]$alias)
-  expect_null(imports[[1]]$imports)
-  expect_false(imports[[1]]$attach_all)
+  expect_equal(imports[[1]]@source_path, "mod/math")
+  expect_equal(imports[[1]]@namespace_name, "math")
+  expect_null(imports[[1]]@namespace_alias)
+  expect_null(imports[[1]]@selected_objects)
+  expect_false(imports[[1]]@attach_all)
 })
 
 test_that("extract_box_imports parses aliased import", {
@@ -29,11 +29,11 @@ box::use(m = mod/math)
   imports <- extract_box_imports(xml)
 
   expect_length(imports, 1)
-  expect_equal(imports[[1]]$module_path, "mod/math")
-  expect_equal(imports[[1]]$module_name, "math")
-  expect_equal(imports[[1]]$alias, "m")
-  expect_null(imports[[1]]$imports)
-  expect_false(imports[[1]]$attach_all)
+  expect_equal(imports[[1]]@source_path, "mod/math")
+  expect_equal(imports[[1]]@namespace_name, "math")
+  expect_equal(imports[[1]]@namespace_alias, "m")
+  expect_null(imports[[1]]@selected_objects)
+  expect_false(imports[[1]]@attach_all)
 })
 
 test_that("extract_box_imports parses selective imports", {
@@ -48,11 +48,11 @@ box::use(mod/math[add, multiply])
   imports <- extract_box_imports(xml)
 
   expect_length(imports, 1)
-  expect_equal(imports[[1]]$module_path, "mod/math")
-  expect_equal(imports[[1]]$module_name, "math")
-  expect_null(imports[[1]]$alias)
-  expect_equal(imports[[1]]$imports, c("add", "multiply"))
-  expect_false(imports[[1]]$attach_all)
+  expect_equal(imports[[1]]@source_path, "mod/math")
+  expect_equal(imports[[1]]@namespace_name, "math")
+  expect_null(imports[[1]]@namespace_alias)
+  expect_equal(imports[[1]]@selected_objects, c("add", "multiply"))
+  expect_false(imports[[1]]@attach_all)
 })
 
 test_that("extract_box_imports parses attach-all imports", {
@@ -67,11 +67,11 @@ box::use(mod/math[...])
   imports <- extract_box_imports(xml)
 
   expect_length(imports, 1)
-  expect_equal(imports[[1]]$module_path, "mod/math")
-  expect_equal(imports[[1]]$module_name, "math")
-  expect_null(imports[[1]]$alias)
-  expect_null(imports[[1]]$imports)
-  expect_true(imports[[1]]$attach_all)
+  expect_equal(imports[[1]]@source_path, "mod/math")
+  expect_equal(imports[[1]]@namespace_name, "math")
+  expect_null(imports[[1]]@namespace_alias)
+  expect_null(imports[[1]]@selected_objects)
+  expect_true(imports[[1]]@attach_all)
 })
 
 test_that("extract_box_imports parses relative path imports", {
@@ -87,10 +87,10 @@ box::use(../shared/helpers)
   imports <- extract_box_imports(xml)
 
   expect_length(imports, 2)
-  expect_equal(imports[[1]]$module_path, "./local/utils")
-  expect_equal(imports[[1]]$module_name, "utils")
-  expect_equal(imports[[2]]$module_path, "../shared/helpers")
-  expect_equal(imports[[2]]$module_name, "helpers")
+  expect_equal(imports[[1]]@source_path, "./local/utils")
+  expect_equal(imports[[1]]@namespace_name, "utils")
+  expect_equal(imports[[2]]@source_path, "../shared/helpers")
+  expect_equal(imports[[2]]@namespace_name, "helpers")
 })
 
 test_that("extract_box_imports parses nested module paths", {
@@ -105,8 +105,8 @@ box::use(company/project/module/utils)
   imports <- extract_box_imports(xml)
 
   expect_length(imports, 1)
-  expect_equal(imports[[1]]$module_path, "company/project/module/utils")
-  expect_equal(imports[[1]]$module_name, "utils")
+  expect_equal(imports[[1]]@source_path, "company/project/module/utils")
+  expect_equal(imports[[1]]@namespace_name, "utils")
 })
 
 test_that("extract_box_imports handles multiple imports in one call", {
@@ -128,21 +128,21 @@ box::use(
   expect_length(imports, 4)
 
   # First: full import
-  expect_equal(imports[[1]]$module_path, "mod/math")
-  expect_null(imports[[1]]$alias)
-  expect_null(imports[[1]]$imports)
+  expect_equal(imports[[1]]@source_path, "mod/math")
+  expect_null(imports[[1]]@namespace_alias)
+  expect_null(imports[[1]]@selected_objects)
 
   # Second: aliased
-  expect_equal(imports[[2]]$module_path, "mod/strings")
-  expect_equal(imports[[2]]$alias, "m")
+  expect_equal(imports[[2]]@source_path, "mod/strings")
+  expect_equal(imports[[2]]@namespace_alias, "m")
 
   # Third: selective with relative path
-  expect_equal(imports[[3]]$module_path, "./local/utils")
-  expect_equal(imports[[3]]$imports, "helper")
+  expect_equal(imports[[3]]@source_path, "./local/utils")
+  expect_equal(imports[[3]]@selected_objects, "helper")
 
   # Fourth: attach-all
-  expect_equal(imports[[4]]$module_path, "data/constants")
-  expect_true(imports[[4]]$attach_all)
+  expect_equal(imports[[4]]@source_path, "data/constants")
+  expect_true(imports[[4]]@attach_all)
 })
 
 test_that("extract_box_imports handles single-segment paths", {
@@ -157,8 +157,8 @@ box::use(utils)
   imports <- extract_box_imports(xml)
 
   expect_length(imports, 1)
-  expect_equal(imports[[1]]$module_path, "utils")
-  expect_equal(imports[[1]]$module_name, "utils")
+  expect_equal(imports[[1]]@source_path, "utils")
+  expect_equal(imports[[1]]@namespace_name, "utils")
 })
 
 test_that("extract_box_imports returns empty list for no imports", {
@@ -210,8 +210,8 @@ box::use(mod/strings)
   imports <- extract_box_imports(xml)
 
   expect_length(imports, 2)
-  expect_equal(imports[[1]]$line, 4)
-  expect_equal(imports[[2]]$line, 8)
+  expect_equal(imports[[1]]@line, 4)
+  expect_equal(imports[[2]]@line, 8)
 })
 
 test_that("extract_box_imports handles aliased selective imports", {
@@ -226,10 +226,10 @@ box::use(m = mod/math[add, multiply])
   imports <- extract_box_imports(xml)
 
   expect_length(imports, 1)
-  expect_equal(imports[[1]]$module_path, "mod/math")
-  expect_equal(imports[[1]]$alias, "m")
-  expect_equal(imports[[1]]$imports, c("add", "multiply"))
-  expect_false(imports[[1]]$attach_all)
+  expect_equal(imports[[1]]@source_path, "mod/math")
+  expect_equal(imports[[1]]@namespace_alias, "m")
+  expect_equal(imports[[1]]@selected_objects, c("add", "multiply"))
+  expect_false(imports[[1]]@attach_all)
 })
 
 test_that("extract_box_imports handles complex real-world scenario", {
@@ -255,11 +255,11 @@ valid <- validate(user)
   imports <- extract_box_imports(xml)
 
   expect_length(imports, 4)
-  expect_equal(imports[[1]]$module_path, "data/db")
-  expect_equal(imports[[2]]$module_path, "models/user")
-  expect_equal(imports[[2]]$alias, "m")
-  expect_equal(imports[[3]]$module_path, "./utils")
-  expect_equal(imports[[3]]$imports, c("validate", "format"))
-  expect_equal(imports[[4]]$module_path, "../shared/constants")
-  expect_true(imports[[4]]$attach_all)
+  expect_equal(imports[[1]]@source_path, "data/db")
+  expect_equal(imports[[2]]@source_path, "models/user")
+  expect_equal(imports[[2]]@namespace_alias, "m")
+  expect_equal(imports[[3]]@source_path, "./utils")
+  expect_equal(imports[[3]]@selected_objects, c("validate", "format"))
+  expect_equal(imports[[4]]@source_path, "../shared/constants")
+  expect_true(imports[[4]]@attach_all)
 })
