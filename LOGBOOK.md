@@ -4,7 +4,7 @@
 
 **Audience**: Blog post readers, case study researchers, future contributors
 
-**Last Updated**: 2025-10-28 05:30:00 UTC (Phase 32)
+**Last Updated**: 2025-10-28 13:35:00 UTC (Phase 33)
 
 ---
 
@@ -1470,6 +1470,169 @@ rdoc's hybrid R6+S7 architecture follows this pattern: immutable data (S7) with 
 
 ---
 
+## Phase 33: Namespace Import Abstraction (Box Module Formalization)
+
+**Date**: 2025-10-28 13:35:00 UTC
+**Effort**: 3 hours of design exploration
+**Status**: ✅ Design Complete (implementation pending)
+
+### Design Decision: Generic Namespace Import vs. Box-Specific Import
+
+**Problem**: After formalizing tokens, call arguments, and variable assignments with S7 (Phases 29-31), the next opportunity was box module imports. These were stored as plain lists with 6 fields (module_path, module_name, alias, imports, attach_all, line).
+
+Initial approach was to create `box_import_info` class, but deeper analysis revealed fundamental naming and abstraction questions.
+
+**The Naming Journey**: Four critical questions emerged:
+
+**Question 1: What about function-level aliasing?**
+- Initial concern: Does `alias` property include function-level aliases?
+- Investigation: rdoc only supports module-level aliasing (`m = mod/math`)
+- Function-level aliasing (`mod/math[my_add = add]`) not supported by box
+- **Decision**: `alias` is module-level only
+
+**Question 2: Functions or Objects?**
+- Original property name: `imports` (too ambiguous)
+- Alternative: `selected_functions` (too narrow - box can export data, classes, enums)
+- **Decision**: `selected_objects` - accurate for any exported object
+
+**Question 3: Module-specific or Generic?**
+- Initial class name: `box_import_info` or `box_module_import`
+- Discovery: Box supports **both** file-based modules AND package imports:
+  - File modules: `box::use(mod/math)` → rdoc currently handles
+  - Packages: `box::use(dplyr)` → rdoc doesn't handle yet
+- **Realization**: "module" in class name is too narrow
+
+**Question 4: Box-specific or Concept-focused?**
+- Key insight: rdoc already parses `library()` calls separately (R/linter-check.R:288-317)
+- Both create **namespace imports** with similar structure:
+  - `library(dplyr)` → package attached to global namespace
+  - `box::use(dplyr)` → package imported with qualified access
+  - `box::use(mod/math)` → module imported with qualified access
+- **Architecture choice**: Should we unify these or keep separate?
+
+**The Abstraction Debate**:
+
+Two philosophies considered:
+
+**Philosophy A: Implementation-Focused**
+- Keep `box_import` for box::use() only
+- `library()` handled separately (current architecture)
+- PRO: Matches current code structure
+- CON: Duplicates concept, misses abstraction
+
+**Philosophy B: Concept-Focused**
+- Create generic `namespace_import` for all mechanisms
+- Unify `library()`, `require()`, and `box::use()`
+- PRO: Correct abstraction, future-proof
+- CON: Bigger architectural change
+
+**Solution**: Generic abstraction with pragmatic scope.
+
+**Architecture**:
+```r
+namespace_import <- S7::new_class(
+  "namespace_import",
+  properties = list(
+    source_type = S7::class_character,        # "package" | "module"
+    source_path = S7::class_character,        # "dplyr" or "mod/math"
+    namespace_name = S7::class_character,     # Derived from source_path
+    namespace_alias = S7::class_character | NULL,  # Module/package alias
+    selected_objects = S7::class_character | NULL, # Selective imports
+    attach_all = S7::class_logical,           # Attach to namespace
+    import_mechanism = S7::class_character,   # "library" | "require" | "box"
+    line = S7::class_integer
+  ),
+  validator = function(self) {
+    # Validate source_type
+    if (!self@source_type %in% c("package", "module")) {
+      return("source_type must be 'package' or 'module'")
+    }
+
+    # Validate import_mechanism
+    if (!self@import_mechanism %in% c("library", "require", "box")) {
+      return("import_mechanism must be 'library', 'require', or 'box'")
+    }
+
+    # library/require constraints
+    if (self@import_mechanism %in% c("library", "require")) {
+      if (!is.null(self@namespace_alias)) {
+        return("library/require do not support aliasing")
+      }
+      if (!is.null(self@selected_objects)) {
+        return("library/require do not support selective imports")
+      }
+      if (!self@attach_all) {
+        return("library/require always attach all exports")
+      }
+    }
+
+    # Box selective vs attach_all mutual exclusion
+    if (self@import_mechanism == "box") {
+      if (!is.null(self@selected_objects) && self@attach_all) {
+        return("Cannot have both selective imports and attach_all")
+      }
+    }
+
+    # Modules only via box
+    if (self@source_type == "module" && self@import_mechanism != "box") {
+      return("Modules can only be imported via box")
+    }
+
+    NULL
+  }
+)
+```
+
+**Business Rules Encoded**:
+
+1. **Mutual exclusion** (box only): `selected_objects` XOR `attach_all`
+2. **Module derivation**: `namespace_name` from last component of `source_path`
+3. **Mechanism constraints**:
+   - `library/require`: Always `attach_all=TRUE`, no aliasing, no selection
+   - `box`: Supports all features
+4. **Source type constraint**: Modules only importable via box
+5. **Positive line**: Source location must be positive integer
+
+**Comparison Table**:
+
+| Feature | `library(dplyr)` | `box::use(dplyr)` | `box::use(mod/math[add])` |
+|---------|------------------|-------------------|---------------------------|
+| source_type | "package" | "package" | "module" |
+| source_path | "dplyr" | "dplyr" | "mod/math" |
+| namespace_alias | NULL | NULL or "dp" | NULL or "m" |
+| selected_objects | NULL | NULL | ["add"] |
+| attach_all | TRUE | FALSE | FALSE |
+| import_mechanism | "library" | "box" | "box" |
+
+**Implementation Scope**:
+
+**Phase 33 (Current)**:
+- Create `namespace_import` class (generic name)
+- Only construct from `box::use()` statements (current capability)
+- `import_mechanism` always "box"
+
+**Future Phase**:
+- Also construct from `library()` and `require()` calls
+- Unify type loading pipeline
+- Enable cross-mechanism analysis
+
+**Key Insight**: Choosing the right abstraction requires looking beyond current implementation to the underlying concept. "Box import" is an implementation detail; "namespace import" is the concept. By naming the class generically but scoping implementation pragmatically, we achieve both correctness and practicality.
+
+The discussion revealed that great naming comes from:
+1. **Understanding semantics** (module-level vs function-level aliasing)
+2. **Precision** (objects vs functions)
+3. **Future-proofing** (modules AND packages)
+4. **Abstraction** (namespace concept unifies library() and box::use())
+
+**What This Enabled**:
+- Type-safe box module/package imports with validation
+- Foundation for unified namespace import handling
+- Clear semantics for aliasing, selection, and attachment
+- Future path to formalize library() calls with same abstraction
+- Honest architecture that acknowledges the underlying concept
+
+---
+
 ## Cross-Cutting Insights
 
 ### 1. Leverage Existing Infrastructure
@@ -1710,7 +1873,7 @@ Both TypeScript and Python:
 ## Document Metadata
 
 **Created**: January 2025
-**Last Updated**: 2025-10-28 05:30:00 UTC (Phase 32)
-**Total Phases Documented**: 24 major phases
+**Last Updated**: 2025-10-28 13:35:00 UTC (Phase 33)
+**Total Phases Documented**: 25 major phases
 **Maintained By**: rdoc contributors
 **Purpose**: Technical reference for understanding rdoc's evolution
