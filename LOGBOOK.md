@@ -4,7 +4,7 @@
 
 **Audience**: Blog post readers, case study researchers, future contributors
 
-**Last Updated**: 2025-10-09 17:30:26 UTC (Phase 28)
+**Last Updated**: 2025-10-28 03:14:47 UTC (Phase 31)
 
 ---
 
@@ -1111,6 +1111,180 @@ parse_typed_param_text <- function(text) {
 
 ---
 
+## Phase 29: Call Arguments S7 Formalization
+
+**Date**: 2025-10-28 03:00:00 UTC
+**Effort**: 90 minutes
+**Status**: ✅ Complete (1084 tests passing)
+
+### Design Decision: S7 Objects for All Structured Data
+
+**Problem**: Function call arguments stored as plain lists `list(node = ..., type = ..., position = ..., name = ...)` throughout the linter pipeline. No validation, easy to make mistakes (typos in field names, wrong types).
+
+**Solution**: Created `call_argument` S7 class with validated properties and updated all construction/access sites.
+
+**Rationale**:
+- **Type safety**: S7 validates at construction time (position must be positive integer)
+- **Self-documenting**: Class definition documents expected structure
+- **Better errors**: `arg@tpye` → "Did you mean `arg@type`?" vs silent NULL with `$`
+- **Consistency**: Matches pattern from existing `param_type`/`function_signature` classes
+- **Dogfooding**: rdoc practices what it preaches (S7 everywhere)
+
+**Implementation**:
+```r
+call_argument <- S7::new_class(
+  "call_argument",
+  properties = list(
+    node = xml_node,                  # Reusable S7 wrapper for xml2::xml_node
+    type = S7::class_character,
+    position = S7::class_integer,
+    name = S7::class_character | NULL
+  ),
+  validator = function(self) {
+    if (self@position < 1) return("@position must be positive")
+    # ... additional validation
+  }
+)
+```
+
+**Changes**:
+- Created `xml_node` S7 wrapper for reuse across package
+- Updated `extract_arguments()` to construct S7 objects (2 sites)
+- Updated `check_arguments()` to use `@` accessor (6 sites)
+- Updated tests to use `@` accessor (8 assertions)
+
+**Key Insight**: Reusable type wrappers (`xml_node`) pay dividends. Created once, used in multiple S7 classes (`call_argument`, later `variable_assignment`). Stronger typing than `class_any` but still flexible.
+
+**What This Enabled**:
+- 14 validation points that catch bugs at construction time
+- Clear error messages guide developers to correct usage
+- Foundation for formalizing other structured data (tokens, assignments, etc.)
+
+---
+
+## Phase 30: Lexer Tokens S7 Formalization
+
+**Date**: 2025-10-28 03:30:00 UTC
+**Effort**: 90 minutes
+**Status**: ✅ Complete (1084 tests passing)
+
+### Design Decision: Enum-Validated Token Types
+
+**Problem**: Lexer produced plain lists `list(type = "IDENTIFIER", value = "class_integer", position = 15)`. Parser consumed these tokens across 53+ access sites. No validation of token type strings, easy to introduce bugs via typos.
+
+**Solution**: Created `token` S7 class with enum validation for token type, updated lexer (9 construction sites), parser (53 access sites), and tests (58 assertions).
+
+**Rationale**:
+- **Enum validation**: Only 9 valid token types (IDENTIFIER, LANGLE, RANGLE, LBRACKET, RBRACKET, PIPE, DOUBLE_COLON, NUMBER, EOF)
+- **Position validation**: Must be >= 1 (catches off-by-one errors)
+- **Foundational**: Tokens are input to parser - getting them right prevents cascading bugs
+- **Educational errors**: Clear validation messages when invalid token constructed
+
+**Implementation**:
+```r
+token <- S7::new_class(
+  "token",
+  properties = list(
+    type = S7::class_character,       # Validated enum
+    value = S7::class_character,
+    position = S7::class_integer
+  ),
+  validator = function(self) {
+    valid_types <- c("IDENTIFIER", "LANGLE", "RANGLE", "LBRACKET",
+                     "RBRACKET", "PIPE", "DOUBLE_COLON", "NUMBER", "EOF")
+    if (!self@type %in% valid_types) {
+      return(sprintf("Invalid token type '%s'", self@type))
+    }
+    if (self@position < 1) return("@position must be positive")
+  }
+)
+```
+
+**Changes**:
+- Lexer: 9 token construction sites + 1 type check
+- Parser: 53 property accesses (`$` → `@`)
+- Tests: 58 assertions updated via `sed` mass replacement
+
+**Critical Decision**: Full enum validation vs. simplified version. Chose full validation because:
+1. Only 9 token types - easy to maintain
+2. Catches typos immediately (`"IDENTIFER"` → error at construction)
+3. Self-documents valid tokens for future contributors
+
+**Key Insight**: For critical path code (parser runs on every type annotation), S7 validation is worth the migration effort. 100+ changes sounds scary but mostly mechanical (`$` → `@`). Test incrementally (lexer first, then parser sections) to reduce risk.
+
+**What This Enabled**:
+- Impossible to construct malformed tokens
+- Parser can trust token structure without defensive checks
+- Clear error messages when something goes wrong
+- Complete S7 formalization of lexer → parser pipeline
+
+---
+
+## Phase 31: Variable Assignments S7 Formalization
+
+**Date**: 2025-10-28 03:45:00 UTC
+**Effort**: 60 minutes
+**Status**: ✅ Complete (1084 tests passing)
+
+### Design Decision: Dual-Purpose S7 Class
+
+**Problem**: Variable assignments tracked in two phases:
+1. **Extraction**: `list(line = 5, value_node = <xml>)` - node needed for later analysis
+2. **Caching**: `list(line = 5, type = "class_integer")` - type inferred, node no longer needed
+
+Different structures for same concept caused confusion. Plain lists had no validation.
+
+**Solution**: Single S7 class with optional `value_node` field that documents both phases.
+
+**Rationale**:
+- **Unified concept**: One class represents both extraction and cached states
+- **Optional node**: `value_node = xml_node | NULL` explicitly shows it's transient
+- **Clear lifecycle**: Documentation explains when node is present vs NULL
+- **Memory efficient**: Cache doesn't store unnecessary XML nodes
+- **Validation**: Line number must be positive, type must be scalar
+
+**Implementation**:
+```r
+variable_assignment <- S7::new_class(
+  "variable_assignment",
+  properties = list(
+    line = S7::class_integer,
+    type = S7::class_character,
+    value_node = xml_node | NULL      # Present during extraction, NULL in cache
+  ),
+  validator = function(self) {
+    if (self@line < 1) return("@line must be positive")
+    if (length(self@type) != 1) return("@type must be scalar")
+  }
+)
+```
+
+**Data Flow**:
+```
+1. EXTRACTION: variable_assignment(line = 5L, type = "unknown", value_node = <node>)
+   ↓ (infer type from node)
+2. CACHING:    variable_assignment(line = 5L, type = "class_integer", value_node = NULL)
+   ↓ (lookup by line)
+3. LOOKUP:     Filter assignments where line < current_line, return type
+```
+
+**Changes**:
+- Created S7 class with dual-purpose documentation
+- Updated `extract_variable_assignments()` to construct S7 objects
+- Updated linter.R caching to store S7 objects with NULL node
+- Updated `infer_argument_type()` variable lookup (2 `@` accesses)
+- Updated tests to construct S7 objects (14 replacements via `sed`)
+
+**Key Insight**: Optional fields in S7 classes can document temporal state changes. The `value_node | NULL` type signature + documentation makes it clear this is a two-phase object: "node present during extraction, NULL after inference." This is clearer than having two separate structures or comments explaining when fields are present.
+
+**What This Enabled**:
+- Type-safe variable tracking across linting pipeline
+- Self-documenting lifecycle (extraction → inference → caching → lookup)
+- Validated line numbers prevent off-by-one bugs
+- Foundation for more sophisticated flow analysis in future
+
+---
+
 ## Cross-Cutting Insights
 
 ### 1. Leverage Existing Infrastructure
@@ -1351,7 +1525,7 @@ Both TypeScript and Python:
 ## Document Metadata
 
 **Created**: January 2025
-**Last Updated**: 2025-10-09 17:30:26 UTC (Phase 28)
-**Total Phases Documented**: 20 major phases
+**Last Updated**: 2025-10-28 03:14:47 UTC (Phase 31)
+**Total Phases Documented**: 23 major phases
 **Maintained By**: rdoc contributors
 **Purpose**: Technical reference for understanding rdoc's evolution
