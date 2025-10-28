@@ -33,6 +33,64 @@ NULL
 #' @keywords internal
 xml_node <- S7::new_S3_class("xml_node")
 
+#' Lexer Token
+#'
+#' Represents a single token from the type syntax lexer.
+#' Tokens are the atomic units produced by lexical analysis of type annotations.
+#'
+#' The lexer recognizes 9 distinct token types:
+#' - IDENTIFIER: Type names (e.g., "class_integer", "roxygen2")
+#' - LANGLE, RANGLE: Generic type delimiters `<` and `>`
+#' - LBRACKET, RBRACKET: Length constraint delimiters `[` and `]`
+#' - PIPE: Union type operator `|`
+#' - DOUBLE_COLON: Package qualification `::`
+#' - NUMBER: Numeric literals (only valid in brackets)
+#' - EOF: End of input marker
+#'
+#' @field type Character string - token type (validated against known types)
+#' @field value Character string - lexeme (actual text matched)
+#' @field position Integer - character position in input string (1-indexed)
+#' @keywords internal
+token <- S7::new_class(
+  "token",
+  properties = list(
+    type = S7::class_character,
+    value = S7::class_character,
+    position = S7::class_integer
+  ),
+  validator = function(self) {
+    # Validate token type against known types
+    valid_types <- c(
+      "IDENTIFIER", "LANGLE", "RANGLE", "LBRACKET", "RBRACKET",
+      "PIPE", "DOUBLE_COLON", "NUMBER", "EOF"
+    )
+
+    if (length(self@type) != 1) {
+      return("@type must be a scalar character")
+    }
+    if (!self@type %in% valid_types) {
+      return(sprintf(
+        "Invalid token type '%s'. Must be one of: %s",
+        self@type,
+        paste(valid_types, collapse = ", ")
+      ))
+    }
+
+    if (length(self@value) != 1) {
+      return("@value must be a scalar character")
+    }
+
+    if (length(self@position) != 1) {
+      return("@position must be a scalar integer")
+    }
+    if (self@position < 1) {
+      return(sprintf("@position must be positive (got %d)", self@position))
+    }
+
+    NULL
+  }
+)
+
 #' Parameter Type Information
 #'
 #' Represents type information for a single function parameter.

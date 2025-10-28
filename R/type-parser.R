@@ -22,26 +22,26 @@ parse_type_syntax <- function(input) {
 
   # Ensure we consumed all tokens (except EOF)
   token <- parser$current()
-  if (token$type != "EOF") {
-    if (token$type == "RANGLE") {
+  if (token@type != "EOF") {
+    if (token@type == "RANGLE") {
       cli::cli_abort(
         c(
-          "Unexpected '>' at position {token$position}",
+          "Unexpected '>' at position {token@position}",
           "x" = "No matching '<' found"
         ),
         call = NULL
       )
-    } else if (token$type == "RBRACKET") {
+    } else if (token@type == "RBRACKET") {
       cli::cli_abort(
         c(
-          "Unexpected ']' at position {token$position}",
+          "Unexpected ']' at position {token@position}",
           "x" = "No matching '[' found"
         ),
         call = NULL
       )
     } else {
       cli::cli_abort(
-        "Unexpected token '{token$value}' at position {token$position}",
+        "Unexpected token '{token@value}' at position {token@position}",
         call = NULL
       )
     }
@@ -76,9 +76,9 @@ new_parser <- function(tokens) {
 
     expect = function(token_type, context = NULL) {
       token <- env$tokens[[env$position]]
-      if (token$type != token_type) {
+      if (token@type != token_type) {
         msg <- c(
-          "Expected {token_type} at position {token$position}",
+          "Expected {token_type} at position {token@position}",
           if (!is.null(context)) c("i" = context)
         )
         cli::cli_abort(msg, call = NULL)
@@ -88,7 +88,7 @@ new_parser <- function(tokens) {
     },
 
     match = function(token_type) {
-      if (env$tokens[[env$position]]$type == token_type) {
+      if (env$tokens[[env$position]]@type == token_type) {
         env$position <- env$position + 1
         return(TRUE)
       }
@@ -109,10 +109,10 @@ parse_union_type <- function(parser) {
   token <- parser$current()
 
   # Check for leading pipe
-  if (token$type == "PIPE") {
+  if (token@type == "PIPE") {
     cli::cli_abort(
       c(
-        "Unexpected '|' at position {token$position}",
+        "Unexpected '|' at position {token@position}",
         "i" = "Union types cannot start with '|'"
       ),
       call = NULL
@@ -123,15 +123,15 @@ parse_union_type <- function(parser) {
   types <- list(parse_primary_type(parser))
 
   # Parse additional types separated by |
-  while (parser$current()$type == "PIPE") {
+  while (parser$current()@type == "PIPE") {
     pipe_token <- parser$current()
     parser$advance()
 
     # Check for consecutive pipes
-    if (parser$current()$type == "PIPE") {
+    if (parser$current()@type == "PIPE") {
       cli::cli_abort(
         c(
-          "Unexpected '|' at position {parser$current()$position}",
+          "Unexpected '|' at position {parser$current()@position}",
           "i" = "Consecutive '|' operators not allowed"
         ),
         call = NULL
@@ -139,11 +139,11 @@ parse_union_type <- function(parser) {
     }
 
     # Check for trailing pipe
-    if (parser$current()$type == "EOF" || parser$current()$type %in% c("RANGLE", "RBRACKET")) {
+    if (parser$current()@type == "EOF" || parser$current()@type %in% c("RANGLE", "RBRACKET")) {
       cli::cli_abort(
         c(
-          "Unexpected end of input at position {parser$current()$position}",
-          "i" = "Expected type after '|' at position {pipe_token$position}"
+          "Unexpected end of input at position {parser$current()@position}",
+          "i" = "Expected type after '|' at position {pipe_token@position}"
         ),
         call = NULL
       )
@@ -167,31 +167,31 @@ parse_primary_type <- function(parser) {
   token <- parser$current()
 
   # Must start with identifier
-  if (token$type != "IDENTIFIER") {
+  if (token@type != "IDENTIFIER") {
     cli::cli_abort(
       c(
-        "Expected type identifier at position {token$position}",
-        "x" = "Found '{token$value}' instead"
+        "Expected type identifier at position {token@position}",
+        "x" = "Found '{token@value}' instead"
       ),
       call = NULL
     )
   }
 
   # Parse qualified type: package or base type
-  base_type <- token$value
+  base_type <- token@value
   package <- NULL
   parser$advance()
 
   # Check for package qualification (::)
-  if (parser$current()$type == "DOUBLE_COLON") {
+  if (parser$current()@type == "DOUBLE_COLON") {
     parser$advance()
 
     # Next token must be identifier (the class name)
-    if (parser$current()$type != "IDENTIFIER") {
+    if (parser$current()@type != "IDENTIFIER") {
       cli::cli_abort(
         c(
-          "Expected class name after '::' at position {parser$current()$position}",
-          "x" = "Found '{parser$current()$value}' instead",
+          "Expected class name after '::' at position {parser$current()@position}",
+          "x" = "Found '{parser$current()@value}' instead",
           "i" = "Use 'package::class' syntax"
         ),
         call = NULL
@@ -199,15 +199,15 @@ parse_primary_type <- function(parser) {
     }
 
     package <- base_type
-    base_type <- parser$current()$value
+    base_type <- parser$current()@value
     parser$advance()
   }
 
   # Optional element type <...>
   element_type <- NULL
   langle_pos <- NULL
-  if (parser$current()$type == "LANGLE") {
-    langle_pos <- parser$current()$position
+  if (parser$current()@type == "LANGLE") {
+    langle_pos <- parser$current()@position
 
     # Semantic validation: only list types can have element types
     if (base_type != "list" && base_type != "class_list") {
@@ -224,7 +224,7 @@ parse_primary_type <- function(parser) {
     parser$advance()
 
     # Check for empty <>
-    if (parser$current()$type == "RANGLE") {
+    if (parser$current()@type == "RANGLE") {
       cli::cli_abort(
         c(
           "Expected type after '<' at position {langle_pos + 1}",
@@ -237,10 +237,10 @@ parse_primary_type <- function(parser) {
     element_type <- parse_type_expr(parser)
 
     # Expect closing >
-    if (parser$current()$type != "RANGLE") {
+    if (parser$current()@type != "RANGLE") {
       cli::cli_abort(
         c(
-          "Expected '>' at position {parser$current()$position}",
+          "Expected '>' at position {parser$current()@position}",
           "i" = "To match '<' at position {langle_pos}"
         ),
         call = NULL
@@ -249,10 +249,10 @@ parse_primary_type <- function(parser) {
     parser$advance()
 
     # Check for multiple element types: list<int><char>
-    if (parser$current()$type == "LANGLE") {
+    if (parser$current()@type == "LANGLE") {
       cli::cli_abort(
         c(
-          "Unexpected '<' at position {parser$current()$position}",
+          "Unexpected '<' at position {parser$current()@position}",
           "x" = "Type '{base_type}' already has element type",
           "i" = "Multiple element types are not allowed"
         ),
@@ -264,14 +264,14 @@ parse_primary_type <- function(parser) {
   # Optional length constraint [n]
   length_constraint <- NULL
   lbracket_pos <- NULL
-  if (parser$current()$type == "LBRACKET") {
-    lbracket_pos <- parser$current()$position
+  if (parser$current()@type == "LBRACKET") {
+    lbracket_pos <- parser$current()@position
     parser$advance()
 
     # Must have number
     token <- parser$current()
-    if (token$type != "NUMBER") {
-      if (token$type == "RBRACKET") {
+    if (token@type != "NUMBER") {
+      if (token@type == "RBRACKET") {
         cli::cli_abort(
           c(
             "Expected number in [] at position {lbracket_pos + 1}",
@@ -282,22 +282,22 @@ parse_primary_type <- function(parser) {
       } else {
         cli::cli_abort(
           c(
-            "Expected number in [] at position {token$position}",
-            "x" = "Found '{token$value}' instead"
+            "Expected number in [] at position {token@position}",
+            "x" = "Found '{token@value}' instead"
           ),
           call = NULL
         )
       }
     }
 
-    length_constraint <- as.integer(token$value)
+    length_constraint <- as.integer(token@value)
 
     # Validate non-negative integer (allow 0 for zero-length vectors)
     if (is.na(length_constraint) || length_constraint < 0) {
       cli::cli_abort(
         c(
-          "Invalid length constraint at position {token$position}",
-          "x" = "Length must be non-negative integer, found '{token$value}'"
+          "Invalid length constraint at position {token@position}",
+          "x" = "Length must be non-negative integer, found '{token@value}'"
         ),
         call = NULL
       )
@@ -306,10 +306,10 @@ parse_primary_type <- function(parser) {
     parser$advance()
 
     # Expect closing ]
-    if (parser$current()$type != "RBRACKET") {
+    if (parser$current()@type != "RBRACKET") {
       cli::cli_abort(
         c(
-          "Expected ']' at position {parser$current()$position}",
+          "Expected ']' at position {parser$current()@position}",
           "i" = "To match '[' at position {lbracket_pos}"
         ),
         call = NULL

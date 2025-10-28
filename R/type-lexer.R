@@ -27,38 +27,38 @@ lex_type_syntax <- function(input) {
 
     # Single-character tokens
     if (char == "<") {
-      tokens <- append(tokens, list(list(type = "LANGLE", value = "<", position = position)))
+      tokens <- append(tokens, list(token(type = "LANGLE", value = "<", position = as.integer(position))))
       position <- position + 1
       next
     }
 
     if (char == ">") {
-      tokens <- append(tokens, list(list(type = "RANGLE", value = ">", position = position)))
+      tokens <- append(tokens, list(token(type = "RANGLE", value = ">", position = as.integer(position))))
       position <- position + 1
       next
     }
 
     if (char == "[") {
-      tokens <- append(tokens, list(list(type = "LBRACKET", value = "[", position = position)))
+      tokens <- append(tokens, list(token(type = "LBRACKET", value = "[", position = as.integer(position))))
       position <- position + 1
       next
     }
 
     if (char == "]") {
-      tokens <- append(tokens, list(list(type = "RBRACKET", value = "]", position = position)))
+      tokens <- append(tokens, list(token(type = "RBRACKET", value = "]", position = as.integer(position))))
       position <- position + 1
       next
     }
 
     if (char == "|") {
-      tokens <- append(tokens, list(list(type = "PIPE", value = "|", position = position)))
+      tokens <- append(tokens, list(token(type = "PIPE", value = "|", position = as.integer(position))))
       position <- position + 1
       next
     }
 
     # Two-character tokens: ::
     if (char == ":" && position < n && substr(input, position + 1, position + 1) == ":") {
-      tokens <- append(tokens, list(list(type = "DOUBLE_COLON", value = "::", position = position)))
+      tokens <- append(tokens, list(token(type = "DOUBLE_COLON", value = "::", position = as.integer(position))))
       position <- position + 2
       next
     }
@@ -132,7 +132,7 @@ lex_type_syntax <- function(input) {
         }
       }
 
-      tokens <- append(tokens, list(list(type = "IDENTIFIER", value = value, position = start_pos)))
+      tokens <- append(tokens, list(token(type = "IDENTIFIER", value = value, position = as.integer(start_pos))))
       next
     }
 
@@ -140,7 +140,7 @@ lex_type_syntax <- function(input) {
     # Check if we're inside brackets by looking at previous token
     if (grepl("[0-9]", char)) {
       # Check if previous token was LBRACKET
-      inside_brackets <- length(tokens) > 0 && tokens[[length(tokens)]]$type == "LBRACKET"
+      inside_brackets <- length(tokens) > 0 && tokens[[length(tokens)]]@type == "LBRACKET"
 
       if (!inside_brackets) {
         # Find what identifier this number is attached to for better error
@@ -162,7 +162,7 @@ lex_type_syntax <- function(input) {
         position <- position + 1
       }
 
-      tokens <- append(tokens, list(list(type = "NUMBER", value = value, position = start_pos)))
+      tokens <- append(tokens, list(token(type = "NUMBER", value = value, position = as.integer(start_pos))))
       next
     }
 
@@ -174,7 +174,7 @@ lex_type_syntax <- function(input) {
   }
 
   # Add EOF token
-  tokens <- append(tokens, list(list(type = "EOF", value = "", position = position)))
+  tokens <- append(tokens, list(token(type = "EOF", value = "", position = as.integer(position))))
 
   tokens
 }

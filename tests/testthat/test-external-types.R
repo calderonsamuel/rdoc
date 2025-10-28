@@ -4,13 +4,13 @@ test_that("lexer tokenizes :: operator", {
   tokens <- lex_type_syntax("roxygen2::roclet")
 
   expect_equal(length(tokens), 4)  # package, ::, class, EOF
-  expect_equal(tokens[[1]]$type, "IDENTIFIER")
-  expect_equal(tokens[[1]]$value, "roxygen2")
-  expect_equal(tokens[[2]]$type, "DOUBLE_COLON")
-  expect_equal(tokens[[2]]$value, "::")
-  expect_equal(tokens[[3]]$type, "IDENTIFIER")
-  expect_equal(tokens[[3]]$value, "roclet")
-  expect_equal(tokens[[4]]$type, "EOF")
+  expect_equal(tokens[[1]]@type, "IDENTIFIER")
+  expect_equal(tokens[[1]]@value, "roxygen2")
+  expect_equal(tokens[[2]]@type, "DOUBLE_COLON")
+  expect_equal(tokens[[2]]@value, "::")
+  expect_equal(tokens[[3]]@type, "IDENTIFIER")
+  expect_equal(tokens[[3]]@value, "roclet")
+  expect_equal(tokens[[4]]@type, "EOF")
 })
 
 test_that("lexer rejects single colon", {

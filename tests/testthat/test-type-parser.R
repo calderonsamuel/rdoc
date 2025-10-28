@@ -9,78 +9,78 @@ test_that("lexer tokenizes simple identifier", {
   tokens <- lex_type_syntax("class_numeric")
 
   expect_equal(length(tokens), 2)  # identifier + EOF
-  expect_equal(tokens[[1]]$type, "IDENTIFIER")
-  expect_equal(tokens[[1]]$value, "class_numeric")
-  expect_equal(tokens[[1]]$position, 1)
-  expect_equal(tokens[[2]]$type, "EOF")
+  expect_equal(tokens[[1]]@type, "IDENTIFIER")
+  expect_equal(tokens[[1]]@value, "class_numeric")
+  expect_equal(tokens[[1]]@position, 1)
+  expect_equal(tokens[[2]]@type, "EOF")
 })
 
 test_that("lexer tokenizes identifier with underscore", {
   tokens <- lex_type_syntax("class_integer")
 
-  expect_equal(tokens[[1]]$type, "IDENTIFIER")
-  expect_equal(tokens[[1]]$value, "class_integer")
+  expect_equal(tokens[[1]]@type, "IDENTIFIER")
+  expect_equal(tokens[[1]]@value, "class_integer")
 })
 
 test_that("lexer tokenizes identifier with dots", {
   tokens <- lex_type_syntax("class_data.frame")
 
-  expect_equal(tokens[[1]]$type, "IDENTIFIER")
-  expect_equal(tokens[[1]]$value, "class_data.frame")
+  expect_equal(tokens[[1]]@type, "IDENTIFIER")
+  expect_equal(tokens[[1]]@value, "class_data.frame")
 })
 
 test_that("lexer tokenizes number", {
   tokens <- lex_type_syntax("[42]")
 
-  expect_equal(tokens[[1]]$type, "LBRACKET")
-  expect_equal(tokens[[2]]$type, "NUMBER")
-  expect_equal(tokens[[2]]$value, "42")
-  expect_equal(tokens[[3]]$type, "RBRACKET")
+  expect_equal(tokens[[1]]@type, "LBRACKET")
+  expect_equal(tokens[[2]]@type, "NUMBER")
+  expect_equal(tokens[[2]]@value, "42")
+  expect_equal(tokens[[3]]@type, "RBRACKET")
 })
 
 test_that("lexer tokenizes brackets and angles", {
   tokens <- lex_type_syntax("class_list<int>[5]")
 
-  expect_equal(tokens[[1]]$type, "IDENTIFIER")
-  expect_equal(tokens[[1]]$value, "class_list")
-  expect_equal(tokens[[2]]$type, "LANGLE")
-  expect_equal(tokens[[3]]$type, "IDENTIFIER")
-  expect_equal(tokens[[3]]$value, "int")
-  expect_equal(tokens[[4]]$type, "RANGLE")
-  expect_equal(tokens[[5]]$type, "LBRACKET")
-  expect_equal(tokens[[6]]$type, "NUMBER")
-  expect_equal(tokens[[6]]$value, "5")
-  expect_equal(tokens[[7]]$type, "RBRACKET")
-  expect_equal(tokens[[8]]$type, "EOF")
+  expect_equal(tokens[[1]]@type, "IDENTIFIER")
+  expect_equal(tokens[[1]]@value, "class_list")
+  expect_equal(tokens[[2]]@type, "LANGLE")
+  expect_equal(tokens[[3]]@type, "IDENTIFIER")
+  expect_equal(tokens[[3]]@value, "int")
+  expect_equal(tokens[[4]]@type, "RANGLE")
+  expect_equal(tokens[[5]]@type, "LBRACKET")
+  expect_equal(tokens[[6]]@type, "NUMBER")
+  expect_equal(tokens[[6]]@value, "5")
+  expect_equal(tokens[[7]]@type, "RBRACKET")
+  expect_equal(tokens[[8]]@type, "EOF")
 })
 
 test_that("lexer tokenizes pipe", {
   tokens <- lex_type_syntax("int | char")
 
-  expect_equal(tokens[[1]]$type, "IDENTIFIER")
-  expect_equal(tokens[[2]]$type, "PIPE")
-  expect_equal(tokens[[2]]$position, 5)  # Position of |
-  expect_equal(tokens[[3]]$type, "IDENTIFIER")
+  expect_equal(tokens[[1]]@type, "IDENTIFIER")
+  expect_equal(tokens[[2]]@type, "PIPE")
+  expect_equal(tokens[[2]]@position, 5)  # Position of |
+  expect_equal(tokens[[3]]@type, "IDENTIFIER")
 })
 
 test_that("lexer handles whitespace correctly", {
   tokens <- lex_type_syntax("  class_list  <  int  >  ")
 
   # Whitespace should be skipped
-  expect_equal(tokens[[1]]$type, "IDENTIFIER")
-  expect_equal(tokens[[1]]$value, "class_list")
-  expect_equal(tokens[[2]]$type, "LANGLE")
-  expect_equal(tokens[[3]]$type, "IDENTIFIER")
-  expect_equal(tokens[[3]]$value, "int")
+  expect_equal(tokens[[1]]@type, "IDENTIFIER")
+  expect_equal(tokens[[1]]@value, "class_list")
+  expect_equal(tokens[[2]]@type, "LANGLE")
+  expect_equal(tokens[[3]]@type, "IDENTIFIER")
+  expect_equal(tokens[[3]]@value, "int")
 })
 
 test_that("lexer tracks positions accurately", {
   tokens <- lex_type_syntax("class_list<int>")
 
-  expect_equal(tokens[[1]]$position, 1)    # 'class_list' starts at 1
-  expect_equal(tokens[[2]]$position, 11)  # '<' at position 11
-  expect_equal(tokens[[3]]$position, 12)  # 'int' starts at 12
-  expect_equal(tokens[[4]]$position, 15)  # '>' at position 15
+  expect_equal(tokens[[1]]@position, 1)    # 'class_list' starts at 1
+  expect_equal(tokens[[2]]@position, 11)  # '<' at position 11
+  expect_equal(tokens[[3]]@position, 12)  # 'int' starts at 12
+  expect_equal(tokens[[4]]@position, 15)  # '>' at position 15
 })
 
 test_that("lexer rejects invalid characters", {
@@ -98,16 +98,16 @@ test_that("lexer rejects invalid characters", {
 test_that("lexer allows numbers in identifiers", {
   # Identifiers can contain numbers (like R identifiers)
   tokens <- lex_type_syntax("numeric5")
-  expect_equal(tokens[[1]]$type, "IDENTIFIER")
-  expect_equal(tokens[[1]]$value, "numeric5")
+  expect_equal(tokens[[1]]@type, "IDENTIFIER")
+  expect_equal(tokens[[1]]@value, "numeric5")
 
   tokens <- lex_type_syntax("list10")
-  expect_equal(tokens[[1]]$type, "IDENTIFIER")
-  expect_equal(tokens[[1]]$value, "list10")
+  expect_equal(tokens[[1]]@type, "IDENTIFIER")
+  expect_equal(tokens[[1]]@value, "list10")
 
   # This allows custom types like "R6Class2" or "data.frame2"
   tokens <- lex_type_syntax("MyClass123")
-  expect_equal(tokens[[1]]$value, "MyClass123")
+  expect_equal(tokens[[1]]@value, "MyClass123")
 })
 
 test_that("lexer rejects parentheses", {
