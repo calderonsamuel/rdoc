@@ -304,6 +304,57 @@ Follow the [tidyverse style guide](https://style.tidyverse.org):
 - Documentation uses roxygen2 with Markdown
 - User-facing changes go in `NEWS.md`
 
+## Testing Guidelines
+
+### S7 Object Equality Pattern
+
+rdoc uses S7 objects throughout. Tests should leverage S7's built-in equality semantics instead of property-by-property assertions.
+
+**✅ PREFERRED (declarative, complete):**
+```r
+# Token example
+expect_equal(tokens[[1]], token(
+  type = "IDENTIFIER",
+  value = "class_numeric",
+  position = 1L
+))
+
+# call_argument example
+expect_equal(args[[1]], call_argument(
+  node = expected_node,
+  type = "class_double",
+  position = 1L,
+  name = "x"
+))
+
+# function_signature example
+expect_equal(result, function_signature(
+  params = list(x = param_type(type = "class_numeric", description = "input")),
+  return = return_type(type = "class_numeric", description = "output")
+))
+```
+
+**⚠️ USE SPARINGLY (when only checking 1-2 specific fields):**
+```r
+expect_equal(tokens[[1]]@type, "IDENTIFIER")  # Only care about type, not value/position
+```
+
+**Benefits:**
+- **Declarative**: Shows complete expected state at a glance
+- **Robust**: Catches if properties are added/removed/changed
+- **Self-documenting**: Clear what the complete object should be
+- **Better diffs**: testthat shows full object diff on failure
+- **Type-safe**: Can't forget to assert a property
+
+**Real example**: When refactoring test-type-parser.R to use object equality, the tests caught incorrect position values that property-based tests had never checked. This prevented silent bugs in position tracking.
+
+**When to use property assertions:**
+- Checking only type/class of object (e.g., `@type` for EOF tokens where value/position don't matter)
+- Testing one specific field in isolation
+- Objects with complex fields that are hard to construct (e.g., XML nodes)
+
+**Going forward**: All new S7 tests should use object equality by default. Property assertions should be justified with comments.
+
 ## Contributing Workflow
 
 1. Fork and create branch: `usethis::pr_init("brief-description")`

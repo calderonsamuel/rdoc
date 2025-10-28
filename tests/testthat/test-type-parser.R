@@ -1,5 +1,22 @@
 # Test suite for type syntax parser
 # This replaces the regex-based validation with a proper recursive descent parser
+#
+# TESTING PATTERN: S7 Object Equality
+# ------------------------------------
+# rdoc uses S7 objects throughout. Tests should leverage S7's built-in equality
+# semantics instead of property-by-property assertions.
+#
+# ✅ PREFERRED (declarative, complete):
+#   expect_equal(tokens[[1]], token(type = "IDENTIFIER", value = "foo", position = 1L))
+#
+# ⚠️  USE SPARINGLY (when only checking 1-2 specific fields):
+#   expect_equal(tokens[[1]]@type, "IDENTIFIER")
+#
+# Benefits:
+# - Declarative: Shows complete expected state at a glance
+# - Robust: Catches if properties are added/removed
+# - Self-documenting: Clear what the complete object should be
+# - Better diffs: testthat shows full object diff on failure
 
 # =============================================================================
 # LEXER TESTS
@@ -9,47 +26,55 @@ test_that("lexer tokenizes simple identifier", {
   tokens <- lex_type_syntax("class_numeric")
 
   expect_equal(length(tokens), 2)  # identifier + EOF
-  expect_equal(tokens[[1]]@type, "IDENTIFIER")
-  expect_equal(tokens[[1]]@value, "class_numeric")
-  expect_equal(tokens[[1]]@position, 1)
-  expect_equal(tokens[[2]]@type, "EOF")
+  expect_equal(tokens[[1]], token(
+    type = "IDENTIFIER",
+    value = "class_numeric",
+    position = 1L
+  ))
+  expect_equal(tokens[[2]]@type, "EOF")  # Only care about type for EOF
 })
 
 test_that("lexer tokenizes identifier with underscore", {
   tokens <- lex_type_syntax("class_integer")
 
-  expect_equal(tokens[[1]]@type, "IDENTIFIER")
-  expect_equal(tokens[[1]]@value, "class_integer")
+  expect_equal(tokens[[1]], token(
+    type = "IDENTIFIER",
+    value = "class_integer",
+    position = 1L
+  ))
 })
 
 test_that("lexer tokenizes identifier with dots", {
   tokens <- lex_type_syntax("class_data.frame")
 
-  expect_equal(tokens[[1]]@type, "IDENTIFIER")
-  expect_equal(tokens[[1]]@value, "class_data.frame")
+  expect_equal(tokens[[1]], token(
+    type = "IDENTIFIER",
+    value = "class_data.frame",
+    position = 1L
+  ))
 })
 
 test_that("lexer tokenizes number", {
   tokens <- lex_type_syntax("[42]")
 
   expect_equal(tokens[[1]]@type, "LBRACKET")
-  expect_equal(tokens[[2]]@type, "NUMBER")
-  expect_equal(tokens[[2]]@value, "42")
+  expect_equal(tokens[[2]], token(
+    type = "NUMBER",
+    value = "42",
+    position = 2L
+  ))
   expect_equal(tokens[[3]]@type, "RBRACKET")
 })
 
 test_that("lexer tokenizes brackets and angles", {
   tokens <- lex_type_syntax("class_list<int>[5]")
 
-  expect_equal(tokens[[1]]@type, "IDENTIFIER")
-  expect_equal(tokens[[1]]@value, "class_list")
+  expect_equal(tokens[[1]], token(type = "IDENTIFIER", value = "class_list", position = 1L))
   expect_equal(tokens[[2]]@type, "LANGLE")
-  expect_equal(tokens[[3]]@type, "IDENTIFIER")
-  expect_equal(tokens[[3]]@value, "int")
+  expect_equal(tokens[[3]], token(type = "IDENTIFIER", value = "int", position = 12L))
   expect_equal(tokens[[4]]@type, "RANGLE")
   expect_equal(tokens[[5]]@type, "LBRACKET")
-  expect_equal(tokens[[6]]@type, "NUMBER")
-  expect_equal(tokens[[6]]@value, "5")
+  expect_equal(tokens[[6]], token(type = "NUMBER", value = "5", position = 17L))
   expect_equal(tokens[[7]]@type, "RBRACKET")
   expect_equal(tokens[[8]]@type, "EOF")
 })
@@ -58,29 +83,31 @@ test_that("lexer tokenizes pipe", {
   tokens <- lex_type_syntax("int | char")
 
   expect_equal(tokens[[1]]@type, "IDENTIFIER")
-  expect_equal(tokens[[2]]@type, "PIPE")
-  expect_equal(tokens[[2]]@position, 5)  # Position of |
+  expect_equal(tokens[[2]], token(
+    type = "PIPE",
+    value = "|",
+    position = 5L
+  ))
   expect_equal(tokens[[3]]@type, "IDENTIFIER")
 })
 
 test_that("lexer handles whitespace correctly", {
   tokens <- lex_type_syntax("  class_list  <  int  >  ")
 
-  # Whitespace should be skipped
-  expect_equal(tokens[[1]]@type, "IDENTIFIER")
-  expect_equal(tokens[[1]]@value, "class_list")
+  # Whitespace should be skipped (but positions track where tokens would be without whitespace)
+  expect_equal(tokens[[1]], token(type = "IDENTIFIER", value = "class_list", position = 1L))
   expect_equal(tokens[[2]]@type, "LANGLE")
-  expect_equal(tokens[[3]]@type, "IDENTIFIER")
-  expect_equal(tokens[[3]]@value, "int")
+  expect_equal(tokens[[3]], token(type = "IDENTIFIER", value = "int", position = 16L))
 })
 
 test_that("lexer tracks positions accurately", {
   tokens <- lex_type_syntax("class_list<int>")
 
-  expect_equal(tokens[[1]]@position, 1)    # 'class_list' starts at 1
-  expect_equal(tokens[[2]]@position, 11)  # '<' at position 11
-  expect_equal(tokens[[3]]@position, 12)  # 'int' starts at 12
-  expect_equal(tokens[[4]]@position, 15)  # '>' at position 15
+  # Check positions for all tokens
+  expect_equal(tokens[[1]]@position, 1L)    # 'class_list' starts at 1
+  expect_equal(tokens[[2]]@position, 11L)   # '<' at position 11
+  expect_equal(tokens[[3]]@position, 12L)   # 'int' starts at 12
+  expect_equal(tokens[[4]]@position, 15L)   # '>' at position 15
 })
 
 test_that("lexer rejects invalid characters", {
@@ -98,16 +125,14 @@ test_that("lexer rejects invalid characters", {
 test_that("lexer allows numbers in identifiers", {
   # Identifiers can contain numbers (like R identifiers)
   tokens <- lex_type_syntax("numeric5")
-  expect_equal(tokens[[1]]@type, "IDENTIFIER")
-  expect_equal(tokens[[1]]@value, "numeric5")
+  expect_equal(tokens[[1]], token(type = "IDENTIFIER", value = "numeric5", position = 1L))
 
   tokens <- lex_type_syntax("list10")
-  expect_equal(tokens[[1]]@type, "IDENTIFIER")
-  expect_equal(tokens[[1]]@value, "list10")
+  expect_equal(tokens[[1]], token(type = "IDENTIFIER", value = "list10", position = 1L))
 
   # This allows custom types like "R6Class2" or "data.frame2"
   tokens <- lex_type_syntax("MyClass123")
-  expect_equal(tokens[[1]]@value, "MyClass123")
+  expect_equal(tokens[[1]], token(type = "IDENTIFIER", value = "MyClass123", position = 1L))
 })
 
 test_that("lexer rejects parentheses", {
