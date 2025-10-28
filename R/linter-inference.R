@@ -218,12 +218,12 @@ infer_argument_type <- function(arg_node, var_context = NULL, current_line = NUL
       if (var_name %in% names(var_context)) {
         # Find the most recent assignment before current_line
         assignments <- var_context[[var_name]]
-        valid_assignments <- Filter(function(a) a$line < current_line, assignments)
+        valid_assignments <- Filter(function(a) a@line < current_line, assignments)
 
         if (length(valid_assignments) > 0) {
           # Get the most recent one (highest line number)
           most_recent <- valid_assignments[[length(valid_assignments)]]
-          return(most_recent$type)
+          return(most_recent@type)
         }
       }
     }
@@ -314,7 +314,7 @@ extract_arguments <- function(call_node, var_context = NULL, current_line = NULL
 #' Extract variable assignments from XML AST
 #'
 #' @param xml XML parsed content
-#' @return List of assignments with variable names, line numbers, and value nodes
+#' @return Named list mapping variable names to lists of variable_assignment S7 objects
 #' @keywords internal
 extract_variable_assignments <- function(xml) {
   assignments <- list()
@@ -342,8 +342,9 @@ extract_variable_assignments <- function(xml) {
       assignments[[var_name]] <- list()
     }
 
-    assignments[[var_name]][[length(assignments[[var_name]]) + 1]] <- list(
+    assignments[[var_name]][[length(assignments[[var_name]]) + 1]] <- variable_assignment(
       line = line,
+      type = "unknown",  # Type will be inferred later
       value_node = value_node
     )
   }

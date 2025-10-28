@@ -154,16 +154,17 @@ type_consistency_linter <- function(mode = c("lenient", "exported", "strict")) {
     for (var_name in names(assignments)) {
       for (assignment in assignments[[var_name]]) {
         # Infer type from the assigned value, passing type registry for function returns
-        inferred_type <- infer_argument_type(assignment$value_node, NULL, NULL, all_types)
+        inferred_type <- infer_argument_type(assignment@value_node, NULL, NULL, all_types)
 
-        # Store in cache
+        # Store in cache with inferred type
         if (!var_name %in% names(cache$variables)) {
           cache$variables[[var_name]] <- list()
         }
 
-        cache$variables[[var_name]][[length(cache$variables[[var_name]]) + 1]] <- list(
-          line = assignment$line,
-          type = inferred_type
+        cache$variables[[var_name]][[length(cache$variables[[var_name]]) + 1]] <- variable_assignment(
+          line = assignment@line,
+          type = inferred_type,
+          value_node = NULL  # Node no longer needed after inference
         )
       }
     }

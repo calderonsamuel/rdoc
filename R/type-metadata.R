@@ -91,6 +91,46 @@ token <- S7::new_class(
   }
 )
 
+#' Variable Assignment Information
+#'
+#' Represents a variable assignment detected during static analysis.
+#' Used to track variable types across the file for type inference.
+#'
+#' This class serves two purposes in the linting pipeline:
+#' 1. **During extraction**: Stores assignment location and the XML node to analyze later
+#' 2. **During caching**: Stores assignment location and the inferred type for lookup
+#'
+#' The `value_node` field is optional because:
+#' - Present during extraction (needs to be analyzed)
+#' - NULL during caching (type already inferred, node no longer needed)
+#'
+#' @field line Integer line number where assignment occurs (1-indexed)
+#' @field type Character string with inferred type (e.g., "class_integer", "unknown")
+#' @field value_node Optional XML node representing the assigned value expression
+#' @keywords internal
+variable_assignment <- S7::new_class(
+  "variable_assignment",
+  properties = list(
+    line = S7::class_integer,
+    type = S7::class_character,
+    value_node = xml_node | NULL
+  ),
+  validator = function(self) {
+    if (length(self@line) != 1) {
+      return("@line must be a scalar integer")
+    }
+    if (self@line < 1) {
+      return(sprintf("@line must be positive (got %d)", self@line))
+    }
+
+    if (length(self@type) != 1) {
+      return("@type must be a scalar character")
+    }
+
+    NULL
+  }
+)
+
 #' Parameter Type Information
 #'
 #' Represents type information for a single function parameter.

@@ -256,8 +256,8 @@ test_that("infer_argument_type infers arithmetic operations correctly", {
   # Test 2: Variable + Variable (with context)
   # Build variable context: a is double, b is double
   var_context <- list(
-    a = list(list(line = 1, type = "class_double")),
-    b = list(list(line = 2, type = "class_double"))
+    a = list(variable_assignment(line = 1L, type = "class_double", value_node = NULL)),
+    b = list(variable_assignment(line = 2L, type = "class_double", value_node = NULL))
   )
 
   code <- "a + b"
@@ -268,8 +268,8 @@ test_that("infer_argument_type infers arithmetic operations correctly", {
 
   # a is integer, b is integer
   var_context <- list(
-    a = list(list(line = 1, type = "class_integer")),
-    b = list(list(line = 2, type = "class_integer"))
+    a = list(variable_assignment(line = 1L, type = "class_integer", value_node = NULL)),
+    b = list(variable_assignment(line = 2L, type = "class_integer", value_node = NULL))
   )
 
   code <- "a + b"
@@ -280,8 +280,8 @@ test_that("infer_argument_type infers arithmetic operations correctly", {
 
   # a is integer, b is double (mixed)
   var_context <- list(
-    a = list(list(line = 1, type = "class_integer")),
-    b = list(list(line = 2, type = "class_double"))
+    a = list(variable_assignment(line = 1L, type = "class_integer", value_node = NULL)),
+    b = list(variable_assignment(line = 2L, type = "class_double", value_node = NULL))
   )
 
   code <- "a + b"
@@ -356,10 +356,10 @@ test_that("infer_argument_type handles chained arithmetic operations", {
 
   # Test 6: Chained variables with context
   var_context <- list(
-    a = list(list(line = 1, type = "class_double")),
-    b = list(list(line = 2, type = "class_double")),
-    c = list(list(line = 3, type = "class_double")),
-    d = list(list(line = 4, type = "class_double"))
+    a = list(variable_assignment(line = 1L, type = "class_double", value_node = NULL)),
+    b = list(variable_assignment(line = 2L, type = "class_double", value_node = NULL)),
+    c = list(variable_assignment(line = 3L, type = "class_double", value_node = NULL)),
+    d = list(variable_assignment(line = 4L, type = "class_double", value_node = NULL))
   )
 
   code <- "a + b + c + d"
@@ -370,9 +370,9 @@ test_that("infer_argument_type handles chained arithmetic operations", {
 
   # Test 7: Mixed variable types
   var_context <- list(
-    x = list(list(line = 1, type = "class_integer")),
-    y = list(list(line = 2, type = "class_integer")),
-    z = list(list(line = 3, type = "class_double"))
+    x = list(variable_assignment(line = 1L, type = "class_integer", value_node = NULL)),
+    y = list(variable_assignment(line = 2L, type = "class_integer", value_node = NULL)),
+    z = list(variable_assignment(line = 3L, type = "class_double", value_node = NULL))
   )
 
   code <- "x + y + z"
@@ -383,7 +383,7 @@ test_that("infer_argument_type handles chained arithmetic operations", {
 
   # Test 8: Variables and literals mixed
   var_context <- list(
-    a = list(list(line = 1, type = "class_integer"))
+    a = list(variable_assignment(line = 1L, type = "class_integer", value_node = NULL))
   )
 
   code <- "a + 2L + 3L"
