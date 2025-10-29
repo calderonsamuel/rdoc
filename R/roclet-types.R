@@ -73,10 +73,53 @@ roclet_output.roclet_types <- function(x, results, base_path, ..., is_first = TR
     dir.create(inst_dir, recursive = TRUE)
   }
 
+  # Wrap function signatures in exported_function objects
+  exports <- list()
+  for (fn_name in names(results)) {
+    exports[[fn_name]] <- exported_function(
+      name = fn_name,
+      export_type = "function",
+      signature = results[[fn_name]]
+    )
+  }
+
+  # Extract package info from DESCRIPTION
+  desc_file <- file.path(base_path, "DESCRIPTION")
+  package_name <- "unknown"
+  package_version <- "0.0.0"
+
+  if (file.exists(desc_file)) {
+    desc_lines <- readLines(desc_file, warn = FALSE)
+
+    # Extract Package field
+    pkg_line <- grep("^Package:", desc_lines, value = TRUE)
+    if (length(pkg_line) > 0) {
+      package_name <- sub("^Package:\\s*", "", pkg_line[1])
+    }
+
+    # Extract Version field
+    ver_line <- grep("^Version:", desc_lines, value = TRUE)
+    if (length(ver_line) > 0) {
+      package_version <- sub("^Version:\\s*", "", ver_line[1])
+    }
+  }
+
+  # Create type_metadata container
+  metadata <- type_metadata(
+    format_version = 1L,
+    rdoc_version = as.character(utils::packageVersion("rdoc")),
+    generated_at = Sys.time(),
+    package_info = list(
+      name = package_name,
+      version = package_version
+    ),
+    exports = exports
+  )
+
   # Write types to RDS file
   # S7 objects serialize perfectly with saveRDS
   types_file <- file.path(inst_dir, "types.rds")
-  saveRDS(results, types_file, version = 2)
+  saveRDS(metadata, types_file, version = 2)
 
   cli::cli_alert_success("Generated type metadata for {length(results)} function{?s}")
 

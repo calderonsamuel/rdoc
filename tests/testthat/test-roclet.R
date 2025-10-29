@@ -115,15 +115,22 @@ test_that("roclet_process extracts types from blocks", {
 })
 
 test_that("roclet_output creates inst/types.rds", {
+  # Create function_signature (what roclet_process returns)
   results <- list(
-    my_func = list(
+    my_func = function_signature(
       params = list(
-        x = list(type = "class_numeric", description = "input")
-      )
+        x = param_type(type = "class_numeric", description = "input")
+      ),
+      return = NULL
     )
   )
 
   temp_dir <- withr::local_tempdir()
+
+  # Create DESCRIPTION file so roclet can extract package info
+  desc_file <- file.path(temp_dir, "DESCRIPTION")
+  writeLines(c("Package: testpkg", "Version: 1.0.0"), desc_file)
+
   roclet <- roclet_types()
 
   output_file <- roclet_output.roclet_types(roclet, results, temp_dir)
@@ -131,9 +138,25 @@ test_that("roclet_output creates inst/types.rds", {
   expect_true(file.exists(output_file))
   expect_equal(basename(output_file), "types.rds")
 
-  # Verify contents
+  # Verify contents - should be type_metadata container
   saved_data <- readRDS(output_file)
-  expect_equal(saved_data, results)
+
+  expect_s7_class(saved_data, type_metadata)
+  expect_equal(saved_data@format_version, 1L)
+  expect_equal(saved_data@package_info$name, "testpkg")
+  expect_equal(saved_data@package_info$version, "1.0.0")
+
+  # Verify exports
+  expect_length(saved_data@exports, 1)
+  expect_equal(names(saved_data@exports), "my_func")
+
+  # Verify exported_function wrapping
+  expect_s7_class(saved_data@exports$my_func, exported_function)
+  expect_equal(saved_data@exports$my_func@name, "my_func")
+  expect_equal(saved_data@exports$my_func@export_type, "function")
+
+  # Verify signature was preserved
+  expect_equal(saved_data@exports$my_func@signature@params$x@type, "class_numeric")
 })
 
 test_that("roclet_output returns empty if no results", {

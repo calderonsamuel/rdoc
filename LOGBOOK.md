@@ -4,7 +4,7 @@
 
 **Audience**: Blog post readers, case study researchers, future contributors
 
-**Last Updated**: 2025-10-28 13:35:00 UTC (Phase 33)
+**Last Updated**: 2025-10-29 03:30:00 UTC (Phase 34)
 
 ---
 
@@ -1633,6 +1633,88 @@ The discussion revealed that great naming comes from:
 
 ---
 
+## Phase 34: types.rds Redesign - Versioned Export Metadata
+
+**Date**: 2025-10-29 03:30:00 UTC
+**Status**: 📋 Design Phase (Implementation Pending)
+
+### Design Decision: Versioned Container with Export Type Hierarchy
+
+**Problem**: Current types.rds format lacks future-proofing:
+- No format versioning (can't evolve without breaking changes)
+- No package metadata (can't debug or trace issues)
+- Only stores functions (R packages also export classes, data objects)
+- Plain list structure (no extensibility path)
+
+**Solution**: Create comprehensive export metadata format with three-level structure:
+
+1. **Container**: `type_metadata` - Top-level wrapper with versioning and package info
+2. **Export hierarchy**: `exported_item` base class with subclasses:
+   - `exported_function` - Function signatures (current functionality)
+   - `exported_class` - Class constructors and properties (Phase B)
+   - `exported_data` - Data objects with types (Phase C)
+3. **Incremental phases**: Add container first (Phase A), then extend with classes/data
+
+**Rationale**:
+
+**Why versioned container:**
+- Enables format evolution without breaking old readers
+- Stores rdoc version, timestamp, package info for debugging
+- Self-documenting structure (format_version field)
+- Migration path for future changes (v1 → v2 conversion logic)
+
+**Why export hierarchy:**
+- R packages export more than functions (classes, data, constants)
+- S7 classes need both constructor signature and property types
+- Data objects can be typed via @typedReturn
+- Single namespace mirrors R's actual export model
+
+**Why incremental phases:**
+- Phase A (immediate): Just add container, no new functionality
+- Phase B (later): Add S7 class extraction
+- Phase C (later): Add data object typing
+- Reduces risk, validates design at each step
+
+**Seven Key Design Decisions**:
+
+1. **File separation**: Keep `type-metadata.R` (internal) and `type-exports.R` (serialization) separate
+2. **Type storage**: Convert S7 property types to strings for consistency
+3. **Scope**: Only typed exports in types.rds, linter enforces completeness
+4. **Redundancy**: Keep both S7 class type and string export_type field for stability
+5. **Re-exports**: Exclude from types.rds (get types from origin package)
+6. **Phase A scope**: Only add container, no class/data support yet
+7. **Constructor vs properties**: Constructors from @typedParam tags, properties auto-extracted from S7::new_class()
+
+**Key Insight**: S7 classes ARE their constructors, so they're documented as functions with @typedParam/@typedReturn. This means constructor signatures come from existing roclet logic (no auto-generation needed), while properties are auto-extracted from class definitions. Both serve different validation purposes: constructor signature validates instantiation calls, properties validate property access.
+
+**Format Evolution Strategy**: Format v1 stores types as strings (current approach). Future format v2 could store parsed AST instead, with migration logic converting strings to AST at load time. Versioning enables this kind of breaking change without ecosystem disruption.
+
+**What This Enables**:
+
+**Immediate (Phase A - container only):**
+- Format versioning for future evolution
+- Package metadata for debugging (rdoc version, timestamp)
+- Migration path for breaking changes
+- Self-documenting serialization format
+
+**Near-term (Phase B - S7 classes):**
+- Type check class instantiation: `Person(name = "Alice", age = 30)`
+- Validate property access: `person@name`
+- Ensure property types match class definitions
+- Catch class-related type errors at lint time
+
+**Long-term (Phase C - data objects):**
+- Type data object usage: `iris` is `data.frame[150,5]`
+- Validate column access and operations
+- Document dataset types explicitly
+- Complete coverage of package exports (functions + classes + data)
+
+**No Backward Compatibility Needed**: Since rdoc hasn't released yet, we can redesign types.rds format cleanly without migration burden from v0 (plain list) to v1 (versioned container).
+
+**Related Documentation**: See PHASE_34_TYPES_RDS_REDESIGN.md for complete design decisions and implementation plan.
+
+---
+
 ## Cross-Cutting Insights
 
 ### 1. Leverage Existing Infrastructure
@@ -1873,7 +1955,7 @@ Both TypeScript and Python:
 ## Document Metadata
 
 **Created**: January 2025
-**Last Updated**: 2025-10-28 13:35:00 UTC (Phase 33)
-**Total Phases Documented**: 25 major phases
+**Last Updated**: 2025-10-29 03:30:00 UTC (Phase 34)
+**Total Phases Documented**: 26 major phases
 **Maintained By**: rdoc contributors
 **Purpose**: Technical reference for understanding rdoc's evolution

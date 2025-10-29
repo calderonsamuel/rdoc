@@ -26,3 +26,23 @@ Roxygen: list(markdown = TRUE, roclets = c("collate", "rd", "namespace", "rdoc::
 RoxygenNote: 7.3.3
 URL: https://github.com/calderonsamuel/rdoc, https://calderonsamuel.github.io/rdoc/
 BugReports: https://github.com/calderonsamuel/rdoc/issues
+Collate: 
+    'linter-box.R'
+    'linter-check.R'
+    'linter-extract.R'
+    'linter-inference.R'
+    'linter-validate.R'
+    'linter.R'
+    'parse-types.R'
+    'rdoc-package.R'
+    'roclet-types.R'
+    's7-types.R'
+    'tags.R'
+    'type-ast.R'
+    'type-constraints.R'
+    'type-metadata.R'
+    'type-exports.R'
+    'type-lexer.R'
+    'type-parser.R'
+    'type-syntax-validator.R'
+    'zzz.R'

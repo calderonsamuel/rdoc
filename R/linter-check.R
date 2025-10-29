@@ -341,10 +341,26 @@ load_package_types <- function(packages) {
     if (file.exists(types_file)) {
       pkg_types <- readRDS(types_file)
 
-      # Prefix function names with package name to avoid conflicts
-      # types.rds contains S7 FunctionSignature objects directly
-      for (fn_name in names(pkg_types)) {
-        all_types[[paste0(pkg, "::", fn_name)]] <- pkg_types[[fn_name]]
+      # Detect format: type_metadata container (v1+) or plain list (v0)
+      if (S7::S7_inherits(pkg_types, type_metadata)) {
+        # New format (v1+): Extract function exports
+        # Filter for exported_function objects and unwrap signatures
+        for (export_name in names(pkg_types@exports)) {
+          export <- pkg_types@exports[[export_name]]
+
+          # Phase A only handles functions
+          # Phase B will add exported_class, Phase C will add exported_data
+          if (S7::S7_inherits(export, exported_function)) {
+            # Unwrap: exported_function -> function_signature
+            all_types[[paste0(pkg, "::", export_name)]] <- export@signature
+          }
+        }
+      } else {
+        # Old format (v0): Plain list of function_signature objects
+        # (Pre-Phase 34 compatibility, will be removed after ecosystem migration)
+        for (fn_name in names(pkg_types)) {
+          all_types[[paste0(pkg, "::", fn_name)]] <- pkg_types[[fn_name]]
+        }
       }
     }
   }
