@@ -14,3 +14,4 @@ param_type(type = character(0), description = character(0))
 \description{
 Represents type information for a single function parameter.
 }
+\keyword{internal}

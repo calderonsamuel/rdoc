@@ -15,3 +15,4 @@ function_signature(params = list(), return = NULL)
 Complete type signature for a function, including all parameters
 and the return type.
 }
+\keyword{internal}

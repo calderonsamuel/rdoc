@@ -14,3 +14,4 @@ return_type(type = character(0), description = character(0))
 \description{
 Represents type information for a function's return value.
 }
+\keyword{internal}

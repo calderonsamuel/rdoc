@@ -154,7 +154,7 @@ variable_assignment <- S7::new_class(
 #'
 #' @param type Character string with the type specification (e.g., "numeric[1]")
 #' @param description Character string describing the parameter
-#' @export
+#' @keywords internal
 param_type <- S7::new_class(
   "param_type",
   properties = list(
@@ -176,7 +176,7 @@ param_type <- S7::new_class(
 #'
 #' @param type Character string with the type specification
 #' @param description Character string describing the return value
-#' @export
+#' @keywords internal
 return_type <- S7::new_class(
   "return_type",
   properties = list(
@@ -199,7 +199,7 @@ return_type <- S7::new_class(
 #'
 #' @param params Named list of param_type objects (names are parameter names)
 #' @param return return_type object or NULL if no return type specified
-#' @export
+#' @keywords internal
 function_signature <- S7::new_class(
   "function_signature",
   properties = list(
@@ -290,7 +290,6 @@ call_argument <- S7::new_class(
 #' @field import_mechanism Character: "library", "require", or "box"
 #' @field line Integer: Source line number where import occurs
 #' @keywords internal
-#' @export
 namespace_import <- S7::new_class(
   "namespace_import",
   properties = list(
