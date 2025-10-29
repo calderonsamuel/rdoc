@@ -44,6 +44,7 @@
 <div class="section level2">
 <h2 id="project-overview">Project Overview<a class="anchor" aria-label="anchor" href="#project-overview"></a></h2>
 <p><strong>rdoc</strong> enables static type checking for R functions using JSDoc-style annotations, similar to TypeScript. Type annotations use S7 as the foundation - S7 class objects are the source of truth, not type strings.</p>
+<p>This project is still in development, not even reaching public beta. There is no stable internal implementation yet. No refactoring needs to consider backward compatibility.</p>
 <div class="section level3">
 <h3 id="goal">Goal<a class="anchor" aria-label="anchor" href="#goal"></a></h3>
 <p>Provide type annotations for R functions that IDEs (especially VSCode) can use to lint code and catch type errors before runtime.</p>
@@ -175,6 +176,14 @@
 <p><strong>S3 methods (5):</strong> Required by roxygen2/lintr infrastructure - <code>roxy_tag_parse.roxy_tag_typedParam</code> - <code>roxy_tag_parse.roxy_tag_typedReturn</code> - <code>roclet_process.roclet_types</code> - <code>roclet_output.roclet_types</code> - <code>roclet_tags.roclet_types</code></p>
 <p>Internal utilities accessible via <code>:::</code> but not part of public API.</p>
 </div>
+<div class="section level3">
+<h3 id="r6-usage">R6 Usage<a class="anchor" aria-label="anchor" href="#r6-usage"></a></h3>
+<p>rdoc uses R6 internally for stateful objects (e.g., ParserState) while using S7 for data structures. R6 provides the right semantics for mutable state machines.</p>
+<p><strong>Architecture</strong>: Hybrid R6+S7 design - <strong>S7 for data</strong>: Immutable value types (token, call_argument, variable_assignment, function_signature, AST nodes) - <strong>R6 for state machines</strong>: Mutable objects that manage internal state (ParserState, future: LinterFileCache) - <strong>Type-safe boundaries</strong>: R6 constructors validate S7 inputs, R6 methods return S7 outputs</p>
+<p><strong>Why this hybrid?</strong> - S7 excels at immutable data structures with value semantics - R6 excels at mutable state machines with reference semantics - Forcing S7 onto mutable state creates awkward designs (performance overhead, complexity) - Using the right tool for each problem is more important than architectural purity</p>
+<p><strong>Example</strong> (ParserState): - Stores list of S7 <code>token</code> objects - Mutates position during parsing (advance() called 15-20 times) - Returns S7 tokens from current() method - Validates S7 inputs on construction, provides bounds checking</p>
+<p><strong>Future</strong>: R6 method typing support planned for 2.0, pending user demand. Current focus is typing regular R functions (95% of use cases).</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="test-coverage">Test Coverage<a class="anchor" aria-label="anchor" href="#test-coverage"></a></h2>
@@ -254,6 +263,42 @@
 <p>Follow the <a href="https://style.tidyverse.org" class="external-link">tidyverse style guide</a>: - Use styler package for formatting - Only restyle code relevant to your changes - Documentation uses roxygen2 with Markdown - User-facing changes go in <code>NEWS.md</code></p>
 </div>
 <div class="section level2">
+<h2 id="testing-guidelines">Testing Guidelines<a class="anchor" aria-label="anchor" href="#testing-guidelines"></a></h2>
+<div class="section level3">
+<h3 id="s7-object-equality-pattern">S7 Object Equality Pattern<a class="anchor" aria-label="anchor" href="#s7-object-equality-pattern"></a></h3>
+<p>rdoc uses S7 objects throughout. Tests should leverage S7’s built-in equality semantics instead of property-by-property assertions.</p>
+<p><strong>✅ PREFERRED (declarative, complete):</strong></p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Token example</span></span>
+<span><span class="fu">expect_equal</span><span class="op">(</span><span class="va">tokens</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="fu"><a href="reference/token.html">token</a></span><span class="op">(</span></span>
+<span>  type <span class="op">=</span> <span class="st">"IDENTIFIER"</span>,</span>
+<span>  value <span class="op">=</span> <span class="st">"class_numeric"</span>,</span>
+<span>  position <span class="op">=</span> <span class="fl">1L</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># call_argument example</span></span>
+<span><span class="fu">expect_equal</span><span class="op">(</span><span class="va">args</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="fu"><a href="reference/call_argument.html">call_argument</a></span><span class="op">(</span></span>
+<span>  node <span class="op">=</span> <span class="va">expected_node</span>,</span>
+<span>  type <span class="op">=</span> <span class="st">"class_double"</span>,</span>
+<span>  position <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>  name <span class="op">=</span> <span class="st">"x"</span></span>
+<span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># function_signature example</span></span>
+<span><span class="fu">expect_equal</span><span class="op">(</span><span class="va">result</span>, <span class="fu"><a href="reference/function_signature.html">function_signature</a></span><span class="op">(</span></span>
+<span>  params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="reference/param_type.html">param_type</a></span><span class="op">(</span>type <span class="op">=</span> <span class="st">"class_numeric"</span>, description <span class="op">=</span> <span class="st">"input"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  return <span class="op">=</span> <span class="fu"><a href="reference/return_type.html">return_type</a></span><span class="op">(</span>type <span class="op">=</span> <span class="st">"class_numeric"</span>, description <span class="op">=</span> <span class="st">"output"</span><span class="op">)</span></span>
+<span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><strong>⚠️ USE SPARINGLY (when only checking 1-2 specific fields):</strong></p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">expect_equal</span><span class="op">(</span><span class="va">tokens</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">@</span><span class="va">type</span>, <span class="st">"IDENTIFIER"</span><span class="op">)</span>  <span class="co"># Only care about type, not value/position</span></span></code></pre></div>
+<p><strong>Benefits:</strong> - <strong>Declarative</strong>: Shows complete expected state at a glance - <strong>Robust</strong>: Catches if properties are added/removed/changed - <strong>Self-documenting</strong>: Clear what the complete object should be - <strong>Better diffs</strong>: testthat shows full object diff on failure - <strong>Type-safe</strong>: Can’t forget to assert a property</p>
+<p><strong>Real example</strong>: When refactoring test-type-parser.R to use object equality, the tests caught incorrect position values that property-based tests had never checked. This prevented silent bugs in position tracking.</p>
+<p><strong>When to use property assertions:</strong> - Checking only type/class of object (e.g., <code>@type</code> for EOF tokens where value/position don’t matter) - Testing one specific field in isolation - Objects with complex fields that are hard to construct (e.g., XML nodes)</p>
+<p><strong>Going forward</strong>: All new S7 tests should use object equality by default. Property assertions should be justified with comments.</p>
+</div>
+</div>
+<div class="section level2">
 <h2 id="contributing-workflow">Contributing Workflow<a class="anchor" aria-label="anchor" href="#contributing-workflow"></a></h2>
 <ol style="list-style-type: decimal"><li>Fork and create branch: <code>usethis::pr_init("brief-description")</code>
 </li>
@@ -280,25 +325,25 @@
 <p><strong>Purpose</strong>: Technical reference documenting key learnings, design decisions, and insights from each implementation phase.</p>
 <p><strong>When to update</strong>: After completing ANY new implementation phase, add an entry to LOGBOOK.md.</p>
 <p><strong>Entry template</strong>:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">## Phase X: [Feature Name]</span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a></span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>**Date**: Timestamp in UTC</span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>**Status**: ✅ Complete (<span class="co">[</span><span class="ot">N</span><span class="co">]</span> tests passing)</span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a></span>
-<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="fu">### Design Decision: [Key Decision Made]</span></span>
-<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a></span>
-<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>**Problem**: <span class="co">[</span><span class="ot">What problem were we solving?</span><span class="co">]</span></span>
-<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a></span>
-<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>**Solution**: <span class="co">[</span><span class="ot">What approach did we take?</span><span class="co">]</span></span>
-<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a></span>
-<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>**Rationale**:</span>
-<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">Why this approach?</span><span class="co">]</span></span>
-<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What alternatives were considered?</span><span class="co">]</span></span>
-<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What tradeoffs were made?</span><span class="co">]</span></span>
-<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a></span>
-<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a>**Key Insight**: <span class="co">[</span><span class="ot">Main lesson learned - 1-2 sentences</span><span class="co">]</span></span>
-<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a></span>
-<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a>**What This Enabled**: <span class="co">[</span><span class="ot">What can users now do that they couldn't before?</span><span class="co">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">## Phase X: [Feature Name]</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>**Date**: Timestamp in UTC</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>**Status**: ✅ Complete (<span class="co">[</span><span class="ot">N</span><span class="co">]</span> tests passing)</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="fu">### Design Decision: [Key Decision Made]</span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a></span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>**Problem**: <span class="co">[</span><span class="ot">What problem were we solving?</span><span class="co">]</span></span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>**Solution**: <span class="co">[</span><span class="ot">What approach did we take?</span><span class="co">]</span></span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a>**Rationale**:</span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">Why this approach?</span><span class="co">]</span></span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What alternatives were considered?</span><span class="co">]</span></span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What tradeoffs were made?</span><span class="co">]</span></span>
+<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a></span>
+<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a>**Key Insight**: <span class="co">[</span><span class="ot">Main lesson learned - 1-2 sentences</span><span class="co">]</span></span>
+<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a></span>
+<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a>**What This Enabled**: <span class="co">[</span><span class="ot">What can users now do that they couldn't before?</span><span class="co">]</span></span></code></pre></div>
 <p><strong>Current coverage</strong>: 16 phases documented (Phases 1, 4, 5, 6.5, 7, 7.2, 10, 11, 12.1, 12.5, 13.4, 14, 15.5, 21, 22, 23, 24.1)</p>
 <p><strong>Audience</strong>: Blog posts, case studies, future contributors, technical retrospectives</p>
 </div>

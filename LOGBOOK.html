@@ -36,7 +36,7 @@
 
 <p><strong>Purpose</strong>: This living document records key learnings, design decisions, and technical insights from each implementation phase. It serves as a reference for understanding how rdoc evolved and why certain architectural choices were made.</p>
 <p><strong>Audience</strong>: Blog post readers, case study researchers, future contributors</p>
-<p><strong>Last Updated</strong>: 2025-10-09 17:30:26 UTC (Phase 28)</p>
+<p><strong>Last Updated</strong>: 2025-10-29 03:30:00 UTC (Phase 34)</p>
 <hr><div class="section level2">
 <h2 id="phase-1-custom-roxygen2-tags">Phase 1: Custom Roxygen2 Tags<a class="anchor" aria-label="anchor" href="#phase-1-custom-roxygen2-tags"></a></h2>
 <p><strong>Date</strong>: Early 2024 <strong>Effort</strong>: 2-3 days <strong>Status</strong>: ✅ Complete (25 tests passing)</p>
@@ -646,6 +646,408 @@ but got 'class_integer | class_double'  ❌ WRONG - actual is a union!</code></p
 <hr></div>
 </div>
 <div class="section level2">
+<h2 id="phase-29-call-arguments-s7-formalization">Phase 29: Call Arguments S7 Formalization<a class="anchor" aria-label="anchor" href="#phase-29-call-arguments-s7-formalization"></a></h2>
+<p><strong>Date</strong>: 2025-10-28 03:00:00 UTC <strong>Effort</strong>: 90 minutes <strong>Status</strong>: ✅ Complete (1084 tests passing)</p>
+<div class="section level3">
+<h3 id="design-decision-s7-objects-for-all-structured-data">Design Decision: S7 Objects for All Structured Data<a class="anchor" aria-label="anchor" href="#design-decision-s7-objects-for-all-structured-data"></a></h3>
+<p><strong>Problem</strong>: Function call arguments stored as plain lists <code>list(node = ..., type = ..., position = ..., name = ...)</code> throughout the linter pipeline. No validation, easy to make mistakes (typos in field names, wrong types).</p>
+<p><strong>Solution</strong>: Created <code>call_argument</code> S7 class with validated properties and updated all construction/access sites.</p>
+<p><strong>Rationale</strong>: - <strong>Type safety</strong>: S7 validates at construction time (position must be positive integer) - <strong>Self-documenting</strong>: Class definition documents expected structure - <strong>Better errors</strong>: <code>arg@tpye</code> → “Did you mean <code>arg@type</code>?” vs silent NULL with <code>$</code> - <strong>Consistency</strong>: Matches pattern from existing <code>param_type</code>/<code>function_signature</code> classes - <strong>Dogfooding</strong>: rdoc practices what it preaches (S7 everywhere)</p>
+<p><strong>Implementation</strong>:</p>
+<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">call_argument</span> <span class="op">&lt;-</span> <span class="fu">S7</span><span class="fu">::</span><span class="fu"><a href="https://rconsortium.github.io/S7/reference/new_class.html" class="external-link">new_class</a></span><span class="op">(</span></span>
+<span>  <span class="st">"call_argument"</span>,</span>
+<span>  properties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    node <span class="op">=</span> <span class="va">xml_node</span>,                  <span class="co"># Reusable S7 wrapper for xml2::xml_node</span></span>
+<span>    type <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_character</a></span>,</span>
+<span>    position <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_integer</a></span>,</span>
+<span>    name <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_character</a></span> <span class="op">|</span> <span class="cn">NULL</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  validator <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">self</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="va">self</span><span class="op">@</span><span class="va">position</span> <span class="op">&lt;</span> <span class="fl">1</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">"@position must be positive"</span><span class="op">)</span></span>
+<span>    <span class="co"># ... additional validation</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><strong>Changes</strong>: - Created <code>xml_node</code> S7 wrapper for reuse across package - Updated <code><a href="reference/extract_arguments.html">extract_arguments()</a></code> to construct S7 objects (2 sites) - Updated <code><a href="reference/check_arguments.html">check_arguments()</a></code> to use <code>@</code> accessor (6 sites) - Updated tests to use <code>@</code> accessor (8 assertions)</p>
+<p><strong>Key Insight</strong>: Reusable type wrappers (<code>xml_node</code>) pay dividends. Created once, used in multiple S7 classes (<code>call_argument</code>, later <code>variable_assignment</code>). Stronger typing than <code>class_any</code> but still flexible.</p>
+<p><strong>What This Enabled</strong>: - 14 validation points that catch bugs at construction time - Clear error messages guide developers to correct usage - Foundation for formalizing other structured data (tokens, assignments, etc.)</p>
+<hr></div>
+</div>
+<div class="section level2">
+<h2 id="phase-30-lexer-tokens-s7-formalization">Phase 30: Lexer Tokens S7 Formalization<a class="anchor" aria-label="anchor" href="#phase-30-lexer-tokens-s7-formalization"></a></h2>
+<p><strong>Date</strong>: 2025-10-28 03:30:00 UTC <strong>Effort</strong>: 90 minutes <strong>Status</strong>: ✅ Complete (1084 tests passing)</p>
+<div class="section level3">
+<h3 id="design-decision-enum-validated-token-types">Design Decision: Enum-Validated Token Types<a class="anchor" aria-label="anchor" href="#design-decision-enum-validated-token-types"></a></h3>
+<p><strong>Problem</strong>: Lexer produced plain lists <code>list(type = "IDENTIFIER", value = "class_integer", position = 15)</code>. Parser consumed these tokens across 53+ access sites. No validation of token type strings, easy to introduce bugs via typos.</p>
+<p><strong>Solution</strong>: Created <code>token</code> S7 class with enum validation for token type, updated lexer (9 construction sites), parser (53 access sites), and tests (58 assertions).</p>
+<p><strong>Rationale</strong>: - <strong>Enum validation</strong>: Only 9 valid token types (IDENTIFIER, LANGLE, RANGLE, LBRACKET, RBRACKET, PIPE, DOUBLE_COLON, NUMBER, EOF) - <strong>Position validation</strong>: Must be &gt;= 1 (catches off-by-one errors) - <strong>Foundational</strong>: Tokens are input to parser - getting them right prevents cascading bugs - <strong>Educational errors</strong>: Clear validation messages when invalid token constructed</p>
+<p><strong>Implementation</strong>:</p>
+<div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">token</span> <span class="op">&lt;-</span> <span class="fu">S7</span><span class="fu">::</span><span class="fu"><a href="https://rconsortium.github.io/S7/reference/new_class.html" class="external-link">new_class</a></span><span class="op">(</span></span>
+<span>  <span class="st">"token"</span>,</span>
+<span>  properties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    type <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_character</a></span>,       <span class="co"># Validated enum</span></span>
+<span>    value <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_character</a></span>,</span>
+<span>    position <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_integer</a></span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  validator <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">self</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">valid_types</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"IDENTIFIER"</span>, <span class="st">"LANGLE"</span>, <span class="st">"RANGLE"</span>, <span class="st">"LBRACKET"</span>,</span>
+<span>                     <span class="st">"RBRACKET"</span>, <span class="st">"PIPE"</span>, <span class="st">"DOUBLE_COLON"</span>, <span class="st">"NUMBER"</span>, <span class="st">"EOF"</span><span class="op">)</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">self</span><span class="op">@</span><span class="va">type</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">valid_types</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Invalid token type '%s'"</span>, <span class="va">self</span><span class="op">@</span><span class="va">type</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="va">self</span><span class="op">@</span><span class="va">position</span> <span class="op">&lt;</span> <span class="fl">1</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">"@position must be positive"</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><strong>Changes</strong>: - Lexer: 9 token construction sites + 1 type check - Parser: 53 property accesses (<code>$</code> → <code>@</code>) - Tests: 58 assertions updated via <code>sed</code> mass replacement</p>
+<p><strong>Critical Decision</strong>: Full enum validation vs. simplified version. Chose full validation because: 1. Only 9 token types - easy to maintain 2. Catches typos immediately (<code>"IDENTIFER"</code> → error at construction) 3. Self-documents valid tokens for future contributors</p>
+<p><strong>Key Insight</strong>: For critical path code (parser runs on every type annotation), S7 validation is worth the migration effort. 100+ changes sounds scary but mostly mechanical (<code>$</code> → <code>@</code>). Test incrementally (lexer first, then parser sections) to reduce risk.</p>
+<p><strong>What This Enabled</strong>: - Impossible to construct malformed tokens - Parser can trust token structure without defensive checks - Clear error messages when something goes wrong - Complete S7 formalization of lexer → parser pipeline</p>
+<hr></div>
+</div>
+<div class="section level2">
+<h2 id="phase-31-variable-assignments-s7-formalization">Phase 31: Variable Assignments S7 Formalization<a class="anchor" aria-label="anchor" href="#phase-31-variable-assignments-s7-formalization"></a></h2>
+<p><strong>Date</strong>: 2025-10-28 03:45:00 UTC <strong>Effort</strong>: 60 minutes <strong>Status</strong>: ✅ Complete (1084 tests passing)</p>
+<div class="section level3">
+<h3 id="design-decision-dual-purpose-s7-class">Design Decision: Dual-Purpose S7 Class<a class="anchor" aria-label="anchor" href="#design-decision-dual-purpose-s7-class"></a></h3>
+<p><strong>Problem</strong>: Variable assignments tracked in two phases: 1. <strong>Extraction</strong>: <code>list(line = 5, value_node = &lt;xml&gt;)</code> - node needed for later analysis 2. <strong>Caching</strong>: <code>list(line = 5, type = "class_integer")</code> - type inferred, node no longer needed</p>
+<p>Different structures for same concept caused confusion. Plain lists had no validation.</p>
+<p><strong>Solution</strong>: Single S7 class with optional <code>value_node</code> field that documents both phases.</p>
+<p><strong>Rationale</strong>: - <strong>Unified concept</strong>: One class represents both extraction and cached states - <strong>Optional node</strong>: <code>value_node = xml_node | NULL</code> explicitly shows it’s transient - <strong>Clear lifecycle</strong>: Documentation explains when node is present vs NULL - <strong>Memory efficient</strong>: Cache doesn’t store unnecessary XML nodes - <strong>Validation</strong>: Line number must be positive, type must be scalar</p>
+<p><strong>Implementation</strong>:</p>
+<div class="sourceCode" id="cb34"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">variable_assignment</span> <span class="op">&lt;-</span> <span class="fu">S7</span><span class="fu">::</span><span class="fu"><a href="https://rconsortium.github.io/S7/reference/new_class.html" class="external-link">new_class</a></span><span class="op">(</span></span>
+<span>  <span class="st">"variable_assignment"</span>,</span>
+<span>  properties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    line <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_integer</a></span>,</span>
+<span>    type <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_character</a></span>,</span>
+<span>    value_node <span class="op">=</span> <span class="va">xml_node</span> <span class="op">|</span> <span class="cn">NULL</span>      <span class="co"># Present during extraction, NULL in cache</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  validator <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">self</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="va">self</span><span class="op">@</span><span class="va">line</span> <span class="op">&lt;</span> <span class="fl">1</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">"@line must be positive"</span><span class="op">)</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">self</span><span class="op">@</span><span class="va">type</span><span class="op">)</span> <span class="op">!=</span> <span class="fl">1</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">"@type must be scalar"</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><strong>Data Flow</strong>:</p>
+<pre><code>1. EXTRACTION: variable_assignment(line = 5L, type = "unknown", value_node = &lt;node&gt;)
+   ↓ (infer type from node)
+2. CACHING:    variable_assignment(line = 5L, type = "class_integer", value_node = NULL)
+   ↓ (lookup by line)
+3. LOOKUP:     Filter assignments where line &lt; current_line, return type</code></pre>
+<p><strong>Changes</strong>: - Created S7 class with dual-purpose documentation - Updated <code><a href="reference/extract_variable_assignments.html">extract_variable_assignments()</a></code> to construct S7 objects - Updated linter.R caching to store S7 objects with NULL node - Updated <code><a href="reference/infer_argument_type.html">infer_argument_type()</a></code> variable lookup (2 <code>@</code> accesses) - Updated tests to construct S7 objects (14 replacements via <code>sed</code>)</p>
+<p><strong>Key Insight</strong>: Optional fields in S7 classes can document temporal state changes. The <code>value_node | NULL</code> type signature + documentation makes it clear this is a two-phase object: “node present during extraction, NULL after inference.” This is clearer than having two separate structures or comments explaining when fields are present.</p>
+<p><strong>What This Enabled</strong>: - Type-safe variable tracking across linting pipeline - Self-documenting lifecycle (extraction → inference → caching → lookup) - Validated line numbers prevent off-by-one bugs - Foundation for more sophisticated flow analysis in future</p>
+<hr></div>
+</div>
+<div class="section level2">
+<h2 id="phase-32-hybrid-r6s7-architecture-for-state-machines">Phase 32: Hybrid R6+S7 Architecture for State Machines<a class="anchor" aria-label="anchor" href="#phase-32-hybrid-r6s7-architecture-for-state-machines"></a></h2>
+<p><strong>Date</strong>: 2025-10-28 05:30:00 UTC <strong>Effort</strong>: 4 hours of design exploration <strong>Status</strong>: ✅ Design Complete (implementation pending)</p>
+<div class="section level3">
+<h3 id="design-decision-r6-for-state-machines-s7-for-data-structures">Design Decision: R6 for State Machines, S7 for Data Structures<a class="anchor" aria-label="anchor" href="#design-decision-r6-for-state-machines-s7-for-data-structures"></a></h3>
+<p><strong>Problem</strong>: After formalizing call arguments, tokens, and variable assignments with S7 (Phases 29-31), the question arose: should we formalize parser state with S7 to complete the type system formalization?</p>
+<p>Parser state is fundamentally different from the data structures we’d formalized: - <strong>Data structures</strong> (token, call_argument): Created once, immutable, passed around - <strong>Parser state</strong>: Created once, mutates constantly (advance() called 15-20 times per parse)</p>
+<p>Forcing S7 (value semantics) onto inherently mutable state created awkward designs.</p>
+<p><strong>Exploration Process</strong>: Four approaches considered:</p>
+<ol style="list-style-type: decimal"><li>
+<strong>S7 wrapper with mutable environment</strong> - Store position/tokens in environment property
+<ul><li>Pro: Zero performance overhead (mutate in place)</li>
+<li>Con: Validation only at construction, could still corrupt state</li>
+</ul></li>
+<li>
+<strong>Pure S7 with immutable state</strong> - Thread new state through all parse functions
+<ul><li>Pro: Functional purity, fully testable</li>
+<li>Con: Every parse function must change, high refactor cost, breaks clean recursive structure</li>
+</ul></li>
+<li>
+<strong>S7 class with function properties</strong> - Store methods as S7 properties
+<ul><li>Pro: Type-safe functions, similar API</li>
+<li>Con: Unusual pattern, all parse functions change (<code>$</code> → <code>@</code>)</li>
+</ul></li>
+<li>
+<strong>Runtime validation without S7</strong> - Add bounds checks to existing closure
+<ul><li>Pro: Minimal changes, no overhead</li>
+<li>Con: Not formalized type system, just defensive programming</li>
+</ul></li>
+</ol><p><strong>None felt right.</strong> All were forcing S7 onto the wrong problem.</p>
+<p><strong>The Insight</strong>: State machines ≠ Data structures</p>
+<table class="table"><colgroup><col width="32%"><col width="34%"><col width="32%"></colgroup><thead><tr class="header"><th>Characteristic</th>
+<th>Data Structures</th>
+<th>State Machines</th>
+</tr></thead><tbody><tr class="odd"><td><strong>Mutability</strong></td>
+<td>Immutable (value semantics)</td>
+<td>Mutable (reference semantics)</td>
+</tr><tr class="even"><td><strong>Lifecycle</strong></td>
+<td>Created → passed → read</td>
+<td>Created → mutated repeatedly</td>
+</tr><tr class="odd"><td><strong>Right tool</strong></td>
+<td>S7 (type-safe values)</td>
+<td>R6 (encapsulated mutable objects)</td>
+</tr><tr class="even"><td><strong>Examples</strong></td>
+<td>token, call_argument, AST nodes</td>
+<td>Parser, linter cache</td>
+</tr></tbody></table><p><strong>Solution</strong>: Hybrid architecture - use both R6 and S7 for their strengths.</p>
+<p><strong>Architecture</strong>:</p>
+<pre><code>Data Layer (S7 - Immutable):
+├── token                    # Lexer output
+├── call_argument            # Function call args
+├── variable_assignment      # Variable tracking
+├── function_signature       # Type signatures
+└── AST nodes               # Type syntax AST
+
+State Machines (R6 - Mutable):
+├── ParserState             # Token stream parser
+└── [Future] LinterFileCache # Multi-pass type cache
+
+Interaction Contract:
+- R6 constructors validate S7 inputs
+- R6 methods return S7 outputs
+- Type-safe boundaries enforced</code></pre>
+<p><strong>R6 Implementation</strong>:</p>
+<div class="sourceCode" id="cb37"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ParserState</span> <span class="op">&lt;-</span> <span class="fu">R6</span><span class="fu">::</span><span class="kw"><a href="https://r6.r-lib.org/reference/R6Class.html" class="external-link">R6Class</a></span><span class="op">(</span></span>
+<span>  <span class="st">"ParserState"</span>,</span>
+<span>  private <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    tokens <span class="op">=</span> <span class="cn">NULL</span>,      <span class="co"># List of S7 token objects</span></span>
+<span>    position <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span></span>
+<span>    check_bounds <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="va">private</span><span class="op">$</span><span class="va">position</span> <span class="op">&lt;</span> <span class="fl">1</span> <span class="op">||</span> <span class="va">private</span><span class="op">$</span><span class="va">position</span> <span class="op">&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">private</span><span class="op">$</span><span class="va">tokens</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>        <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Position %d out of bounds"</span>, <span class="va">private</span><span class="op">$</span><span class="va">position</span><span class="op">)</span><span class="op">)</span></span>
+<span>      <span class="op">}</span></span>
+<span>    <span class="op">}</span></span>
+<span>  <span class="op">)</span>,</span>
+<span></span>
+<span>  public <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    initialize <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">tokens</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="co"># Validate S7 inputs</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/all.html" class="external-link">all</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">tokens</span>, <span class="kw">function</span><span class="op">(</span><span class="va">t</span><span class="op">)</span> <span class="fu">S7</span><span class="fu">::</span><span class="fu"><a href="https://rconsortium.github.io/S7/reference/S7_inherits.html" class="external-link">S7_inherits</a></span><span class="op">(</span><span class="va">t</span>, <span class="va">token</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/logical.html" class="external-link">logical</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>        <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span><span class="st">"All tokens must be S7 token objects"</span><span class="op">)</span></span>
+<span>      <span class="op">}</span></span>
+<span>      <span class="va">private</span><span class="op">$</span><span class="va">tokens</span> <span class="op">&lt;-</span> <span class="va">tokens</span></span>
+<span>      <span class="va">private</span><span class="op">$</span><span class="va">position</span> <span class="op">&lt;-</span> <span class="fl">1L</span></span>
+<span>    <span class="op">}</span>,</span>
+<span></span>
+<span>    current <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="va">private</span><span class="op">$</span><span class="fu">check_bounds</span><span class="op">(</span><span class="op">)</span></span>
+<span>      <span class="va">private</span><span class="op">$</span><span class="va">tokens</span><span class="op">[[</span><span class="va">private</span><span class="op">$</span><span class="va">position</span><span class="op">]</span><span class="op">]</span>  <span class="co"># Returns S7 token</span></span>
+<span>    <span class="op">}</span>,</span>
+<span></span>
+<span>    advance <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="va">private</span><span class="op">$</span><span class="va">position</span> <span class="op">&lt;</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">private</span><span class="op">$</span><span class="va">tokens</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>        <span class="va">private</span><span class="op">$</span><span class="va">position</span> <span class="op">&lt;-</span> <span class="va">private</span><span class="op">$</span><span class="va">position</span> <span class="op">+</span> <span class="fl">1L</span></span>
+<span>      <span class="op">}</span></span>
+<span>      <span class="va">private</span><span class="op">$</span><span class="fu">check_bounds</span><span class="op">(</span><span class="op">)</span></span>
+<span>      <span class="va">private</span><span class="op">$</span><span class="va">tokens</span><span class="op">[[</span><span class="va">private</span><span class="op">$</span><span class="va">position</span><span class="op">]</span><span class="op">]</span>  <span class="co"># Returns S7 token</span></span>
+<span>    <span class="op">}</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S7 wrapper for type-safe composition</span></span>
+<span><span class="va">parser_state</span> <span class="op">&lt;-</span> <span class="fu">S7</span><span class="fu">::</span><span class="fu"><a href="https://rconsortium.github.io/S7/reference/new_S3_class.html" class="external-link">new_S3_class</a></span><span class="op">(</span><span class="st">"ParserState"</span><span class="op">)</span></span></code></pre></div>
+<p><strong>Benefits</strong>: - ✅ <strong>Semantic correctness</strong>: R6 designed for mutable state machines - ✅ <strong>Zero performance overhead</strong>: Mutate in place, no object creation - ✅ <strong>Encapsulation</strong>: Private fields protect internal state - ✅ <strong>Type-safe boundaries</strong>: R6 validates S7 inputs, returns S7 outputs - ✅ <strong>Zero API changes</strong>: Parser interface stays <code>parser$current()</code> - ✅ <strong>Honest architecture</strong>: Acknowledges different needs (data vs. state)</p>
+</div>
+<div class="section level3">
+<h3 id="strategic-decision-defer-r6-typing-support">Strategic Decision: Defer R6 Typing Support<a class="anchor" aria-label="anchor" href="#strategic-decision-defer-r6-typing-support"></a></h3>
+<p><strong>Question raised</strong>: If rdoc uses R6 internally, should it support typing R6 method signatures?</p>
+<p><strong>Three options considered</strong>:</p>
+<p><strong>Option A: Use R6 internally, don’t type it yet</strong> - Ship 1.0 focused on typing regular R functions (95% of use cases) - Internal R6 remains untyped (simple, well-tested code) - Add R6 typing in 2.0 if user demand emerges</p>
+<p><strong>Option B: Full R6 support now</strong> - Type R6 methods with <code>@typedParam</code>/<code>@typedReturn</code> - Handle R6 semantics (self, private, super, inheritance) - Effort: 2-3 months additional development - Risk: Delays shipping core functionality</p>
+<p><strong>Option C: Minimal R6 support now</strong> - Basic method typing (skip inheritance, private methods) - Covers 80% of R6 use cases - Effort: 2-3 weeks - Risk: Moderate scope increase</p>
+<p><strong>Decision: Option A</strong> - Use R6 internally, defer typing support.</p>
+<p><strong>Rationale</strong>: 1. <strong>Focus on core value</strong>: Regular function typing is primary use case 2. <strong>Ship faster</strong>: Get user feedback before expanding scope 3. <strong>Validate demand</strong>: See if users ask for R6 typing 4. <strong>Internal R6 is simple</strong>: ParserState ~100 lines, low risk 5. <strong>Pragmatic</strong>: Right tool for the job (R6 for state), but don’t over-commit</p>
+<p><strong>User perspective</strong>: “rdoc types my functions using roxygen2 tags. It uses R6 internally for performance, but doesn’t type R6 yet.”</p>
+<p><strong>Future path</strong>: If users request R6 typing and rdoc gains traction, add minimal R6 support in 2.0.</p>
+<p><strong>Documentation</strong>: Added to CLAUDE.md:</p>
+<div class="sourceCode" id="cb38"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb38-1"><a href="#cb38-1" tabindex="-1"></a><span class="fu">## R6 Usage</span></span>
+<span id="cb38-2"><a href="#cb38-2" tabindex="-1"></a></span>
+<span id="cb38-3"><a href="#cb38-3" tabindex="-1"></a>rdoc uses R6 internally for stateful objects (e.g., ParserState) while using S7</span>
+<span id="cb38-4"><a href="#cb38-4" tabindex="-1"></a>for data structures. R6 provides the right semantics for mutable state machines.</span>
+<span id="cb38-5"><a href="#cb38-5" tabindex="-1"></a></span>
+<span id="cb38-6"><a href="#cb38-6" tabindex="-1"></a>**Architecture**: R6 state machines validate S7 inputs and return S7 outputs,</span>
+<span id="cb38-7"><a href="#cb38-7" tabindex="-1"></a>creating type-safe boundaries.</span>
+<span id="cb38-8"><a href="#cb38-8" tabindex="-1"></a></span>
+<span id="cb38-9"><a href="#cb38-9" tabindex="-1"></a>**Future**: R6 method typing support planned for 2.0, pending user demand.</span></code></pre></div>
+<p><strong>Key Insight</strong>: Not everything should be S7. Choosing the right tool for the problem is more important than architectural purity. State machines (mutable, imperative) need different abstractions than data structures (immutable, declarative). R6 and S7 complement each other perfectly when used for their intended purposes.</p>
+<p>This mirrors mature ecosystems: - <strong>Rust</strong>: Immutable by default, but has <code>mut</code> for when you need it - <strong>Haskell</strong>: Pure functional, but has <code>IORef</code> for mutable state - <strong>Clojure</strong>: Immutable data, but has <code>atoms</code> for coordinated state</p>
+<p>rdoc’s hybrid R6+S7 architecture follows this pattern: immutable data (S7) with mutable state machines (R6) when semantically appropriate.</p>
+<p><strong>What This Enabled</strong>: - Clean separation between data and state concerns - Performance-optimized state machines without S7 overhead - Foundation for future stateful components (linter cache formalization) - Honest architecture that doesn’t force wrong abstractions - Clear upgrade path for R6 typing if demand emerges</p>
+<hr></div>
+</div>
+<div class="section level2">
+<h2 id="phase-33-namespace-import-abstraction-box-module-formalization">Phase 33: Namespace Import Abstraction (Box Module Formalization)<a class="anchor" aria-label="anchor" href="#phase-33-namespace-import-abstraction-box-module-formalization"></a></h2>
+<p><strong>Date</strong>: 2025-10-28 13:35:00 UTC <strong>Effort</strong>: 3 hours of design exploration <strong>Status</strong>: ✅ Design Complete (implementation pending)</p>
+<div class="section level3">
+<h3 id="design-decision-generic-namespace-import-vs-box-specific-import">Design Decision: Generic Namespace Import vs. Box-Specific Import<a class="anchor" aria-label="anchor" href="#design-decision-generic-namespace-import-vs-box-specific-import"></a></h3>
+<p><strong>Problem</strong>: After formalizing tokens, call arguments, and variable assignments with S7 (Phases 29-31), the next opportunity was box module imports. These were stored as plain lists with 6 fields (module_path, module_name, alias, imports, attach_all, line).</p>
+<p>Initial approach was to create <code>box_import_info</code> class, but deeper analysis revealed fundamental naming and abstraction questions.</p>
+<p><strong>The Naming Journey</strong>: Four critical questions emerged:</p>
+<p><strong>Question 1: What about function-level aliasing?</strong> - Initial concern: Does <code>alias</code> property include function-level aliases? - Investigation: rdoc only supports module-level aliasing (<code>m = mod/math</code>) - Function-level aliasing (<code>mod/math[my_add = add]</code>) not supported by box - <strong>Decision</strong>: <code>alias</code> is module-level only</p>
+<p><strong>Question 2: Functions or Objects?</strong> - Original property name: <code>imports</code> (too ambiguous) - Alternative: <code>selected_functions</code> (too narrow - box can export data, classes, enums) - <strong>Decision</strong>: <code>selected_objects</code> - accurate for any exported object</p>
+<p><strong>Question 3: Module-specific or Generic?</strong> - Initial class name: <code>box_import_info</code> or <code>box_module_import</code> - Discovery: Box supports <strong>both</strong> file-based modules AND package imports: - File modules: <code>box::use(mod/math)</code> → rdoc currently handles - Packages: <code>box::use(dplyr)</code> → rdoc doesn’t handle yet - <strong>Realization</strong>: “module” in class name is too narrow</p>
+<p><strong>Question 4: Box-specific or Concept-focused?</strong> - Key insight: rdoc already parses <code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code> calls separately (R/linter-check.R:288-317) - Both create <strong>namespace imports</strong> with similar structure: - <code><a href="https://dplyr.tidyverse.org" class="external-link">library(dplyr)</a></code> → package attached to global namespace - <code>box::use(dplyr)</code> → package imported with qualified access - <code>box::use(mod/math)</code> → module imported with qualified access - <strong>Architecture choice</strong>: Should we unify these or keep separate?</p>
+<p><strong>The Abstraction Debate</strong>:</p>
+<p>Two philosophies considered:</p>
+<p><strong>Philosophy A: Implementation-Focused</strong> - Keep <code>box_import</code> for box::use() only - <code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code> handled separately (current architecture) - PRO: Matches current code structure - CON: Duplicates concept, misses abstraction</p>
+<p><strong>Philosophy B: Concept-Focused</strong> - Create generic <code>namespace_import</code> for all mechanisms - Unify <code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code>, <code><a href="https://rdrr.io/r/base/library.html" class="external-link">require()</a></code>, and <code>box::use()</code> - PRO: Correct abstraction, future-proof - CON: Bigger architectural change</p>
+<p><strong>Solution</strong>: Generic abstraction with pragmatic scope.</p>
+<p><strong>Architecture</strong>:</p>
+<div class="sourceCode" id="cb39"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">namespace_import</span> <span class="op">&lt;-</span> <span class="fu">S7</span><span class="fu">::</span><span class="fu"><a href="https://rconsortium.github.io/S7/reference/new_class.html" class="external-link">new_class</a></span><span class="op">(</span></span>
+<span>  <span class="st">"namespace_import"</span>,</span>
+<span>  properties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    source_type <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_character</a></span>,        <span class="co"># "package" | "module"</span></span>
+<span>    source_path <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_character</a></span>,        <span class="co"># "dplyr" or "mod/math"</span></span>
+<span>    namespace_name <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_character</a></span>,     <span class="co"># Derived from source_path</span></span>
+<span>    namespace_alias <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_character</a></span> <span class="op">|</span> <span class="cn">NULL</span>,  <span class="co"># Module/package alias</span></span>
+<span>    selected_objects <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_character</a></span> <span class="op">|</span> <span class="cn">NULL</span>, <span class="co"># Selective imports</span></span>
+<span>    attach_all <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_logical</a></span>,           <span class="co"># Attach to namespace</span></span>
+<span>    import_mechanism <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_character</a></span>,   <span class="co"># "library" | "require" | "box"</span></span>
+<span>    line <span class="op">=</span> <span class="fu">S7</span><span class="fu">::</span><span class="va"><a href="https://rconsortium.github.io/S7/reference/base_classes.html" class="external-link">class_integer</a></span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  validator <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">self</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="co"># Validate source_type</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">self</span><span class="op">@</span><span class="va">source_type</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"package"</span>, <span class="st">"module"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">"source_type must be 'package' or 'module'"</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span></span>
+<span>    <span class="co"># Validate import_mechanism</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">self</span><span class="op">@</span><span class="va">import_mechanism</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"library"</span>, <span class="st">"require"</span>, <span class="st">"box"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">"import_mechanism must be 'library', 'require', or 'box'"</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span></span>
+<span>    <span class="co"># library/require constraints</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="va">self</span><span class="op">@</span><span class="va">import_mechanism</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"library"</span>, <span class="st">"require"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">self</span><span class="op">@</span><span class="va">namespace_alias</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>        <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">"library/require do not support aliasing"</span><span class="op">)</span></span>
+<span>      <span class="op">}</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">self</span><span class="op">@</span><span class="va">selected_objects</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>        <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">"library/require do not support selective imports"</span><span class="op">)</span></span>
+<span>      <span class="op">}</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">self</span><span class="op">@</span><span class="va">attach_all</span><span class="op">)</span> <span class="op">{</span></span>
+<span>        <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">"library/require always attach all exports"</span><span class="op">)</span></span>
+<span>      <span class="op">}</span></span>
+<span>    <span class="op">}</span></span>
+<span></span>
+<span>    <span class="co"># Box selective vs attach_all mutual exclusion</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="va">self</span><span class="op">@</span><span class="va">import_mechanism</span> <span class="op">==</span> <span class="st">"box"</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">self</span><span class="op">@</span><span class="va">selected_objects</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="va">self</span><span class="op">@</span><span class="va">attach_all</span><span class="op">)</span> <span class="op">{</span></span>
+<span>        <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">"Cannot have both selective imports and attach_all"</span><span class="op">)</span></span>
+<span>      <span class="op">}</span></span>
+<span>    <span class="op">}</span></span>
+<span></span>
+<span>    <span class="co"># Modules only via box</span></span>
+<span>    <span class="kw">if</span> <span class="op">(</span><span class="va">self</span><span class="op">@</span><span class="va">source_type</span> <span class="op">==</span> <span class="st">"module"</span> <span class="op">&amp;&amp;</span> <span class="va">self</span><span class="op">@</span><span class="va">import_mechanism</span> <span class="op">!=</span> <span class="st">"box"</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="st">"Modules can only be imported via box"</span><span class="op">)</span></span>
+<span>    <span class="op">}</span></span>
+<span></span>
+<span>    <span class="cn">NULL</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><strong>Business Rules Encoded</strong>:</p>
+<ol style="list-style-type: decimal"><li>
+<strong>Mutual exclusion</strong> (box only): <code>selected_objects</code> XOR <code>attach_all</code>
+</li>
+<li>
+<strong>Module derivation</strong>: <code>namespace_name</code> from last component of <code>source_path</code>
+</li>
+<li>
+<strong>Mechanism constraints</strong>:
+<ul><li>
+<code>library/require</code>: Always <code>attach_all=TRUE</code>, no aliasing, no selection</li>
+<li>
+<code>box</code>: Supports all features</li>
+</ul></li>
+<li>
+<strong>Source type constraint</strong>: Modules only importable via box</li>
+<li>
+<strong>Positive line</strong>: Source location must be positive integer</li>
+</ol><p><strong>Comparison Table</strong>:</p>
+<table class="table"><colgroup><col width="12%"><col width="24%"><col width="26%"><col width="36%"></colgroup><thead><tr class="header"><th>Feature</th>
+<th><code><a href="https://dplyr.tidyverse.org" class="external-link">library(dplyr)</a></code></th>
+<th><code>box::use(dplyr)</code></th>
+<th><code>box::use(mod/math[add])</code></th>
+</tr></thead><tbody><tr class="odd"><td>source_type</td>
+<td>“package”</td>
+<td>“package”</td>
+<td>“module”</td>
+</tr><tr class="even"><td>source_path</td>
+<td>“dplyr”</td>
+<td>“dplyr”</td>
+<td>“mod/math”</td>
+</tr><tr class="odd"><td>namespace_alias</td>
+<td>NULL</td>
+<td>NULL or “dp”</td>
+<td>NULL or “m”</td>
+</tr><tr class="even"><td>selected_objects</td>
+<td>NULL</td>
+<td>NULL</td>
+<td>[“add”]</td>
+</tr><tr class="odd"><td>attach_all</td>
+<td>TRUE</td>
+<td>FALSE</td>
+<td>FALSE</td>
+</tr><tr class="even"><td>import_mechanism</td>
+<td>“library”</td>
+<td>“box”</td>
+<td>“box”</td>
+</tr></tbody></table><p><strong>Implementation Scope</strong>:</p>
+<p><strong>Phase 33 (Current)</strong>: - Create <code>namespace_import</code> class (generic name) - Only construct from <code>box::use()</code> statements (current capability) - <code>import_mechanism</code> always “box”</p>
+<p><strong>Future Phase</strong>: - Also construct from <code><a href="https://rdrr.io/r/base/library.html" class="external-link">library()</a></code> and <code><a href="https://rdrr.io/r/base/library.html" class="external-link">require()</a></code> calls - Unify type loading pipeline - Enable cross-mechanism analysis</p>
+<p><strong>Key Insight</strong>: Choosing the right abstraction requires looking beyond current implementation to the underlying concept. “Box import” is an implementation detail; “namespace import” is the concept. By naming the class generically but scoping implementation pragmatically, we achieve both correctness and practicality.</p>
+<p>The discussion revealed that great naming comes from: 1. <strong>Understanding semantics</strong> (module-level vs function-level aliasing) 2. <strong>Precision</strong> (objects vs functions) 3. <strong>Future-proofing</strong> (modules AND packages) 4. <strong>Abstraction</strong> (namespace concept unifies library() and box::use())</p>
+<p><strong>What This Enabled</strong>: - Type-safe box module/package imports with validation - Foundation for unified namespace import handling - Clear semantics for aliasing, selection, and attachment - Future path to formalize library() calls with same abstraction - Honest architecture that acknowledges the underlying concept</p>
+<hr></div>
+</div>
+<div class="section level2">
+<h2 id="phase-34-typesrds-redesign---versioned-export-metadata">Phase 34: types.rds Redesign - Versioned Export Metadata<a class="anchor" aria-label="anchor" href="#phase-34-typesrds-redesign---versioned-export-metadata"></a></h2>
+<p><strong>Date</strong>: 2025-10-29 03:30:00 UTC <strong>Status</strong>: 📋 Design Phase (Implementation Pending)</p>
+<div class="section level3">
+<h3 id="design-decision-versioned-container-with-export-type-hierarchy">Design Decision: Versioned Container with Export Type Hierarchy<a class="anchor" aria-label="anchor" href="#design-decision-versioned-container-with-export-type-hierarchy"></a></h3>
+<p><strong>Problem</strong>: Current types.rds format lacks future-proofing: - No format versioning (can’t evolve without breaking changes) - No package metadata (can’t debug or trace issues) - Only stores functions (R packages also export classes, data objects) - Plain list structure (no extensibility path)</p>
+<p><strong>Solution</strong>: Create comprehensive export metadata format with three-level structure:</p>
+<ol style="list-style-type: decimal"><li>
+<strong>Container</strong>: <code>type_metadata</code> - Top-level wrapper with versioning and package info</li>
+<li>
+<strong>Export hierarchy</strong>: <code>exported_item</code> base class with subclasses:
+<ul><li>
+<code>exported_function</code> - Function signatures (current functionality)</li>
+<li>
+<code>exported_class</code> - Class constructors and properties (Phase B)</li>
+<li>
+<code>exported_data</code> - Data objects with types (Phase C)</li>
+</ul></li>
+<li>
+<strong>Incremental phases</strong>: Add container first (Phase A), then extend with classes/data</li>
+</ol><p><strong>Rationale</strong>:</p>
+<p><strong>Why versioned container:</strong> - Enables format evolution without breaking old readers - Stores rdoc version, timestamp, package info for debugging - Self-documenting structure (format_version field) - Migration path for future changes (v1 → v2 conversion logic)</p>
+<p><strong>Why export hierarchy:</strong> - R packages export more than functions (classes, data, constants) - S7 classes need both constructor signature and property types - Data objects can be typed via @typedReturn - Single namespace mirrors R’s actual export model</p>
+<p><strong>Why incremental phases:</strong> - Phase A (immediate): Just add container, no new functionality - Phase B (later): Add S7 class extraction - Phase C (later): Add data object typing - Reduces risk, validates design at each step</p>
+<p><strong>Seven Key Design Decisions</strong>:</p>
+<ol style="list-style-type: decimal"><li>
+<strong>File separation</strong>: Keep <code>type-metadata.R</code> (internal) and <code>type-exports.R</code> (serialization) separate</li>
+<li>
+<strong>Type storage</strong>: Convert S7 property types to strings for consistency</li>
+<li>
+<strong>Scope</strong>: Only typed exports in types.rds, linter enforces completeness</li>
+<li>
+<strong>Redundancy</strong>: Keep both S7 class type and string export_type field for stability</li>
+<li>
+<strong>Re-exports</strong>: Exclude from types.rds (get types from origin package)</li>
+<li>
+<strong>Phase A scope</strong>: Only add container, no class/data support yet</li>
+<li>
+<strong>Constructor vs properties</strong>: Constructors from @typedParam tags, properties auto-extracted from S7::new_class()</li>
+</ol><p><strong>Key Insight</strong>: S7 classes ARE their constructors, so they’re documented as functions with @typedParam/@typedReturn. This means constructor signatures come from existing roclet logic (no auto-generation needed), while properties are auto-extracted from class definitions. Both serve different validation purposes: constructor signature validates instantiation calls, properties validate property access.</p>
+<p><strong>Format Evolution Strategy</strong>: Format v1 stores types as strings (current approach). Future format v2 could store parsed AST instead, with migration logic converting strings to AST at load time. Versioning enables this kind of breaking change without ecosystem disruption.</p>
+<p><strong>What This Enables</strong>:</p>
+<p><strong>Immediate (Phase A - container only):</strong> - Format versioning for future evolution - Package metadata for debugging (rdoc version, timestamp) - Migration path for breaking changes - Self-documenting serialization format</p>
+<p><strong>Near-term (Phase B - S7 classes):</strong> - Type check class instantiation: <code>Person(name = "Alice", age = 30)</code> - Validate property access: <code>person@name</code> - Ensure property types match class definitions - Catch class-related type errors at lint time</p>
+<p><strong>Long-term (Phase C - data objects):</strong> - Type data object usage: <code>iris</code> is <code>data.frame[150,5]</code> - Validate column access and operations - Document dataset types explicitly - Complete coverage of package exports (functions + classes + data)</p>
+<p><strong>No Backward Compatibility Needed</strong>: Since rdoc hasn’t released yet, we can redesign types.rds format cleanly without migration burden from v0 (plain list) to v1 (versioned container).</p>
+<p><strong>Related Documentation</strong>: See PHASE_34_TYPES_RDS_REDESIGN.md for complete design decisions and implementation plan.</p>
+<hr></div>
+</div>
+<div class="section level2">
 <h2 id="cross-cutting-insights">Cross-Cutting Insights<a class="anchor" aria-label="anchor" href="#cross-cutting-insights"></a></h2>
 <div class="section level3">
 <h3 id="id_1-leverage-existing-infrastructure">1. Leverage Existing Infrastructure<a class="anchor" aria-label="anchor" href="#id_1-leverage-existing-infrastructure"></a></h3>
@@ -682,26 +1084,26 @@ but got 'class_integer | class_double'  ❌ WRONG - actual is a union!</code></p
 <div class="section level2">
 <h2 id="next-phase-updates">Next Phase Updates<a class="anchor" aria-label="anchor" href="#next-phase-updates"></a></h2>
 <p>When implementing future phases, add entries following this template:</p>
-<div class="sourceCode" id="cb32"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a><span class="fu">## Phase X: [Feature Name]</span></span>
-<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a></span>
-<span id="cb32-3"><a href="#cb32-3" tabindex="-1"></a>**Date**: <span class="co">[</span><span class="ot">Month Year</span><span class="co">]</span></span>
-<span id="cb32-4"><a href="#cb32-4" tabindex="-1"></a>**Effort**: <span class="co">[</span><span class="ot">Hours/Days</span><span class="co">]</span></span>
-<span id="cb32-5"><a href="#cb32-5" tabindex="-1"></a>**Status**: ✅ Complete (<span class="co">[</span><span class="ot">N</span><span class="co">]</span> tests passing)</span>
-<span id="cb32-6"><a href="#cb32-6" tabindex="-1"></a></span>
-<span id="cb32-7"><a href="#cb32-7" tabindex="-1"></a><span class="fu">### Design Decision: [Key Decision Made]</span></span>
-<span id="cb32-8"><a href="#cb32-8" tabindex="-1"></a></span>
-<span id="cb32-9"><a href="#cb32-9" tabindex="-1"></a>**Problem**: <span class="co">[</span><span class="ot">What problem were we solving?</span><span class="co">]</span></span>
-<span id="cb32-10"><a href="#cb32-10" tabindex="-1"></a></span>
-<span id="cb32-11"><a href="#cb32-11" tabindex="-1"></a>**Solution**: <span class="co">[</span><span class="ot">What approach did we take?</span><span class="co">]</span></span>
-<span id="cb32-12"><a href="#cb32-12" tabindex="-1"></a></span>
-<span id="cb32-13"><a href="#cb32-13" tabindex="-1"></a>**Rationale**:</span>
-<span id="cb32-14"><a href="#cb32-14" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">Why this approach?</span><span class="co">]</span></span>
-<span id="cb32-15"><a href="#cb32-15" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What alternatives were considered?</span><span class="co">]</span></span>
-<span id="cb32-16"><a href="#cb32-16" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What tradeoffs were made?</span><span class="co">]</span></span>
-<span id="cb32-17"><a href="#cb32-17" tabindex="-1"></a></span>
-<span id="cb32-18"><a href="#cb32-18" tabindex="-1"></a>**Key Insight**: <span class="co">[</span><span class="ot">Main lesson learned - 1-2 sentences</span><span class="co">]</span></span>
-<span id="cb32-19"><a href="#cb32-19" tabindex="-1"></a></span>
-<span id="cb32-20"><a href="#cb32-20" tabindex="-1"></a>**What This Enabled**: <span class="co">[</span><span class="ot">What can users now do that they couldn't before?</span><span class="co">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb40"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a><span class="fu">## Phase X: [Feature Name]</span></span>
+<span id="cb40-2"><a href="#cb40-2" tabindex="-1"></a></span>
+<span id="cb40-3"><a href="#cb40-3" tabindex="-1"></a>**Date**: <span class="co">[</span><span class="ot">Month Year</span><span class="co">]</span></span>
+<span id="cb40-4"><a href="#cb40-4" tabindex="-1"></a>**Effort**: <span class="co">[</span><span class="ot">Hours/Days</span><span class="co">]</span></span>
+<span id="cb40-5"><a href="#cb40-5" tabindex="-1"></a>**Status**: ✅ Complete (<span class="co">[</span><span class="ot">N</span><span class="co">]</span> tests passing)</span>
+<span id="cb40-6"><a href="#cb40-6" tabindex="-1"></a></span>
+<span id="cb40-7"><a href="#cb40-7" tabindex="-1"></a><span class="fu">### Design Decision: [Key Decision Made]</span></span>
+<span id="cb40-8"><a href="#cb40-8" tabindex="-1"></a></span>
+<span id="cb40-9"><a href="#cb40-9" tabindex="-1"></a>**Problem**: <span class="co">[</span><span class="ot">What problem were we solving?</span><span class="co">]</span></span>
+<span id="cb40-10"><a href="#cb40-10" tabindex="-1"></a></span>
+<span id="cb40-11"><a href="#cb40-11" tabindex="-1"></a>**Solution**: <span class="co">[</span><span class="ot">What approach did we take?</span><span class="co">]</span></span>
+<span id="cb40-12"><a href="#cb40-12" tabindex="-1"></a></span>
+<span id="cb40-13"><a href="#cb40-13" tabindex="-1"></a>**Rationale**:</span>
+<span id="cb40-14"><a href="#cb40-14" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">Why this approach?</span><span class="co">]</span></span>
+<span id="cb40-15"><a href="#cb40-15" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What alternatives were considered?</span><span class="co">]</span></span>
+<span id="cb40-16"><a href="#cb40-16" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What tradeoffs were made?</span><span class="co">]</span></span>
+<span id="cb40-17"><a href="#cb40-17" tabindex="-1"></a></span>
+<span id="cb40-18"><a href="#cb40-18" tabindex="-1"></a>**Key Insight**: <span class="co">[</span><span class="ot">Main lesson learned - 1-2 sentences</span><span class="co">]</span></span>
+<span id="cb40-19"><a href="#cb40-19" tabindex="-1"></a></span>
+<span id="cb40-20"><a href="#cb40-20" tabindex="-1"></a>**What This Enabled**: <span class="co">[</span><span class="ot">What can users now do that they couldn't before?</span><span class="co">]</span></span></code></pre></div>
 <hr></div>
 <div class="section level2">
 <h2 id="appendix-historical-research">Appendix: Historical Research<a class="anchor" aria-label="anchor" href="#appendix-historical-research"></a></h2>
@@ -800,7 +1202,7 @@ but got 'class_integer | class_double'  ❌ WRONG - actual is a union!</code></p
 </div>
 <div class="section level2">
 <h2 id="document-metadata">Document Metadata<a class="anchor" aria-label="anchor" href="#document-metadata"></a></h2>
-<p><strong>Created</strong>: January 2025 <strong>Last Updated</strong>: 2025-10-09 17:30:26 UTC (Phase 28) <strong>Total Phases Documented</strong>: 20 major phases <strong>Maintained By</strong>: rdoc contributors <strong>Purpose</strong>: Technical reference for understanding rdoc’s evolution</p>
+<p><strong>Created</strong>: January 2025 <strong>Last Updated</strong>: 2025-10-29 03:30:00 UTC (Phase 34) <strong>Total Phases Documented</strong>: 26 major phases <strong>Maintained By</strong>: rdoc contributors <strong>Purpose</strong>: Technical reference for understanding rdoc’s evolution</p>
 </div>
 </div>
 

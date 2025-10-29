@@ -43,7 +43,8 @@
 <span>  <span class="va">call_node</span>,</span>
 <span>  var_context <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  current_line <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  type_registry <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  type_registry <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  param_types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -66,10 +67,14 @@
 <dt id="arg-type-registry">type_registry<a class="anchor" aria-label="anchor" href="#arg-type-registry"></a></dt>
 <dd><p>Optional list of function type signatures for return type lookup</p></dd>
 
+
+<dt id="arg-param-types">param_types<a class="anchor" aria-label="anchor" href="#arg-param-types"></a></dt>
+<dd><p>Optional named list of parameter types (param_name -&gt; type_string)</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>List of argument information</p>
+    <p>List of call_argument S7 objects</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

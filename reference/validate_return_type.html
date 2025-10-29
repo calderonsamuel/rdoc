@@ -39,7 +39,12 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">validate_return_type</span><span class="op">(</span><span class="va">fn_assign_node</span>, <span class="va">declared_type</span>, <span class="va">source_expression</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">validate_return_type</span><span class="op">(</span></span>
+<span>  <span class="va">fn_assign_node</span>,</span>
+<span>  <span class="va">declared_type</span>,</span>
+<span>  <span class="va">source_expression</span>,</span>
+<span>  param_info <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -56,6 +61,10 @@
 
 <dt id="arg-source-expression">source_expression<a class="anchor" aria-label="anchor" href="#arg-source-expression"></a></dt>
 <dd><p>Source expression for creating lints</p></dd>
+
+
+<dt id="arg-param-info">param_info<a class="anchor" aria-label="anchor" href="#arg-param-info"></a></dt>
+<dd><p>Optional list of parameter type info from @typedParam</p></dd>
 
 </dl></div>
     <div class="section level2">

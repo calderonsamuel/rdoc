@@ -39,7 +39,11 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">infer_function_return_type</span><span class="op">(</span><span class="va">body_node</span>, return_node <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">infer_function_return_type</span><span class="op">(</span></span>
+<span>  <span class="va">body_node</span>,</span>
+<span>  param_types <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  return_node <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -48,6 +52,10 @@
 
 <dl><dt id="arg-body-node">body_node<a class="anchor" aria-label="anchor" href="#arg-body-node"></a></dt>
 <dd><p>XML node of function body</p></dd>
+
+
+<dt id="arg-param-types">param_types<a class="anchor" aria-label="anchor" href="#arg-param-types"></a></dt>
+<dd><p>Optional named list of parameter types (param_name -&gt; type_string)</p></dd>
 
 
 <dt id="arg-return-node">return_node<a class="anchor" aria-label="anchor" href="#arg-return-node"></a></dt>
