@@ -59,10 +59,9 @@
     <p>Grammar (EBNF):</p><div class="sourceCode"><pre><code>
   type_expr         ::= union_type
   union_type        ::= primary_type ("|" primary_type)*
-  primary_type      ::= qualified_type element_type? length_constraint?
+  primary_type      ::= qualified_type element_type?
   qualified_type    ::= identifier ("::" identifier)?
   element_type      ::= "&lt;" type_expr "&gt;"
-  length_constraint ::= "[" number "]"
 </code></pre></div>
 
     </div>
@@ -76,7 +75,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer></div>

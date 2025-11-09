@@ -1178,7 +1178,7 @@ Imports:
 <li>✅ 59 new tests for bracket syntax (42 constraint tests + 17 integration tests)</li>
 </ul><p><strong>Implementation Details:</strong></p>
 <p><strong>Files Created:</strong> - <code>R/type-constraints.R</code> - Parser and formatting for bracket syntax - <code>tests/testthat/test-type-constraints.R</code> - 42 tests for parsing logic - <code>tests/testthat/test-linter-bracket-syntax.R</code> - 17 integration tests</p>
-<p><strong>Functions Added:</strong> - <code><a href="reference/parse_type_constraints.html">parse_type_constraints()</a></code> - Parses <code>[n]</code> and <code>&lt;T&gt;</code> syntax - <code><a href="reference/format_type_constraints.html">format_type_constraints()</a></code> - Formats constraints for display - <code><a href="reference/check_length_constraint.html">check_length_constraint()</a></code> - Validates length requirements - <code><a href="reference/check_element_type.html">check_element_type()</a></code> - Placeholder for element type validation</p>
+<p><strong>Functions Added:</strong> - <code><a href="reference/parse_type_constraints.html">parse_type_constraints()</a></code> - Parses <code>[n]</code> and <code>&lt;T&gt;</code> syntax - <code><a href="reference/format_type_constraints.html">format_type_constraints()</a></code> - Formats constraints for display - <code>check_length_constraint()</code> - Validates length requirements - <code><a href="reference/check_element_type.html">check_element_type()</a></code> - Placeholder for element type validation</p>
 <p><strong>Integration:</strong> - Updated <code><a href="reference/types_compatible.html">types_compatible()</a></code> to use <code><a href="reference/parse_type_constraints.html">parse_type_constraints()</a></code> - Length constraints checked when <code>actual_length</code> provided - Element type checking is placeholder (returns TRUE to avoid false positives)</p>
 <p><strong>Test Results</strong>: 368 tests passing, 0 failures</p>
 <hr></div>
@@ -3457,7 +3457,7 @@ With parser:
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer></div>

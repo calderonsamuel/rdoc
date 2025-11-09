@@ -72,8 +72,8 @@
 <code class="sourceCode R"><span><span class="co">#' Calculate the mean of a numeric vector</span></span>
 <span><span class="co">#'</span></span>
 <span><span class="co">#' @typedParam x {class_numeric} Vector of values</span></span>
-<span><span class="co">#' @typedParam na.rm {class_logical[1]} Remove NA values?</span></span>
-<span><span class="co">#' @typedReturn {class_numeric[1]} The mean value</span></span>
+<span><span class="co">#' @typedParam na.rm {class_logical} Remove NA values?</span></span>
+<span><span class="co">#' @typedReturn {class_numeric} The mean value</span></span>
 <span><span class="co">#' @export</span></span>
 <span><span class="va">calculate_mean</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">na.rm</span> <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span>, na.rm <span class="op">=</span> <span class="va">na.rm</span><span class="op">)</span></span>
@@ -198,8 +198,8 @@
 </h3>
 <p>Use square brackets to specify vector length:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co">#' @typedParam key {class_character[1]} scalar string</span></span>
-<span><span class="co">#' @typedParam value {class_numeric[1]} scalar number</span></span>
+<code class="sourceCode R"><span><span class="co">#' @typedParam key {class_character} scalar string</span></span>
+<span><span class="co">#' @typedParam value {class_numeric} scalar number</span></span>
 <span><span class="va">set_config</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">key</span>, <span class="va">value</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">config</span><span class="op">[[</span><span class="va">key</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">value</span></span>
 <span><span class="op">}</span></span></code></pre></div>
@@ -210,7 +210,7 @@
 <p>Use angle brackets to specify list element types:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">#' @typedParam items {class_list&lt;class_integer&gt;} list of integers</span></span>
-<span><span class="co">#' @typedParam names {class_list&lt;class_character[1]&gt;} list of scalar strings</span></span>
+<span><span class="co">#' @typedParam names {class_list&lt;class_character&gt;} list of scalar strings</span></span>
 <span><span class="va">process_items</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">items</span>, <span class="va">names</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="co"># ...</span></span>
 <span><span class="op">}</span></span></code></pre></div>
@@ -499,7 +499,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer>

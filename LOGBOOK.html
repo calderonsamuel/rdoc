@@ -36,7 +36,7 @@
 
 <p><strong>Purpose</strong>: This living document records key learnings, design decisions, and technical insights from each implementation phase. It serves as a reference for understanding how rdoc evolved and why certain architectural choices were made.</p>
 <p><strong>Audience</strong>: Blog post readers, case study researchers, future contributors</p>
-<p><strong>Last Updated</strong>: 2025-10-29 03:30:00 UTC (Phase 34)</p>
+<p><strong>Last Updated</strong>: 2025-11-09 20:25:56 UTC (Phase 35 - Length Constraint Removal)</p>
 <hr><div class="section level2">
 <h2 id="phase-1-custom-roxygen2-tags">Phase 1: Custom Roxygen2 Tags<a class="anchor" aria-label="anchor" href="#phase-1-custom-roxygen2-tags"></a></h2>
 <p><strong>Date</strong>: Early 2024 <strong>Effort</strong>: 2-3 days <strong>Status</strong>: ✅ Complete (25 tests passing)</p>
@@ -1048,6 +1048,108 @@ Interaction Contract:
 <hr></div>
 </div>
 <div class="section level2">
+<h2 id="phase-34b-s7-class-support---property-extraction">Phase 34B: S7 Class Support - Property Extraction<a class="anchor" aria-label="anchor" href="#phase-34b-s7-class-support---property-extraction"></a></h2>
+<p><strong>Date</strong>: 2025-10-29 13:57:00 UTC <strong>Status</strong>: ✅ Complete (45 tests passing, 1125 total)</p>
+<div class="section level3">
+<h3 id="design-decision-ast-based-property-extraction-with-full-type-names">Design Decision: AST-Based Property Extraction with Full Type Names<a class="anchor" aria-label="anchor" href="#design-decision-ast-based-property-extraction-with-full-type-names"></a></h3>
+<p><strong>Problem</strong>: Phase 34A created the container structure, but types.rds only stored functions. R packages also export S7 classes, and we needed a way to extract and store class metadata including properties.</p>
+<p><strong>Solution</strong>: Parse S7::new_class() calls using R’s AST to extract properties and convert S7 class objects to strings while preserving full type names.</p>
+<p><strong>Key Implementation Details</strong>:</p>
+<ol style="list-style-type: decimal"><li>
+<strong>Detection</strong>: Check if block contains <code><a href="https://rconsortium.github.io/S7/reference/new_class.html" class="external-link">S7::new_class</a></code> or <code>new_class</code> pattern</li>
+<li>
+<strong>Constructor from Tags</strong>: Extract constructor signature from @typedParam/@typedReturn (reuses existing logic)</li>
+<li>
+<strong>Properties from AST</strong>: Parse <code>properties = list(...)</code> argument to extract property types</li>
+<li>
+<strong>Full Name Preservation</strong>: Convert <code>class_character</code> → <code>"class_character"</code> (NOT <code>"character"</code>)</li>
+<li>
+<strong>Dual Storage</strong>: Store both constructor signature (for instantiation validation) and properties (for future property access validation)</li>
+</ol><p><strong>Rationale</strong>:</p>
+<p><strong>Why AST parsing:</strong> - Robust against formatting variations - Accurate extraction without regex fragility - Consistent with rdoc’s existing parsing approach - Handles both <code><a href="https://rconsortium.github.io/S7/reference/new_class.html" class="external-link">S7::new_class</a></code> and <code>new_class</code> patterns</p>
+<p><strong>Why preserve full type names:</strong> - <code>class_character</code> ≠ base <code>character</code> (S7 has validation, coercion rules) - Maintains S7 type system distinctions - Consistent with how we store all types in rdoc - Future-proof: preserves full type information for advanced validation</p>
+<p><strong>Why separate constructor and properties:</strong> - Constructor signature validates instantiation: <code>Person(name = "Alice", age = 30)</code> - Properties enable future property access validation: <code>person@name</code> (deferred to later phase) - Constructor parameters ≠ properties (constructors may have extra params like <code>validate = TRUE</code>)</p>
+<p><strong>Key Insight</strong>: S7 classes ARE their constructors, so they’re documented as functions with @typedParam/@typedReturn. This means constructor signatures come from existing roclet logic (no auto-generation needed), while properties are auto-extracted from the S7::new_class() definition. Both pieces of metadata serve different validation purposes.</p>
+<p><strong>Example Transformation</strong>:</p>
+<div class="sourceCode" id="cb40"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Input: S7 class definition</span></span>
+<span><span class="co">#' Person class</span></span>
+<span><span class="co">#' @typedParam name {class_character[1]} Person's name</span></span>
+<span><span class="co">#' @typedParam age {class_numeric[1]} Person's age</span></span>
+<span><span class="co">#' @typedReturn {Person} A new Person instance</span></span>
+<span><span class="co">#' @export</span></span>
+<span><span class="va">Person</span> <span class="op">&lt;-</span> <span class="fu">S7</span><span class="fu">::</span><span class="fu"><a href="https://rconsortium.github.io/S7/reference/new_class.html" class="external-link">new_class</a></span><span class="op">(</span></span>
+<span>  <span class="st">"Person"</span>,</span>
+<span>  properties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    name <span class="op">=</span> <span class="va">class_character</span>,</span>
+<span>    age <span class="op">=</span> <span class="va">class_numeric</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Output in types.rds:</span></span>
+<span><span class="fu"><a href="reference/type_metadata.html">type_metadata</a></span><span class="op">(</span></span>
+<span>  exports <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>    <span class="st">"Person"</span> <span class="op">=</span> <span class="fu"><a href="reference/exported_class.html">exported_class</a></span><span class="op">(</span></span>
+<span>      name <span class="op">=</span> <span class="st">"Person"</span>,</span>
+<span>      export_type <span class="op">=</span> <span class="st">"class"</span>,</span>
+<span>      class_system <span class="op">=</span> <span class="st">"S7"</span>,</span>
+<span>      constructor_signature <span class="op">=</span> <span class="fu"><a href="reference/function_signature.html">function_signature</a></span><span class="op">(</span></span>
+<span>        params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>          name <span class="op">=</span> <span class="fu"><a href="reference/param_type.html">param_type</a></span><span class="op">(</span>type <span class="op">=</span> <span class="st">"class_character[1]"</span>, <span class="va">...</span><span class="op">)</span>,</span>
+<span>          age <span class="op">=</span> <span class="fu"><a href="reference/param_type.html">param_type</a></span><span class="op">(</span>type <span class="op">=</span> <span class="st">"class_numeric[1]"</span>, <span class="va">...</span><span class="op">)</span></span>
+<span>        <span class="op">)</span>,</span>
+<span>        return <span class="op">=</span> <span class="fu"><a href="reference/return_type.html">return_type</a></span><span class="op">(</span>type <span class="op">=</span> <span class="st">"Person"</span>, <span class="va">...</span><span class="op">)</span></span>
+<span>      <span class="op">)</span>,</span>
+<span>      properties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>        name <span class="op">=</span> <span class="fu"><a href="reference/param_type.html">param_type</a></span><span class="op">(</span>type <span class="op">=</span> <span class="st">"class_character"</span>, description <span class="op">=</span> <span class="st">""</span><span class="op">)</span>,</span>
+<span>        age <span class="op">=</span> <span class="fu"><a href="reference/param_type.html">param_type</a></span><span class="op">(</span>type <span class="op">=</span> <span class="st">"class_numeric"</span>, description <span class="op">=</span> <span class="st">""</span><span class="op">)</span></span>
+<span>      <span class="op">)</span></span>
+<span>    <span class="op">)</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><strong>What This Enables</strong>:</p>
+<p><strong>Immediate (Phase 34B):</strong> - S7 classes stored in types.rds alongside functions - Property types captured with full S7 type names - Constructor validation works via constructor_signature - Foundation for property access validation</p>
+<p><strong>Near-term (Future Phase):</strong> - Property access validation: <code>person@name</code> type checking - Inheritance validation: Check property access on parent classes - Property type mismatches caught at lint time</p>
+<p><strong>Scope Boundaries</strong>:</p>
+<p><strong>Included in Phase 34B:</strong> - ✅ S7 class detection and property extraction - ✅ Constructor signature from @typedParam/@typedReturn - ✅ Full type name preservation (class_character, not character) - ✅ Basic property list extraction - ✅ Parent class extraction (parsed but not yet used)</p>
+<p><strong>Deferred to Future Phases:</strong> - ❌ Property access validation (<code>person@name</code> linting) - ❌ R6 class support - ❌ S3/S4 class support - ❌ Property defaults extraction - ❌ Property validator extraction</p>
+<p><strong>Implementation Approach</strong>:</p>
+<ol style="list-style-type: decimal"><li>
+<strong>Detection</strong>: <code><a href="reference/is_s7_class_definition.html">is_s7_class_definition()</a></code> checks for S7::new_class pattern</li>
+<li>
+<strong>Extraction</strong>: <code><a href="reference/extract_s7_class_info.html">extract_s7_class_info()</a></code> orchestrates metadata gathering</li>
+<li>
+<strong>Property Parsing</strong>: <code><a href="reference/extract_s7_properties.html">extract_s7_properties()</a></code> walks AST to find <code>properties = list(...)</code>
+</li>
+<li>
+<strong>Type Conversion</strong>: <code><a href="reference/s7_class_expr_to_string.html">s7_class_expr_to_string()</a></code> converts S7 class objects to strings</li>
+<li>
+<strong>Wrapping</strong>: <code>roclet_output</code> detects S7 class metadata and wraps in <code>exported_class</code>
+</li>
+</ol><p><strong>Test Coverage</strong>: 45 new tests in test-s7-class-extraction.R covering: - Type string conversion (symbols, qualified names, unions) - Property extraction (simple, empty, missing) - Class detection (with/without S7:: prefix) - Full integration (roclet processing, output generation) - Mixed exports (functions + classes in same package)</p>
+<p><strong>Related Documentation</strong>: See PHASE_34B_S7_CLASS_SUPPORT.md for detailed implementation plan.</p>
+</div>
+<div class="section level3">
+<h3 id="pending-design-discussion-scope-tracking-for-new_class">Pending Design Discussion: Scope Tracking for new_class()<a class="anchor" aria-label="anchor" href="#pending-design-discussion-scope-tracking-for-new_class"></a></h3>
+<p><strong>Date</strong>: 2025-10-29 (Identified during test refactoring)</p>
+<p><strong>Issue</strong>: Current detection logic in <code><a href="reference/is_s7_class_definition.html">is_s7_class_definition()</a></code> matches ANY <code>new_class()</code> call, not just S7’s. This could create false positives if other packages define functions named <code>new_class()</code>.</p>
+<p><strong>Current Implementation</strong>:</p>
+<div class="sourceCode" id="cb41"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">is_s7_class_definition</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">block</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="co"># Method 1: Check if evaluated value is S7 class object</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">inherits</a></span><span class="op">(</span><span class="va">block</span><span class="op">$</span><span class="va">object</span><span class="op">$</span><span class="va">value</span>, <span class="st">"S7_class"</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span>  <span class="co"># Method 2: Check for "new_class" pattern in source</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grepl</a></span><span class="op">(</span><span class="st">"new_class"</span>, <span class="fu"><a href="https://rdrr.io/r/base/deparse.html" class="external-link">deparse</a></span><span class="op">(</span><span class="va">block</span><span class="op">$</span><span class="va">call</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p><strong>The Problem</strong>: Method 2 has no scope tracking: - Matches <code>new_class(...)</code> from any package - Matches <code>MyPackage::new_class(...)</code> from non-S7 packages - Could incorrectly identify classes from other OOP systems</p>
+<p><strong>Why Not Fixed Yet</strong>: - Low priority: S7’s <code>new_class()</code> is unique enough that collisions are unlikely - Method 1 already provides correct detection for evaluated objects (used during real roclet execution) - Method 2 mainly supports testing scenarios with unevaluated expressions - No false positives observed in practice</p>
+<p><strong>Potential Solutions</strong> (if this becomes a problem): 1. <strong>Strict detection</strong>: Only match <code><a href="https://rconsortium.github.io/S7/reference/new_class.html" class="external-link">S7::new_class</a></code> (but breaks code using <code><a href="https://rconsortium.github.io/S7/" class="external-link">library(S7); new_class(...)</a></code>) 2. <strong>Namespace tracking</strong>: Check if S7 is imported in the file scope 3. <strong>Evaluated-only</strong>: Remove Method 2, require S7 to be loadable during roclet execution</p>
+<p><strong>Decision</strong>: Document but don’t fix. The dual-method approach (evaluated object + pattern matching) provides good coverage, and real-world usage goes through Method 1. If false positives emerge, revisit with namespace tracking solution.</p>
+<p><strong>Related Code</strong>: R/roclet-types.R:218-240 (is_s7_class_definition)</p>
+<hr></div>
+</div>
+<div class="section level2">
 <h2 id="cross-cutting-insights">Cross-Cutting Insights<a class="anchor" aria-label="anchor" href="#cross-cutting-insights"></a></h2>
 <div class="section level3">
 <h3 id="id_1-leverage-existing-infrastructure">1. Leverage Existing Infrastructure<a class="anchor" aria-label="anchor" href="#id_1-leverage-existing-infrastructure"></a></h3>
@@ -1084,26 +1186,26 @@ Interaction Contract:
 <div class="section level2">
 <h2 id="next-phase-updates">Next Phase Updates<a class="anchor" aria-label="anchor" href="#next-phase-updates"></a></h2>
 <p>When implementing future phases, add entries following this template:</p>
-<div class="sourceCode" id="cb40"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a><span class="fu">## Phase X: [Feature Name]</span></span>
-<span id="cb40-2"><a href="#cb40-2" tabindex="-1"></a></span>
-<span id="cb40-3"><a href="#cb40-3" tabindex="-1"></a>**Date**: <span class="co">[</span><span class="ot">Month Year</span><span class="co">]</span></span>
-<span id="cb40-4"><a href="#cb40-4" tabindex="-1"></a>**Effort**: <span class="co">[</span><span class="ot">Hours/Days</span><span class="co">]</span></span>
-<span id="cb40-5"><a href="#cb40-5" tabindex="-1"></a>**Status**: ✅ Complete (<span class="co">[</span><span class="ot">N</span><span class="co">]</span> tests passing)</span>
-<span id="cb40-6"><a href="#cb40-6" tabindex="-1"></a></span>
-<span id="cb40-7"><a href="#cb40-7" tabindex="-1"></a><span class="fu">### Design Decision: [Key Decision Made]</span></span>
-<span id="cb40-8"><a href="#cb40-8" tabindex="-1"></a></span>
-<span id="cb40-9"><a href="#cb40-9" tabindex="-1"></a>**Problem**: <span class="co">[</span><span class="ot">What problem were we solving?</span><span class="co">]</span></span>
-<span id="cb40-10"><a href="#cb40-10" tabindex="-1"></a></span>
-<span id="cb40-11"><a href="#cb40-11" tabindex="-1"></a>**Solution**: <span class="co">[</span><span class="ot">What approach did we take?</span><span class="co">]</span></span>
-<span id="cb40-12"><a href="#cb40-12" tabindex="-1"></a></span>
-<span id="cb40-13"><a href="#cb40-13" tabindex="-1"></a>**Rationale**:</span>
-<span id="cb40-14"><a href="#cb40-14" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">Why this approach?</span><span class="co">]</span></span>
-<span id="cb40-15"><a href="#cb40-15" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What alternatives were considered?</span><span class="co">]</span></span>
-<span id="cb40-16"><a href="#cb40-16" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What tradeoffs were made?</span><span class="co">]</span></span>
-<span id="cb40-17"><a href="#cb40-17" tabindex="-1"></a></span>
-<span id="cb40-18"><a href="#cb40-18" tabindex="-1"></a>**Key Insight**: <span class="co">[</span><span class="ot">Main lesson learned - 1-2 sentences</span><span class="co">]</span></span>
-<span id="cb40-19"><a href="#cb40-19" tabindex="-1"></a></span>
-<span id="cb40-20"><a href="#cb40-20" tabindex="-1"></a>**What This Enabled**: <span class="co">[</span><span class="ot">What can users now do that they couldn't before?</span><span class="co">]</span></span></code></pre></div>
+<div class="sourceCode" id="cb42"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a><span class="fu">## Phase X: [Feature Name]</span></span>
+<span id="cb42-2"><a href="#cb42-2" tabindex="-1"></a></span>
+<span id="cb42-3"><a href="#cb42-3" tabindex="-1"></a>**Date**: <span class="co">[</span><span class="ot">Month Year</span><span class="co">]</span></span>
+<span id="cb42-4"><a href="#cb42-4" tabindex="-1"></a>**Effort**: <span class="co">[</span><span class="ot">Hours/Days</span><span class="co">]</span></span>
+<span id="cb42-5"><a href="#cb42-5" tabindex="-1"></a>**Status**: ✅ Complete (<span class="co">[</span><span class="ot">N</span><span class="co">]</span> tests passing)</span>
+<span id="cb42-6"><a href="#cb42-6" tabindex="-1"></a></span>
+<span id="cb42-7"><a href="#cb42-7" tabindex="-1"></a><span class="fu">### Design Decision: [Key Decision Made]</span></span>
+<span id="cb42-8"><a href="#cb42-8" tabindex="-1"></a></span>
+<span id="cb42-9"><a href="#cb42-9" tabindex="-1"></a>**Problem**: <span class="co">[</span><span class="ot">What problem were we solving?</span><span class="co">]</span></span>
+<span id="cb42-10"><a href="#cb42-10" tabindex="-1"></a></span>
+<span id="cb42-11"><a href="#cb42-11" tabindex="-1"></a>**Solution**: <span class="co">[</span><span class="ot">What approach did we take?</span><span class="co">]</span></span>
+<span id="cb42-12"><a href="#cb42-12" tabindex="-1"></a></span>
+<span id="cb42-13"><a href="#cb42-13" tabindex="-1"></a>**Rationale**:</span>
+<span id="cb42-14"><a href="#cb42-14" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">Why this approach?</span><span class="co">]</span></span>
+<span id="cb42-15"><a href="#cb42-15" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What alternatives were considered?</span><span class="co">]</span></span>
+<span id="cb42-16"><a href="#cb42-16" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What tradeoffs were made?</span><span class="co">]</span></span>
+<span id="cb42-17"><a href="#cb42-17" tabindex="-1"></a></span>
+<span id="cb42-18"><a href="#cb42-18" tabindex="-1"></a>**Key Insight**: <span class="co">[</span><span class="ot">Main lesson learned - 1-2 sentences</span><span class="co">]</span></span>
+<span id="cb42-19"><a href="#cb42-19" tabindex="-1"></a></span>
+<span id="cb42-20"><a href="#cb42-20" tabindex="-1"></a>**What This Enabled**: <span class="co">[</span><span class="ot">What can users now do that they couldn't before?</span><span class="co">]</span></span></code></pre></div>
 <hr></div>
 <div class="section level2">
 <h2 id="appendix-historical-research">Appendix: Historical Research<a class="anchor" aria-label="anchor" href="#appendix-historical-research"></a></h2>
@@ -1202,7 +1304,22 @@ Interaction Contract:
 </div>
 <div class="section level2">
 <h2 id="document-metadata">Document Metadata<a class="anchor" aria-label="anchor" href="#document-metadata"></a></h2>
-<p><strong>Created</strong>: January 2025 <strong>Last Updated</strong>: 2025-10-29 03:30:00 UTC (Phase 34) <strong>Total Phases Documented</strong>: 26 major phases <strong>Maintained By</strong>: rdoc contributors <strong>Purpose</strong>: Technical reference for understanding rdoc’s evolution</p>
+<p><strong>Created</strong>: January 2025 <strong>Last Updated</strong>: 2025-11-09 20:25:56 UTC (Phase 35 - Length Constraint Removal) <strong>Total Phases Documented</strong>: 28 major phases <strong>Maintained By</strong>: rdoc contributors <strong>Purpose</strong>: Technical reference for understanding rdoc’s evolution</p>
+<hr></div>
+<div class="section level2">
+<h2 id="phase-35-removal-of-length-constraint-support">Phase 35: Removal of Length Constraint Support<a class="anchor" aria-label="anchor" href="#phase-35-removal-of-length-constraint-support"></a></h2>
+<p><strong>Date</strong>: 2025-11-09 <strong>Effort</strong>: 1 day <strong>Status</strong>: ✅ Complete (1026 tests passing)</p>
+<div class="section level3">
+<h3 id="design-decision-remove-scalarlength-constraint-syntax">Design Decision: Remove Scalar/Length Constraint Syntax<a class="anchor" aria-label="anchor" href="#design-decision-remove-scalarlength-constraint-syntax"></a></h3>
+<p><strong>Problem</strong>: The <code>[N]</code> syntax for length constraints (e.g., <code>numeric[1]</code> for scalars) fought against R’s vectorized nature and created user confusion.</p>
+<p><strong>Solution</strong>: Removed all length constraint support, keeping only element type constraints <code>&lt;type&gt;</code> for generics.</p>
+<p><strong>Rationale</strong>: - <strong>R is fundamentally vectorized</strong>: Fighting this creates friction with R’s core design philosophy - <strong>Incomplete implementation</strong>: Static analysis couldn’t reliably check length for constructed vectors (<code>c(1, 2)</code>) - <strong>Implementation complexity</strong>: Required <code>@length_constraint</code> property, <code>actual_length</code> parameter threading, and special-case logic throughout the codebase - <strong>User confusion</strong>: Scalars work for literals but not expressions - inconsistent behavior is worse than no behavior - <strong>Not truly R-like</strong>: R doesn’t distinguish scalars from length-1 vectors at the type level</p>
+<p><strong>What Was Removed</strong>: - <code>[N]</code> syntax for length constraints (e.g., <code>numeric[1]</code>, <code>character[5]</code>) - <code>@length_constraint</code> property from <code>type_ref</code> S7 class - <code>check_length_constraint()</code> function - <code>actual_length</code> parameter from <code><a href="reference/types_compatible.html">types_compatible()</a></code> - All length constraint parsing logic from <code><a href="reference/parse_type_constraints.html">parse_type_constraints()</a></code> - 22+ test files updated, <code>test-linter-bracket-syntax.R</code> → <code>test-element-types.R</code></p>
+<p><strong>What Was Kept</strong>: - Element type constraints: <code>list&lt;integer&gt;</code> for generic types - All other type system features (unions, external types, NULL safety, etc.)</p>
+<p><strong>Key Insight</strong>: Sometimes removing a feature makes the system better. R’s vectorization is a core strength - type checking should embrace it, not fight it. Accept imprecision on vector lengths rather than provide inconsistent behavior.</p>
+<p><strong>What This Enabled</strong>: - Cleaner, simpler type system aligned with R’s philosophy - Removed 500+ lines of constraint-checking code - Reduced cognitive load for users (one less syntax to learn) - Better alignment with how R developers actually think about types</p>
+<p><strong>Migration Path</strong>: Users should: - Remove <code>[N]</code> from all type annotations - Accept that <code>numeric</code> means “numeric vector of any length” - Use prose documentation for scalar requirements (just like base R) - Rely on runtime checks for length validation when needed</p>
+<hr></div>
 </div>
 </div>
 
@@ -1215,7 +1332,7 @@ Interaction Contract:
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer></div>

@@ -1,0 +1,33 @@
+# Resolve external type reference (package::class syntax)
+
+Handles type references to external packages. Tries to find S7 class
+objects exported by the package, and falls back to creating S7 wrappers
+for S3 classes.
+
+## Usage
+
+``` r
+resolve_external_type(type_string)
+```
+
+## Arguments
+
+- type_string:
+
+  Type string in "package::class" format
+
+## Value
+
+S7 class object or NULL
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+# If roxygen2 exports S7 class (future):
+resolve_external_type("roxygen2::roclet")  # Uses exported S7 class
+
+# If roxygen2 uses S3 (current):
+resolve_external_type("roxygen2::roclet")  # Creates S7 wrapper via new_S3_class()
+} # }
+```
