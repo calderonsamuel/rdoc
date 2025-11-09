@@ -216,16 +216,27 @@ extract_type_info_from_block <- function(block) {
 #' @return Logical
 #' @keywords internal
 is_s7_class_definition <- function(block) {
-  if (is.null(block$object) || is.null(block$object$value)) {
+  if (is.null(block$object)) {
     return(FALSE)
   }
 
-  # Check if the value contains S7::new_class
-  value_str <- deparse(block$object$value, width.cutoff = 500L)
-  value_str <- paste(value_str, collapse = " ")
+  # Method 1: Check if the evaluated value is an S7 class object
+  if (!is.null(block$object$value) && inherits(block$object$value, "S7_class")) {
+    return(TRUE)
+  }
 
-  grepl("S7::new_class", value_str, fixed = TRUE) ||
-    grepl("new_class", value_str, fixed = TRUE)
+  # Method 2: Check the original unevaluated call expression
+  if (!is.null(block$call)) {
+    call_str <- deparse(block$call, width.cutoff = 500L)
+    call_str <- paste(call_str, collapse = " ")
+
+    if (grepl("S7::new_class", call_str, fixed = TRUE) ||
+        grepl("new_class", call_str, fixed = TRUE)) {
+      return(TRUE)
+    }
+  }
+
+  FALSE
 }
 
 #' Extract S7 class information from a roxygen block
@@ -239,7 +250,14 @@ extract_s7_class_info <- function(block, env) {
   constructor_sig <- extract_type_info_from_block(block)
 
   # Parse S7::new_class call to extract properties
-  properties <- extract_s7_properties(block$object$value, env)
+  # Use block$call (unevaluated expression) to preserve original type names
+  class_expr <- block$call
+  if (is.null(class_expr) && !is.null(block$object$value)) {
+    # Fallback to block$object$value if call is not available
+    class_expr <- block$object$value
+  }
+
+  properties <- extract_s7_properties(class_expr, env)
 
   # Return metadata structure that roclet_output can identify
   list(
@@ -266,6 +284,13 @@ extract_s7_properties <- function(class_expr, env) {
   # We need to extract the properties argument
 
   tryCatch({
+    # If class_expr is an assignment (Person <- S7::new_class(...)),
+    # extract the right-hand side
+    if (is.call(class_expr) && (identical(class_expr[[1]], quote(`<-`)) ||
+                                 identical(class_expr[[1]], quote(`=`)))) {
+      class_expr <- class_expr[[3]]  # RHS of assignment
+    }
+
     # Evaluate the call structure (don't actually evaluate it)
     if (is.call(class_expr)) {
       # Find 'properties' argument

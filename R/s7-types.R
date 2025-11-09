@@ -398,7 +398,6 @@ expand_s7_unions_in_ast <- function(ast_node) {
         return(union_type(
           types = lapply(expanded_types, function(type) {
             type_ref(base_type = type, package = NULL,
-                     length_constraint = ast_node@length_constraint,
                      element_type = expanded_element_type)
           })
         ))
@@ -410,7 +409,6 @@ expand_s7_unions_in_ast <- function(ast_node) {
       return(type_ref(
         base_type = ast_node@base_type,
         package = ast_node@package,
-        length_constraint = ast_node@length_constraint,
         element_type = expanded_element_type
       ))
     }

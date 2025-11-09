@@ -376,7 +376,7 @@ extract_variable_assignments <- function(xml) {
 #' types_compatible("data.frame", "data.frame")  # TRUE (string match)
 #' types_compatible("data.frame", "matrix")      # FALSE
 #' }
-types_compatible <- function(actual, expected, actual_length = NULL) {
+types_compatible <- function(actual, expected) {
   # Parse type specifications using the proper parser
   # This handles unions correctly (NULL must be first)
   actual_ast <- tryCatch(
@@ -439,9 +439,8 @@ types_compatible <- function(actual, expected, actual_length = NULL) {
         }
 
         if (actual_full == member_str) {
-          # Match found, check length constraint
-          expected_length <- member@length_constraint
-          return(check_length_constraint(actual_length, expected_length))
+          # Match found
+          return(TRUE)
         }
       }
 
@@ -459,14 +458,8 @@ types_compatible <- function(actual, expected, actual_length = NULL) {
       return(FALSE)
     }
 
-    # Types match, now check constraints
-    expected_length <- if (S7::S7_inherits(expected_ast, type_ref)) {
-      expected_ast@length_constraint
-    } else {
-      NULL
-    }
-
-    return(check_length_constraint(actual_length, expected_length))
+    # Types match
+    return(TRUE)
   }
 
   # NEW: Convert AST to S7 unions (handles NULL | Type correctly)
@@ -487,19 +480,7 @@ types_compatible <- function(actual, expected, actual_length = NULL) {
       return(FALSE)
     }
 
-    # Base types are compatible, now check constraints
-    # Extract constraints from AST
-    expected_length <- if (S7::S7_inherits(expected_ast, type_ref)) {
-      expected_ast@length_constraint
-    } else {
-      NULL
-    }
-
-    # Check length constraint if specified
-    if (!check_length_constraint(actual_length, expected_length)) {
-      return(FALSE)
-    }
-
+    # Base types are compatible
     # Check element type constraint if specified
     # (Currently placeholder - returns TRUE)
     expected_element <- if (S7::S7_inherits(expected_ast, type_ref)) {

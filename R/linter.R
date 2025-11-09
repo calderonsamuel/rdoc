@@ -3,7 +3,7 @@
 #' Checks function calls against type annotations from @typedParam and @typedReturn tags.
 #' Works with both local function definitions and installed packages.
 #'
-#' @typedParam mode {class_character[1]} Type checking mode:
+#' @typedParam mode {class_character} Type checking mode:
 #'   - `"lenient"` (default): Check typed functions only, ignore untyped functions
 #'   - `"exported"`: Require types on `@export` functions, internal functions optional
 #'   - `"strict"`: Require types on all functions

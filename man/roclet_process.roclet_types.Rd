@@ -16,7 +16,7 @@
 \item{base_path}{Base path of the package}
 }
 \value{
-List of type information per function
+List of type information per function/class
 }
 \description{
 Process blocks to extract type information

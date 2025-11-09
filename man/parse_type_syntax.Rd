@@ -20,10 +20,9 @@ Grammar (EBNF):
 \preformatted{
   type_expr         ::= union_type
   union_type        ::= primary_type ("|" primary_type)*
-  primary_type      ::= qualified_type element_type? length_constraint?
+  primary_type      ::= qualified_type element_type?
   qualified_type    ::= identifier ("::" identifier)?
   element_type      ::= "<" type_expr ">"
-  length_constraint ::= "[" number "]"
 }
 }
 \keyword{internal}

@@ -27,17 +27,8 @@ test_that("parser handles package-qualified types", {
   expect_equal(ast@base_type, "roclet")
   expect_equal(ast@package, "roxygen2")
   expect_null(ast@element_type)
-  expect_null(ast@length_constraint)
 })
 
-test_that("parser handles package-qualified types with length constraint", {
-  ast <- parse_type_syntax("roxygen2::roclet[1]")
-
-  expect_true(S7::S7_inherits(ast, type_ref))
-  expect_equal(ast@base_type, "roclet")
-  expect_equal(ast@package, "roxygen2")
-  expect_equal(ast@length_constraint, 1)
-})
 
 test_that("parser handles list with external element type", {
   ast <- parse_type_syntax("list<roxygen2::roclet>")
@@ -51,11 +42,10 @@ test_that("parser handles list with external element type", {
 })
 
 test_that("parser handles complex external type combinations", {
-  ast <- parse_type_syntax("list<roxygen2::roclet>[3]")
+  ast <- parse_type_syntax("list<roxygen2::roclet>")
 
   expect_equal(ast@base_type, "list")
   expect_null(ast@package)
-  expect_equal(ast@length_constraint, 3)
   expect_equal(ast@element_type@base_type, "roclet")
   expect_equal(ast@element_type@package, "roxygen2")
 })
@@ -97,10 +87,10 @@ test_that("ast_to_string preserves package qualification", {
 })
 
 test_that("ast_to_string handles complex external types", {
-  ast <- parse_type_syntax("list<roxygen2::roclet>[3]")
+  ast <- parse_type_syntax("list<roxygen2::roclet>")
   result <- ast_to_string(ast)
 
-  expect_equal(result, "list<roxygen2::roclet>[3]")
+  expect_equal(result, "list<roxygen2::roclet>")
 })
 
 test_that("ast_to_string handles unions with external types", {
@@ -206,7 +196,7 @@ test_that("external types propagate through function calls (integration test)", 
   lint_file <- withr::local_tempfile(fileext = ".R")
   writeLines(c(
     "#' Get a roclet (skip return validation for Phase 24.1)",
-    "#' @typedParam name {class_character[1]}",
+    "#' @typedParam name {class_character}",
     "get_roclet <- function(name) {",
     "  # Skipping @typedReturn to avoid return validation",
     "  # Phase 24.1 focuses on parameter type checking",

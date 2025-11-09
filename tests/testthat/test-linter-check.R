@@ -523,7 +523,7 @@ test_that("linter infers types from function calls with scalar returns", {
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedReturn {class_numeric[1]} scalar number
+    #' @typedReturn {class_numeric} scalar number
     get_scalar <- function() 42
 
     #' @typedParam x {class_numeric} vector
@@ -621,7 +621,7 @@ test_that("union type errors - scenario 1: partial compatibility (needs type nar
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedReturn {class_numeric[1]} a number
+    #' @typedReturn {class_numeric} a number
     get_union <- function() 42
 
     #' @typedParam x {class_double} double value
@@ -637,7 +637,7 @@ test_that("union type errors - scenario 1: partial compatibility (needs type nar
   message <- lints[[1]]$message
 
   # Should have main error message
-  expect_match(message, "Argument 'x' expects type 'class_double' but got 'class_integer\\[1\\] \\| class_double\\[1\\]'")
+  expect_match(message, "Argument 'x' expects type 'class_double' but got 'class_integer \\| class_double'")
 
   # Scenario 1: Should explain type narrowing is needed
   expect_match(message, "Cannot narrow union to 'class_double' without type guard")
@@ -647,7 +647,7 @@ test_that("union type errors - scenario 2: total incompatibility (no explanation
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedReturn {class_numeric[1]} a number
+    #' @typedReturn {class_numeric} a number
     get_number <- function() 42
 
     #' @typedParam x {class_character} text
@@ -663,7 +663,7 @@ test_that("union type errors - scenario 2: total incompatibility (no explanation
   message <- lints[[1]]$message
 
   # Should have main error message
-  expect_match(message, "Argument 'x' expects type 'class_character' but got 'class_integer\\[1\\] \\| class_double\\[1\\]'")
+  expect_match(message, "Argument 'x' expects type 'class_character' but got 'class_integer \\| class_double'")
 
   # Scenario 2: Should NOT have explanation (total mismatch is obvious)
   expect_no_match(message, "Cannot narrow")
@@ -676,7 +676,7 @@ test_that("actual type is never a union - bare literals infer as class_double", 
   skip_if_not_installed("lintr")
 
   code <- "
-    #' @typedParam name {NULL | class_character[1]} optional name
+    #' @typedParam name {NULL | class_character} optional name
     greet <- function(name) paste('Hello', name)
 
     greet(123)

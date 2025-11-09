@@ -10,18 +10,16 @@ NULL
 #' Type reference node (e.g., "numeric", "pkg::Class")
 #'
 #' Represents a reference to a single type, optionally qualified with
-#' a package name, element type constraint, and/or length constraint.
+#' a package name and/or element type constraint.
 #'
 #' Examples:
 #' - `numeric` → type_ref(base_type = "numeric")
 #' - `pkg::Class` → type_ref(base_type = "Class", package = "pkg")
 #' - `list<numeric>` → type_ref(base_type = "list", element_type = ...)
-#' - `numeric[5]` → type_ref(base_type = "numeric", length_constraint = 5L)
 #'
 #' @field base_type Character[1] - the type name (e.g., "numeric")
 #' @field package Character[1] or NULL - package qualification (e.g., "pkg")
 #' @field element_type type_ref/union_type or NULL - element type for generics
-#' @field length_constraint Integer[1] or NULL - length constraint
 #'
 #' @keywords internal
 type_ref <- S7::new_class(
@@ -29,8 +27,7 @@ type_ref <- S7::new_class(
   properties = list(
     base_type = S7::class_character,
     package = S7::new_property(S7::class_character | NULL, default = NULL),
-    element_type = S7::new_property(S7::class_any, default = NULL),
-    length_constraint = S7::new_property(S7::class_integer | NULL, default = NULL)
+    element_type = S7::new_property(S7::class_any, default = NULL)
   ),
   validator = function(self) {
     # Validate base_type is scalar
@@ -55,19 +52,6 @@ type_ref <- S7::new_class(
         return(sprintf(
           "Type '%s' cannot have element type (only 'list' and 'class_list' support <T> syntax)",
           self@base_type
-        ))
-      }
-    }
-
-    # Validate length_constraint is non-negative or NULL
-    if (!is.null(self@length_constraint)) {
-      if (length(self@length_constraint) != 1) {
-        return("@length_constraint must be a scalar integer or NULL")
-      }
-      if (self@length_constraint < 0) {
-        return(sprintf(
-          "@length_constraint must be non-negative, got %d",
-          self@length_constraint
         ))
       }
     }

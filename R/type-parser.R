@@ -6,10 +6,9 @@
 #' \preformatted{
 #'   type_expr         ::= union_type
 #'   union_type        ::= primary_type ("|" primary_type)*
-#'   primary_type      ::= qualified_type element_type? length_constraint?
+#'   primary_type      ::= qualified_type element_type?
 #'   qualified_type    ::= identifier ("::" identifier)?
 #'   element_type      ::= "<" type_expr ">"
-#'   length_constraint ::= "[" number "]"
 #' }
 #'
 #' @param input Character string containing type syntax
@@ -330,68 +329,20 @@ parse_primary_type <- function(parser) {
     }
   }
 
-  # Optional length constraint [n]
-  length_constraint <- NULL
-  lbracket_pos <- NULL
+  # Reject square brackets (length constraints not supported)
   if (parser$current()@type == "LBRACKET") {
-    lbracket_pos <- parser$current()@position
-    parser$advance()
-
-    # Must have number
-    token <- parser$current()
-    if (token@type != "NUMBER") {
-      if (token@type == "RBRACKET") {
-        cli::cli_abort(
-          c(
-            "Expected number in [] at position {lbracket_pos + 1}",
-            "x" = "Found empty length constraint '[]'"
-          ),
-          call = NULL
-        )
-      } else {
-        cli::cli_abort(
-          c(
-            "Expected number in [] at position {token@position}",
-            "x" = "Found '{token@value}' instead"
-          ),
-          call = NULL
-        )
-      }
-    }
-
-    length_constraint <- as.integer(token@value)
-
-    # Validate non-negative integer (allow 0 for zero-length vectors)
-    if (is.na(length_constraint) || length_constraint < 0) {
-      cli::cli_abort(
-        c(
-          "Invalid length constraint at position {token@position}",
-          "x" = "Length must be non-negative integer, found '{token@value}'"
-        ),
-        call = NULL
-      )
-    }
-
-    parser$advance()
-
-    # Expect closing ]
-    if (parser$current()@type != "RBRACKET") {
-      cli::cli_abort(
-        c(
-          "Expected ']' at position {parser$current()@position}",
-          "i" = "To match '[' at position {lbracket_pos}"
-        ),
-        call = NULL
-      )
-    }
-    parser$advance()
+    cli::cli_abort(
+      c(
+        "Unexpected '[' at position {parser$current()@position}"
+      ),
+      call = NULL
+    )
   }
 
   type_ref(
     base_type = base_type,
     package = package,
-    element_type = element_type,
-    length_constraint = length_constraint
+    element_type = element_type
   )
 }
 
@@ -412,10 +363,6 @@ ast_to_string <- function(ast) {
 
   if (!is.null(ast@element_type)) {
     result <- paste0(result, "<", ast_to_string(ast@element_type), ">")
-  }
-
-  if (!is.null(ast@length_constraint)) {
-    result <- paste0(result, "[", ast@length_constraint, "]")
   }
 
   result

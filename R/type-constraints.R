@@ -1,29 +1,19 @@
 #' Parse type specification with bracket constraints
 #'
 #' Parses type specifications supporting:
-#' - Length constraints: class_integer\[1\], class_numeric\[5\]
 #' - Element type constraints: class_list<class_integer>
-#' - Combined: class_list<class_numeric>\[3\]
 #'
-#' @param type_spec Type specification string (e.g., "class_integer\[1\]")
+#' @param type_spec Type specification string (e.g., "class_list<class_integer>")
 #' @param validate Whether to validate syntax (default TRUE). Set to FALSE if
 #'   syntax was already validated during tag parsing.
-#' @return List with base_type, length_constraint, and element_type
+#' @return List with base_type and element_type
 #' @keywords internal
 #'
 #' @examples
 #' \dontrun{
-#' # Length constraint
-#' parse_type_constraints("class_integer[1]")
-#' # Returns: list(base_type = "class_integer", length_constraint = 1)
-#'
 #' # Element type constraint
 #' parse_type_constraints("class_list<class_integer>")
 #' # Returns: list(base_type = "class_list", element_type = "class_integer")
-#'
-#' # Combined
-#' parse_type_constraints("class_list<class_numeric>[3]")
-#' # Returns: list(base_type = "class_list", element_type = "class_numeric", length_constraint = 3)
 #' }
 parse_type_constraints <- function(type_spec, validate = TRUE) {
   # Validate syntax before parsing (unless already validated during tag parsing)
@@ -34,24 +24,10 @@ parse_type_constraints <- function(type_spec, validate = TRUE) {
   # Initialize result
   result <- list(
     base_type = type_spec,
-    length_constraint = NULL,
     element_type = NULL
   )
 
-  # Pattern for combined syntax: base<element>[length]
-  # Example: class_list<class_integer>[3] or class_list<class_numeric[5]>[3]
-  # Use .+? (lazy match) for element type to allow nested brackets
-  combined_pattern <- "^([^<>\\[\\]]+)<(.+?)>\\[([0-9]+)\\]$"
-  combined_match <- regmatches(type_spec, regexec(combined_pattern, type_spec, perl = TRUE))[[1]]
-
-  if (length(combined_match) == 4) {
-    result$base_type <- combined_match[2]
-    result$element_type <- combined_match[3]
-    result$length_constraint <- as.integer(combined_match[4])
-    return(result)
-  }
-
-  # Pattern for element type only: base<element>
+  # Pattern for element type: base<element>
   # Example: class_list<class_integer> or class_list<class_list<class_integer>>
   # Strategy: Match from first < to position where angle brackets are balanced
   if (grepl("^([^<>\\[\\]]+)<", type_spec, perl = TRUE)) {
@@ -89,18 +65,7 @@ parse_type_constraints <- function(type_spec, validate = TRUE) {
     }
   }
 
-  # Pattern for length constraint only: base[length]
-  # Example: class_integer[1]
-  length_pattern <- "^([^<>\\[\\]]+)\\[([0-9]+)\\]$"
-  length_match <- regmatches(type_spec, regexec(length_pattern, type_spec, perl = TRUE))[[1]]
-
-  if (length(length_match) == 3) {
-    result$base_type <- length_match[2]
-    result$length_constraint <- as.integer(length_match[3])
-    return(result)
-  }
-
-  # No constraints found, return base type as-is
+  # No element type found, return base type as-is
   result
 }
 
@@ -119,25 +84,7 @@ format_type_constraints <- function(parsed_type) {
     result <- paste0(result, "<", parsed_type$element_type, ">")
   }
 
-  # Add length constraint if present
-  if (!is.null(parsed_type$length_constraint)) {
-    result <- paste0(result, "[", parsed_type$length_constraint, "]")
-  }
-
   result
-}
-
-#' Check if actual type satisfies length constraint
-#'
-#' @param actual_length Integer length of actual value
-#' @param expected_constraint Integer expected length from type spec
-#' @return Logical
-#' @keywords internal
-check_length_constraint <- function(actual_length, expected_constraint) {
-  if (is.null(expected_constraint)) return(TRUE)
-  if (is.null(actual_length)) return(TRUE)  # Can't check, assume OK
-
-  actual_length == expected_constraint
 }
 
 #' Check if actual type satisfies element type constraint

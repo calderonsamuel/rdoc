@@ -7,9 +7,9 @@ test_that("linter loads types from box module with full import", {
   dir.create(mod_dir)
   module_file <- file.path(mod_dir, "math.r")
   writeLines(c(
-    "#' @typedParam a {class_numeric[1]} first",
-    "#' @typedParam b {class_numeric[1]} second",
-    "#' @typedReturn {class_numeric[1]} sum",
+    "#' @typedParam a {class_numeric} first",
+    "#' @typedParam b {class_numeric} second",
+    "#' @typedReturn {class_numeric} sum",
     "#' @export",
     "add <- function(a, b) a + b"
   ), module_file)
@@ -32,8 +32,8 @@ test_that("linter loads types from box module with full import", {
 
   expect_length(types, 1)
   expect_named(types, "math$add")
-  expect_equal(types$`math$add`@params$a@type, "class_numeric[1]")
-  expect_equal(types$`math$add`@return@type, "class_numeric[1]")
+  expect_equal(types$`math$add`@params$a@type, "class_numeric")
+  expect_equal(types$`math$add`@return@type, "class_numeric")
 })
 
 test_that("linter loads types from box module with aliased import", {

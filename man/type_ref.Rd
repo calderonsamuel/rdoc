@@ -4,16 +4,11 @@
 \alias{type_ref}
 \title{Type reference node (e.g., "numeric", "pkg::Class")}
 \usage{
-type_ref(
-  base_type = character(0),
-  package = character(0),
-  element_type = NULL,
-  length_constraint = integer(0)
-)
+type_ref(base_type = character(0), package = character(0), element_type = NULL)
 }
 \description{
 Represents a reference to a single type, optionally qualified with
-a package name, element type constraint, and/or length constraint.
+a package name and/or element type constraint.
 }
 \details{
 Examples:
@@ -21,7 +16,6 @@ Examples:
 \item \code{numeric} → type_ref(base_type = "numeric")
 \item \code{pkg::Class} → type_ref(base_type = "Class", package = "pkg")
 \item \verb{list<numeric>} → type_ref(base_type = "list", element_type = ...)
-\item \code{numeric[5]} → type_ref(base_type = "numeric", length_constraint = 5L)
 }
 }
 \section{Fields}{
@@ -32,8 +26,6 @@ Examples:
 \item{\code{package}}{Character\link{1} or NULL - package qualification (e.g., "pkg")}
 
 \item{\code{element_type}}{type_ref/union_type or NULL - element type for generics}
-
-\item{\code{length_constraint}}{Integer\link{1} or NULL - length constraint}
 }}
 
 \keyword{internal}

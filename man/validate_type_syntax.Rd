@@ -7,7 +7,7 @@
 validate_type_syntax(type_spec, source_location = NULL)
 }
 \arguments{
-\item{type_spec}{Type specification string (e.g., "class_integer[1]")}
+\item{type_spec}{Type specification string (e.g., "class_integer")}
 
 \item{source_location}{Optional location info for error messages}
 }
@@ -21,7 +21,7 @@ a proper parser (Phase 13.4) for better error messages and maintainability.
 }
 \examples{
 \dontrun{
-validate_type_syntax("class_integer[1]")  # Valid - returns NULL
+validate_type_syntax("class_integer")  # Valid - returns NULL
 validate_type_syntax("class_list<>")      # Invalid - aborts with error
 validate_type_syntax("class_list<int><char>")  # Invalid - aborts
 }

@@ -242,25 +242,6 @@ takes_date(returns_date())
   expect_length(lints, 0)
 })
 
-test_that("new types work with length constraints", {
-  skip_if_not_installed("xml2")
-
-  code <- "
-#' @typedParam names {class_character[3]}
-takes_names <- function(names) { names }
-
-#' @typedParam items {class_list<class_integer>[5]}
-takes_items <- function(items) { items }
-
-# These should pass type checking (length checked at runtime)
-takes_names(c('a', 'b', 'c'))
-takes_items(list(1L, 2L, 3L, 4L, 5L))
-"
-
-  lints <- lintr::lint(text = code, linters = list(rdoc::type_consistency_linter()))
-  expect_length(lints, 0)
-})
-
 test_that("new types work in union annotations", {
   skip_if_not_installed("xml2")
 

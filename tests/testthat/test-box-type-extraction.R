@@ -168,18 +168,18 @@ test_that("extract_module_types handles complex real-world module", {
     "# Math utilities module",
     "",
     "#' Add two numbers",
-    "#' @typedParam a {class_numeric[1]} first number",
-    "#' @typedParam b {class_numeric[1]} second number",
-    "#' @typedReturn {class_numeric[1]} sum",
+    "#' @typedParam a {class_numeric} first number",
+    "#' @typedParam b {class_numeric} second number",
+    "#' @typedReturn {class_numeric} sum",
     "#' @export",
     "add <- function(a, b) {",
     "  a + b",
     "}",
     "",
     "#' Multiply two numbers",
-    "#' @typedParam a {class_numeric[1]} first number",
-    "#' @typedParam b {class_numeric[1]} second number",
-    "#' @typedReturn {class_numeric[1]} product",
+    "#' @typedParam a {class_numeric} first number",
+    "#' @typedParam b {class_numeric} second number",
+    "#' @typedReturn {class_numeric} product",
     "#' @export",
     "multiply <- function(a, b) {",
     "  a * b",
@@ -195,10 +195,10 @@ test_that("extract_module_types handles complex real-world module", {
 
   expect_length(types, 2)
   expect_named(types, c("add", "multiply"))
-  expect_equal(types$add@params$a@type, "class_numeric[1]")
-  expect_equal(types$add@params$b@type, "class_numeric[1]")
-  expect_equal(types$add@return@type, "class_numeric[1]")
-  expect_equal(types$multiply@return@type, "class_numeric[1]")
+  expect_equal(types$add@params$a@type, "class_numeric")
+  expect_equal(types$add@params$b@type, "class_numeric")
+  expect_equal(types$add@return@type, "class_numeric")
+  expect_equal(types$multiply@return@type, "class_numeric")
 })
 
 test_that("extract_module_types handles @typedParam with no @typedReturn", {
@@ -220,7 +220,7 @@ test_that("extract_module_types handles @typedParam with no @typedReturn", {
 test_that("extract_module_types handles @typedReturn with no @typedParam", {
   tmp_file <- withr::local_tempfile(fileext = ".r")
   writeLines(c(
-    "#' @typedReturn {class_numeric[1]} constant",
+    "#' @typedReturn {class_numeric} constant",
     "#' @export",
     "get_pi <- function() 3.14159"
   ), tmp_file)
@@ -229,6 +229,6 @@ test_that("extract_module_types handles @typedReturn with no @typedParam", {
 
   expect_length(types, 1)
   expect_named(types, "get_pi")
-  expect_equal(types$get_pi@return@type, "class_numeric[1]")
+  expect_equal(types$get_pi@return@type, "class_numeric")
   expect_length(types$get_pi@params, 0)
 })

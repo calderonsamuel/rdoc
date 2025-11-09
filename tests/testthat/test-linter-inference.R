@@ -117,9 +117,9 @@ test_that("types_compatible handles union types", {
 })
 
 test_that("types_compatible handles numeric coercion", {
-  # class_numeric[1] should be compatible with class_numeric
-  expect_true(types_compatible("class_double", "class_numeric[1]"))
-  expect_false(types_compatible("class_numeric[1]", "class_double"))
+  # class_numeric should be compatible with class_numeric
+  expect_true(types_compatible("class_double", "class_numeric"))
+  expect_false(types_compatible("class_numeric", "class_double"))
 })
 
 test_that("infer_argument_type detects c() with character", {

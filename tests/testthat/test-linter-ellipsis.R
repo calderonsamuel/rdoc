@@ -115,7 +115,7 @@ test_that("ellipsis can be used for forwarding", {
     #' Wrapper function
     #' @typedParam x {class_numeric} data
     #' @typedParam ... {class_any} passed to mean()
-    #' @typedReturn {class_numeric[1]} mean value
+    #' @typedReturn {class_numeric} mean value
     mean_wrapper <- function(x, ...) {
       mean(x, ...)
     }

@@ -66,17 +66,14 @@ test_that("lexer tokenizes number", {
   expect_equal(tokens[[3]]@type, "RBRACKET")
 })
 
-test_that("lexer tokenizes brackets and angles", {
-  tokens <- lex_type_syntax("class_list<int>[5]")
+test_that("lexer tokenizes angles", {
+  tokens <- lex_type_syntax("class_list<int>")
 
   expect_equal(tokens[[1]], token(type = "IDENTIFIER", value = "class_list", position = 1L))
   expect_equal(tokens[[2]]@type, "LANGLE")
   expect_equal(tokens[[3]], token(type = "IDENTIFIER", value = "int", position = 12L))
   expect_equal(tokens[[4]]@type, "RANGLE")
-  expect_equal(tokens[[5]]@type, "LBRACKET")
-  expect_equal(tokens[[6]], token(type = "NUMBER", value = "5", position = 17L))
-  expect_equal(tokens[[7]]@type, "RBRACKET")
-  expect_equal(tokens[[8]]@type, "EOF")
+  expect_equal(tokens[[5]]@type, "EOF")
 })
 
 test_that("lexer tokenizes pipe", {
@@ -171,16 +168,13 @@ test_that("parser creates AST for simple type", {
   expect_true(S7::S7_inherits(ast, type_ref))
   expect_equal(ast@base_type, "class_numeric")
   expect_null(ast@element_type)
-  expect_null(ast@length_constraint)
 })
 
-test_that("parser creates AST for type with length", {
-  ast <- parse_type_syntax("class_numeric[5]")
-
-  expect_true(S7::S7_inherits(ast, type_ref))
-  expect_equal(ast@base_type, "class_numeric")
-  expect_equal(ast@length_constraint, 5)
-  expect_null(ast@element_type)
+test_that("parser rejects square brackets", {
+  expect_error(
+    parse_type_syntax("class_numeric[5]"),
+    "Unexpected '\\['"
+  )
 })
 
 test_that("parser creates AST for generic type", {
@@ -192,13 +186,11 @@ test_that("parser creates AST for generic type", {
   expect_equal(ast@element_type@base_type, "class_integer")
 })
 
-test_that("parser creates AST for generic with length", {
-  ast <- parse_type_syntax("class_list<class_integer>[3]")
-
-  expect_true(S7::S7_inherits(ast, type_ref))
-  expect_equal(ast@base_type, "class_list")
-  expect_equal(ast@length_constraint, 3)
-  expect_equal(ast@element_type@base_type, "class_integer")
+test_that("parser rejects square brackets after element type", {
+  expect_error(
+    parse_type_syntax("class_list<class_integer>[3]"),
+    "Unexpected '\\['"
+  )
 })
 
 test_that("parser creates AST for nested generic", {
@@ -237,12 +229,10 @@ test_that("parser creates AST for union in generic", {
 })
 
 test_that("parser creates AST for complex nested type", {
-  ast <- parse_type_syntax("class_list<class_list<class_integer | class_character>[5]>[10]")
+  ast <- parse_type_syntax("class_list<class_list<class_integer | class_character>>")
 
   expect_equal(ast@base_type, "class_list")
-  expect_equal(ast@length_constraint, 10)
   expect_equal(ast@element_type@base_type, "class_list")
-  expect_equal(ast@element_type@length_constraint, 5)
   expect_true(S7::S7_inherits(ast@element_type@element_type, union_type))
 })
 
@@ -257,12 +247,6 @@ test_that("parser reports error for empty angle brackets", {
   )
 })
 
-test_that("parser reports error for empty square brackets", {
-  expect_error(
-    parse_type_syntax("class_integer[]"),
-    "Expected number.*at position 15"
-  )
-})
 
 test_that("parser reports error for unclosed angle bracket", {
   expect_error(
@@ -271,12 +255,6 @@ test_that("parser reports error for unclosed angle bracket", {
   )
 })
 
-test_that("parser reports error for unclosed square bracket", {
-  expect_error(
-    parse_type_syntax("class_integer[5"),
-    "Expected.*at position 16"
-  )
-})
 
 test_that("parser reports error for unexpected closing bracket", {
   expect_error(
@@ -311,12 +289,6 @@ test_that("parser reports error for consecutive pipes", {
   )
 })
 
-test_that("parser reports error for non-numeric length", {
-  expect_error(
-    parse_type_syntax("class_integer[abc]"),
-    "Expected number.*at position 15"
-  )
-})
 
 test_that("parser reports error for multiple element types", {
   expect_error(
@@ -390,12 +362,6 @@ test_that("parser handles type names with dots and underscores", {
   expect_equal(ast3@base_type, "My.Custom_Class")
 })
 
-test_that("parser handles large length constraints", {
-  ast <- parse_type_syntax("integer[99999]")
-
-  expect_equal(ast@length_constraint, 99999)
-})
-
 test_that("parser returns NULL invisibly on success", {
   result <- parse_type_syntax("class_integer")
   expect_invisible(parse_type_syntax("class_integer"))
@@ -409,9 +375,7 @@ test_that("parser handles real-world type annotations", {
   # From actual package usage
   expect_silent(parse_type_syntax("class_numeric"))
   expect_silent(parse_type_syntax("class_character"))
-  expect_silent(parse_type_syntax("class_integer[1]"))
   expect_silent(parse_type_syntax("class_list<class_integer>"))
-  expect_silent(parse_type_syntax("class_list<class_numeric>[2]"))
   expect_silent(parse_type_syntax("class_data.frame"))
   expect_silent(parse_type_syntax("class_list<class_integer | class_character>"))
 })
@@ -474,30 +438,24 @@ test_that("ast_to_string reconstructs type syntax", {
   # Simple type
   expect_equal(ast_to_string(parse_type_syntax("class_integer")), "class_integer")
 
-  # With length
-  expect_equal(ast_to_string(parse_type_syntax("class_integer[5]")), "class_integer[5]")
-
   # Generic
   expect_equal(ast_to_string(parse_type_syntax("class_list<class_integer>")), "class_list<class_integer>")
 
   # Complex
   expect_equal(
-    ast_to_string(parse_type_syntax("class_list<class_integer | class_character>[5]")),
-    "class_list<class_integer | class_character>[5]"
+    ast_to_string(parse_type_syntax("class_list<class_integer | class_character>")),
+    "class_list<class_integer | class_character>"
   )
 })
 
 test_that("ast_validate checks semantic rules", {
-  # Length constraint must be non-negative (0 is allowed)
-  ast <- parse_type_syntax("class_integer[5]")
-  expect_error(
-    ast@length_constraint <- -1L,
-    "@length_constraint must be non-negative"
-  )
-
-  # Zero is allowed
-  ast@length_constraint <- 0L
+  # Basic validation passes
+  ast <- parse_type_syntax("class_integer")
   expect_silent(ast_validate(ast))
+
+  # Validate nested types
+  ast2 <- parse_type_syntax("class_list<class_integer>")
+  expect_silent(ast_validate(ast2))
 })
 
 # =============================================================================
@@ -516,8 +474,8 @@ test_that("parser accepts NULL as first in union", {
 
   # Complex types with NULL first
   expect_silent(parse_type_syntax("NULL | class_list<class_integer>"))
-  expect_silent(parse_type_syntax("NULL | class_character[1]"))
-  expect_silent(parse_type_syntax("NULL | class_list<class_integer>[5]"))
+  expect_silent(parse_type_syntax("NULL | class_character"))
+  expect_silent(parse_type_syntax("NULL | class_list<class_integer>"))
 })
 
 test_that("parser rejects NULL not first in union", {
@@ -550,7 +508,7 @@ test_that("parser rejects NULL not first in union", {
   )
 
   expect_error(
-    parse_type_syntax("class_character[1] | NULL"),
+    parse_type_syntax("class_character | NULL"),
     "NULL must be first in union type"
   )
 })
@@ -599,11 +557,10 @@ test_that("NULL position validation preserves AST structure", {
   expect_equal(ast@types[[2]]@base_type, "class_integer")
 
   # Complex case
-  ast <- parse_type_syntax("NULL | class_list<class_integer>[5]")
+  ast <- parse_type_syntax("NULL | class_list<class_integer>")
 
   expect_true(S7::S7_inherits(ast, union_type))
   expect_equal(ast@types[[1]]@base_type, "NULL")
   expect_equal(ast@types[[2]]@base_type, "class_list")
   expect_equal(ast@types[[2]]@element_type@base_type, "class_integer")
-  expect_equal(ast@types[[2]]@length_constraint, 5)
 })

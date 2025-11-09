@@ -183,7 +183,7 @@ test_that("linter validates box module property access syntax", {
   mod_dir <- file.path(tmp_dir, "mod")
   dir.create(mod_dir)
   writeLines(c(
-    "#' @typedParam n {class_integer[1]} count",
+    "#' @typedParam n {class_integer} count",
     "#' @typedReturn {class_character} message",
     "#' @export",
     "repeat_msg <- function(n) paste(rep('hi', n), collapse = ' ')"

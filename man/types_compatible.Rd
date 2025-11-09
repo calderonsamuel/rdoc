@@ -4,7 +4,7 @@
 \alias{types_compatible}
 \title{Check if two types are compatible}
 \usage{
-types_compatible(actual, expected, actual_length = NULL)
+types_compatible(actual, expected)
 }
 \arguments{
 \item{actual}{Actual type string (e.g., "integer", "class_integer")}

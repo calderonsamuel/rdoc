@@ -6,7 +6,7 @@ test_that("nested anonymous functions in closures are not checked", {
   lint_file <- withr::local_tempfile(fileext = ".R")
   writeLines(c(
     "#' Public linter function",
-    "#' @typedParam mode {class_character[1]} checking mode",
+    "#' @typedParam mode {class_character} checking mode",
     "#' @typedReturn {class_list} linter result",
     "#' @export",
     "type_consistency_linter <- function(mode = 'lenient') {",

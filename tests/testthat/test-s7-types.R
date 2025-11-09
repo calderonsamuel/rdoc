@@ -178,12 +178,6 @@ test_that("types_compatible handles rdoc union types with S7", {
   expect_false(types_compatible("NULL | class_integer", "class_integer"))
 })
 
-test_that("types_compatible handles length constraints", {
-  # Length constraints are stripped, then S7 compatibility checked
-  expect_true(types_compatible("class_integer[1]", "class_integer[1]"))
-  expect_true(types_compatible("class_integer[1]", "class_integer[1]"))
-  expect_true(types_compatible("class_integer[1]", "class_integer"))
-})
 
 test_that("types_compatible falls back for non-S7 types", {
   # Non-S7 types use string-based compatibility
@@ -290,7 +284,7 @@ test_that("rdoc_union_to_s7 handles complex types (future-proofing)", {
   expect_equal(s7_union$classes[[2]]$class, "list")  # S7 internal name
 
   # With length constraint
-  ast <- parse_type_syntax("NULL | class_integer[5]")
+  ast <- parse_type_syntax("NULL | class_integer")
   s7_union <- rdoc_union_to_s7(ast)
 
   expect_s3_class(s7_union, "S7_union")
@@ -310,8 +304,8 @@ test_that("type_to_s7_display expands class_numeric in complex unions", {
 })
 
 test_that("type_to_s7_display preserves length constraints when expanding", {
-  result <- type_to_s7_display("class_numeric[1]")
-  expect_equal(result, "class_integer[1] | class_double[1]")
+  result <- type_to_s7_display("class_numeric")
+  expect_equal(result, "class_integer | class_double")
 })
 
 test_that("type_to_s7_display preserves element types when expanding", {

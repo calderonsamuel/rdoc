@@ -42,8 +42,8 @@ Use `@typedParam` and `@typedReturn` tags in your roxygen2 comments:
 #' Calculate the mean of a numeric vector
 #'
 #' @typedParam x {class_numeric} Vector of values
-#' @typedParam na.rm {class_logical[1]} Remove NA values?
-#' @typedReturn {class_numeric[1]} The mean value
+#' @typedParam na.rm {class_logical} Remove NA values?
+#' @typedReturn {class_numeric} The mean value
 #' @export
 calculate_mean <- function(x, na.rm = FALSE) {
   mean(x, na.rm = na.rm)
@@ -141,8 +141,8 @@ process_input <- function(input) {
 Use square brackets to specify vector length:
 
 ``` r
-#' @typedParam key {class_character[1]} scalar string
-#' @typedParam value {class_numeric[1]} scalar number
+#' @typedParam key {class_character} scalar string
+#' @typedParam value {class_numeric} scalar number
 set_config <- function(key, value) {
   config[[key]] <- value
 }
@@ -154,7 +154,7 @@ Use angle brackets to specify list element types:
 
 ``` r
 #' @typedParam items {class_list<class_integer>} list of integers
-#' @typedParam names {class_list<class_character[1]>} list of scalar strings
+#' @typedParam names {class_list<class_character>} list of scalar strings
 process_items <- function(items, names) {
   # ...
 }

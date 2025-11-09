@@ -64,72 +64,89 @@ test_that("extract_s7_properties handles empty properties list", {
 })
 
 test_that("is_s7_class_definition detects S7 classes", {
-  # Mock block with S7::new_class
-  block <- list(
-    object = list(
-      value = quote(S7::new_class("Person", properties = list(name = class_character)))
-    )
-  )
+  skip_if_not_installed("roxygen2")
+  skip_if_not_installed("S7")
+
+  # Load S7 so roxygen2::parse_text can evaluate the S7 code
+  library(S7)
+
+  code <- "
+    #' Person class
+    #' @export
+    Person <- S7::new_class('Person', properties = list(name = class_character))
+  "
+
+  parsed <- roxygen2::parse_text(code)
+  block <- parsed[[1]]
 
   expect_true(is_s7_class_definition(block))
 })
 
 test_that("is_s7_class_definition detects new_class without S7:: prefix", {
+  skip_if_not_installed("roxygen2")
+  skip_if_not_installed("S7")
+
+  # Load S7 so roxygen2::parse_text can evaluate the S7 code
+  library(S7)
+
   # Some code might use library(S7) and call new_class directly
-  block <- list(
-    object = list(
-      value = quote(new_class("Person", properties = list(name = class_character)))
-    )
-  )
+  code <- "
+    #' Person class
+    #' @export
+    Person <- new_class('Person', properties = list(name = class_character))
+  "
+
+  parsed <- roxygen2::parse_text(code)
+  block <- parsed[[1]]
 
   expect_true(is_s7_class_definition(block))
 })
 
 test_that("is_s7_class_definition returns FALSE for functions", {
-  block <- list(
-    object = list(
-      value = quote(function(x) x + 1)
-    )
-  )
+  skip_if_not_installed("roxygen2")
+
+  code <- "
+    #' A function
+    #' @export
+    my_func <- function(x) x + 1
+  "
+
+  parsed <- roxygen2::parse_text(code)
+  block <- parsed[[1]]
 
   expect_false(is_s7_class_definition(block))
 })
 
-test_that("is_s7_class_definition returns FALSE for NULL", {
+test_that("is_s7_class_definition returns FALSE for NULL object", {
   block <- list(object = NULL)
 
   expect_false(is_s7_class_definition(block))
 })
 
 test_that("extract_s7_class_info extracts complete class metadata", {
-  # Create mock block
-  tag_param1 <- structure(
-    list(val = list(param = "name", type = "class_character[1]", description = "Person's name")),
-    class = c("roxy_tag_typedParam", "roxy_tag")
-  )
+  skip_if_not_installed("roxygen2")
+  skip_if_not_installed("S7")
 
-  tag_param2 <- structure(
-    list(val = list(param = "age", type = "class_numeric[1]", description = "Person's age")),
-    class = c("roxy_tag_typedParam", "roxy_tag")
-  )
+  # Load S7 so roxygen2::parse_text can evaluate the S7 code
+  library(S7)
 
-  tag_return <- structure(
-    list(val = list(type = "Person", description = "A new Person instance")),
-    class = c("roxy_tag_typedReturn", "roxy_tag")
-  )
-
-  block <- list(
-    tags = list(tag_param1, tag_param2, tag_return),
-    object = list(
-      value = quote(S7::new_class(
-        "Person",
-        properties = list(
-          name = class_character,
-          age = class_numeric
-        )
-      ))
+  code <- "
+    #' Person class
+    #' @typedParam name {class_character} Person's name
+    #' @typedParam age {class_numeric} Person's age
+    #' @typedReturn {Person} A new Person instance
+    #' @export
+    Person <- S7::new_class(
+      'Person',
+      properties = list(
+        name = class_character,
+        age = class_numeric
+      )
     )
-  )
+  "
+
+  parsed <- roxygen2::parse_text(code)
+  block <- parsed[[1]]
 
   result <- extract_s7_class_info(block, globalenv())
 
@@ -139,8 +156,8 @@ test_that("extract_s7_class_info extracts complete class metadata", {
 
   # Check constructor signature
   expect_s7_class(result$constructor_signature, function_signature)
-  expect_equal(result$constructor_signature@params$name@type, "class_character[1]")
-  expect_equal(result$constructor_signature@params$age@type, "class_numeric[1]")
+  expect_equal(result$constructor_signature@params$name@type, "class_character")
+  expect_equal(result$constructor_signature@params$age@type, "class_numeric")
   expect_equal(result$constructor_signature@return@type, "Person")
 
   # Check properties

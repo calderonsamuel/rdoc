@@ -4,7 +4,7 @@
 
 **Audience**: Blog post readers, case study researchers, future contributors
 
-**Last Updated**: 2025-10-29 03:30:00 UTC (Phase 34)
+**Last Updated**: 2025-11-09 20:25:56 UTC (Phase 35 - Length Constraint Removal)
 
 ---
 
@@ -1715,6 +1715,171 @@ The discussion revealed that great naming comes from:
 
 ---
 
+## Phase 34B: S7 Class Support - Property Extraction
+
+**Date**: 2025-10-29 13:57:00 UTC
+**Status**: ✅ Complete (45 tests passing, 1125 total)
+
+### Design Decision: AST-Based Property Extraction with Full Type Names
+
+**Problem**: Phase 34A created the container structure, but types.rds only stored functions. R packages also export S7 classes, and we needed a way to extract and store class metadata including properties.
+
+**Solution**: Parse S7::new_class() calls using R's AST to extract properties and convert S7 class objects to strings while preserving full type names.
+
+**Key Implementation Details**:
+
+1. **Detection**: Check if block contains `S7::new_class` or `new_class` pattern
+2. **Constructor from Tags**: Extract constructor signature from @typedParam/@typedReturn (reuses existing logic)
+3. **Properties from AST**: Parse `properties = list(...)` argument to extract property types
+4. **Full Name Preservation**: Convert `class_character` → `"class_character"` (NOT `"character"`)
+5. **Dual Storage**: Store both constructor signature (for instantiation validation) and properties (for future property access validation)
+
+**Rationale**:
+
+**Why AST parsing:**
+- Robust against formatting variations
+- Accurate extraction without regex fragility
+- Consistent with rdoc's existing parsing approach
+- Handles both `S7::new_class` and `new_class` patterns
+
+**Why preserve full type names:**
+- `class_character` ≠ base `character` (S7 has validation, coercion rules)
+- Maintains S7 type system distinctions
+- Consistent with how we store all types in rdoc
+- Future-proof: preserves full type information for advanced validation
+
+**Why separate constructor and properties:**
+- Constructor signature validates instantiation: `Person(name = "Alice", age = 30)`
+- Properties enable future property access validation: `person@name` (deferred to later phase)
+- Constructor parameters ≠ properties (constructors may have extra params like `validate = TRUE`)
+
+**Key Insight**: S7 classes ARE their constructors, so they're documented as functions with @typedParam/@typedReturn. This means constructor signatures come from existing roclet logic (no auto-generation needed), while properties are auto-extracted from the S7::new_class() definition. Both pieces of metadata serve different validation purposes.
+
+**Example Transformation**:
+
+```r
+# Input: S7 class definition
+#' Person class
+#' @typedParam name {class_character[1]} Person's name
+#' @typedParam age {class_numeric[1]} Person's age
+#' @typedReturn {Person} A new Person instance
+#' @export
+Person <- S7::new_class(
+  "Person",
+  properties = list(
+    name = class_character,
+    age = class_numeric
+  )
+)
+
+# Output in types.rds:
+type_metadata(
+  exports = list(
+    "Person" = exported_class(
+      name = "Person",
+      export_type = "class",
+      class_system = "S7",
+      constructor_signature = function_signature(
+        params = list(
+          name = param_type(type = "class_character[1]", ...),
+          age = param_type(type = "class_numeric[1]", ...)
+        ),
+        return = return_type(type = "Person", ...)
+      ),
+      properties = list(
+        name = param_type(type = "class_character", description = ""),
+        age = param_type(type = "class_numeric", description = "")
+      )
+    )
+  )
+)
+```
+
+**What This Enables**:
+
+**Immediate (Phase 34B):**
+- S7 classes stored in types.rds alongside functions
+- Property types captured with full S7 type names
+- Constructor validation works via constructor_signature
+- Foundation for property access validation
+
+**Near-term (Future Phase):**
+- Property access validation: `person@name` type checking
+- Inheritance validation: Check property access on parent classes
+- Property type mismatches caught at lint time
+
+**Scope Boundaries**:
+
+**Included in Phase 34B:**
+- ✅ S7 class detection and property extraction
+- ✅ Constructor signature from @typedParam/@typedReturn
+- ✅ Full type name preservation (class_character, not character)
+- ✅ Basic property list extraction
+- ✅ Parent class extraction (parsed but not yet used)
+
+**Deferred to Future Phases:**
+- ❌ Property access validation (`person@name` linting)
+- ❌ R6 class support
+- ❌ S3/S4 class support
+- ❌ Property defaults extraction
+- ❌ Property validator extraction
+
+**Implementation Approach**:
+
+1. **Detection**: `is_s7_class_definition()` checks for S7::new_class pattern
+2. **Extraction**: `extract_s7_class_info()` orchestrates metadata gathering
+3. **Property Parsing**: `extract_s7_properties()` walks AST to find `properties = list(...)`
+4. **Type Conversion**: `s7_class_expr_to_string()` converts S7 class objects to strings
+5. **Wrapping**: `roclet_output` detects S7 class metadata and wraps in `exported_class`
+
+**Test Coverage**: 45 new tests in test-s7-class-extraction.R covering:
+- Type string conversion (symbols, qualified names, unions)
+- Property extraction (simple, empty, missing)
+- Class detection (with/without S7:: prefix)
+- Full integration (roclet processing, output generation)
+- Mixed exports (functions + classes in same package)
+
+**Related Documentation**: See PHASE_34B_S7_CLASS_SUPPORT.md for detailed implementation plan.
+
+### Pending Design Discussion: Scope Tracking for new_class()
+
+**Date**: 2025-10-29 (Identified during test refactoring)
+
+**Issue**: Current detection logic in `is_s7_class_definition()` matches ANY `new_class()` call, not just S7's. This could create false positives if other packages define functions named `new_class()`.
+
+**Current Implementation**:
+```r
+is_s7_class_definition <- function(block) {
+  # Method 1: Check if evaluated value is S7 class object
+  if (inherits(block$object$value, "S7_class")) return(TRUE)
+
+  # Method 2: Check for "new_class" pattern in source
+  if (grepl("new_class", deparse(block$call))) return(TRUE)
+}
+```
+
+**The Problem**: Method 2 has no scope tracking:
+- Matches `new_class(...)` from any package
+- Matches `MyPackage::new_class(...)` from non-S7 packages
+- Could incorrectly identify classes from other OOP systems
+
+**Why Not Fixed Yet**:
+- Low priority: S7's `new_class()` is unique enough that collisions are unlikely
+- Method 1 already provides correct detection for evaluated objects (used during real roclet execution)
+- Method 2 mainly supports testing scenarios with unevaluated expressions
+- No false positives observed in practice
+
+**Potential Solutions** (if this becomes a problem):
+1. **Strict detection**: Only match `S7::new_class` (but breaks code using `library(S7); new_class(...)`)
+2. **Namespace tracking**: Check if S7 is imported in the file scope
+3. **Evaluated-only**: Remove Method 2, require S7 to be loadable during roclet execution
+
+**Decision**: Document but don't fix. The dual-method approach (evaluated object + pattern matching) provides good coverage, and real-world usage goes through Method 1. If false positives emerge, revisit with namespace tracking solution.
+
+**Related Code**: R/roclet-types.R:218-240 (is_s7_class_definition)
+
+---
+
 ## Cross-Cutting Insights
 
 ### 1. Leverage Existing Infrastructure
@@ -1955,7 +2120,56 @@ Both TypeScript and Python:
 ## Document Metadata
 
 **Created**: January 2025
-**Last Updated**: 2025-10-29 03:30:00 UTC (Phase 34)
-**Total Phases Documented**: 26 major phases
+**Last Updated**: 2025-11-09 20:25:56 UTC (Phase 35 - Length Constraint Removal)
+**Total Phases Documented**: 28 major phases
 **Maintained By**: rdoc contributors
 **Purpose**: Technical reference for understanding rdoc's evolution
+
+---
+
+## Phase 35: Removal of Length Constraint Support
+
+**Date**: 2025-11-09
+**Effort**: 1 day
+**Status**: ✅ Complete (1026 tests passing)
+
+### Design Decision: Remove Scalar/Length Constraint Syntax
+
+**Problem**: The `[N]` syntax for length constraints (e.g., `numeric[1]` for scalars) fought against R's vectorized nature and created user confusion.
+
+**Solution**: Removed all length constraint support, keeping only element type constraints `<type>` for generics.
+
+**Rationale**:
+- **R is fundamentally vectorized**: Fighting this creates friction with R's core design philosophy
+- **Incomplete implementation**: Static analysis couldn't reliably check length for constructed vectors (`c(1, 2)`)
+- **Implementation complexity**: Required `@length_constraint` property, `actual_length` parameter threading, and special-case logic throughout the codebase
+- **User confusion**: Scalars work for literals but not expressions - inconsistent behavior is worse than no behavior
+- **Not truly R-like**: R doesn't distinguish scalars from length-1 vectors at the type level
+
+**What Was Removed**:
+- `[N]` syntax for length constraints (e.g., `numeric[1]`, `character[5]`)
+- `@length_constraint` property from `type_ref` S7 class
+- `check_length_constraint()` function
+- `actual_length` parameter from `types_compatible()`
+- All length constraint parsing logic from `parse_type_constraints()`
+- 22+ test files updated, `test-linter-bracket-syntax.R` → `test-element-types.R`
+
+**What Was Kept**:
+- Element type constraints: `list<integer>` for generic types
+- All other type system features (unions, external types, NULL safety, etc.)
+
+**Key Insight**: Sometimes removing a feature makes the system better. R's vectorization is a core strength - type checking should embrace it, not fight it. Accept imprecision on vector lengths rather than provide inconsistent behavior.
+
+**What This Enabled**:
+- Cleaner, simpler type system aligned with R's philosophy
+- Removed 500+ lines of constraint-checking code
+- Reduced cognitive load for users (one less syntax to learn)
+- Better alignment with how R developers actually think about types
+
+**Migration Path**: Users should:
+- Remove `[N]` from all type annotations
+- Accept that `numeric` means "numeric vector of any length"
+- Use prose documentation for scalar requirements (just like base R)
+- Rely on runtime checks for length validation when needed
+
+---

@@ -7,35 +7,25 @@
 parse_type_constraints(type_spec, validate = TRUE)
 }
 \arguments{
-\item{type_spec}{Type specification string (e.g., "class_integer[1]")}
+\item{type_spec}{Type specification string (e.g., "class_list<class_integer>")}
 
 \item{validate}{Whether to validate syntax (default TRUE). Set to FALSE if
 syntax was already validated during tag parsing.}
 }
 \value{
-List with base_type, length_constraint, and element_type
+List with base_type and element_type
 }
 \description{
 Parses type specifications supporting:
 \itemize{
-\item Length constraints: class_integer[1], class_numeric[5]
 \item Element type constraints: class_list<class_integer>
-\item Combined: class_list<class_numeric>[3]
 }
 }
 \examples{
 \dontrun{
-# Length constraint
-parse_type_constraints("class_integer[1]")
-# Returns: list(base_type = "class_integer", length_constraint = 1)
-
 # Element type constraint
 parse_type_constraints("class_list<class_integer>")
 # Returns: list(base_type = "class_list", element_type = "class_integer")
-
-# Combined
-parse_type_constraints("class_list<class_numeric>[3]")
-# Returns: list(base_type = "class_list", element_type = "class_numeric", length_constraint = 3)
 }
 }
 \keyword{internal}
