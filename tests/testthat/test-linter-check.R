@@ -1,7 +1,24 @@
 # Tests for R/linter-check.R
 # Integration tests that call lintr::lint() to validate type checking
 
+# Type extraction parsing (merged from test-linter-extract.R) ----
 
+test_that("parse_typed_param_text parses correctly", {
+  result <- parse_typed_param_text("x {class_numeric} input value")
+
+  expect_equal(result$param, "x")
+  expect_equal(result$type, "class_numeric")
+  expect_equal(result$description, "input value")
+})
+
+test_that("parse_typed_return_text parses correctly", {
+  result <- parse_typed_return_text("{class_numeric} output value")
+
+  expect_equal(result$type, "class_numeric")
+  expect_equal(result$description, "output value")
+})
+
+# Type checking integration tests ----
 
 test_that("linter flags type mismatch - literal argument", {
   skip_if_not_installed("lintr")

@@ -1,6 +1,14 @@
 # Tests for three-level mode system
 # Modes: "lenient" (default), "exported" (public API), "strict" (all functions)
 
+# Basic linter creation (merged from test-linter.R) ----
+
+test_that("type_consistency_linter can be created", {
+  linter <- type_consistency_linter()
+
+  expect_s3_class(linter, "linter")
+})
+
 # Phase 22: Mode Parameter Design ----
 
 test_that("type_consistency_linter accepts mode parameter", {
