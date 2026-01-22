@@ -1880,6 +1880,82 @@ is_s7_class_definition <- function(block) {
 
 ---
 
+## Phase 35: Removal of Length Constraint Support
+
+**Date**: 2025-11-09
+**Effort**: 1 day
+**Status**: ✅ Complete (1026 tests passing)
+
+### Design Decision: Remove Scalar/Length Constraint Syntax
+
+**Problem**: The `[N]` syntax for length constraints (e.g., `numeric[1]` for scalars) fought against R's vectorized nature and created user confusion.
+
+**Solution**: Removed all length constraint support, keeping only element type constraints `<type>` for generics.
+
+**Rationale**:
+- **R is fundamentally vectorized**: Fighting this creates friction with R's core design philosophy
+- **Incomplete implementation**: Static analysis couldn't reliably check length for constructed vectors (`c(1, 2)`)
+- **Implementation complexity**: Required `@length_constraint` property, `actual_length` parameter threading, and special-case logic throughout the codebase
+- **User confusion**: Scalars work for literals but not expressions - inconsistent behavior is worse than no behavior
+- **Not truly R-like**: R doesn't distinguish scalars from length-1 vectors at the type level
+
+**What Was Removed**:
+- `[N]` syntax for length constraints (e.g., `numeric[1]`, `character[5]`)
+- `@length_constraint` property from `type_ref` S7 class
+- `check_length_constraint()` function
+- `actual_length` parameter from `types_compatible()`
+- All length constraint parsing logic from `parse_type_constraints()`
+- 22+ test files updated, `test-linter-bracket-syntax.R` → `test-element-types.R`
+
+**What Was Kept**:
+- Element type constraints: `list<integer>` for generic types
+- All other type system features (unions, external types, NULL safety, etc.)
+
+**Key Insight**: Sometimes removing a feature makes the system better. R's vectorization is a core strength - type checking should embrace it, not fight it. Accept imprecision on vector lengths rather than provide inconsistent behavior.
+
+**What This Enabled**:
+- Cleaner, simpler type system aligned with R's philosophy
+- Removed 500+ lines of constraint-checking code
+- Reduced cognitive load for users (one less syntax to learn)
+- Better alignment with how R developers actually think about types
+
+**Migration Path**: Users should:
+- Remove `[N]` from all type annotations
+- Accept that `numeric` means "numeric vector of any length"
+- Use prose documentation for scalar requirements (just like base R)
+- Rely on runtime checks for length validation when needed
+
+---
+
+## Phase 36: Test Consolidation
+
+**Date**: 2026-01-22
+**Effort**: 30 minutes
+**Status**: ✅ Complete (1026 tests passing)
+
+### Design Decision: Merge Tiny Test Files
+
+**Problem**: Test suite had grown to 25 files, with 4 very small files (1-4 tests each) that added organizational overhead without clear benefit.
+
+**Solution**: Merged tiny test files into their logical parent files.
+
+**Merges Performed**:
+- `test-linter.R` (1 test) → `test-linter-modes.R`
+- `test-linter-extract.R` (2 tests) → `test-linter-check.R`
+- `test-bracket-edge-cases.R` (4 tests) → `test-type-constraints.R`
+- `test-element-types.R` (4 tests) → `test-type-constraints.R`
+
+**Result**: 25 → 21 test files, 0 tests lost, cleaner organization.
+
+**Key Insight**: Test organization should balance discoverability with overhead. A file with 1 test is harder to find than a well-commented section in a related file. Group tests by the functionality they exercise, not by the specific edge case they cover.
+
+**What This Enabled**:
+- Easier navigation (fewer files to scan)
+- Related tests are co-located (bracket edge cases near other constraint tests)
+- Reduced cognitive overhead when running/maintaining tests
+
+---
+
 ## Cross-Cutting Insights
 
 ### 1. Leverage Existing Infrastructure
@@ -2120,56 +2196,7 @@ Both TypeScript and Python:
 ## Document Metadata
 
 **Created**: January 2025
-**Last Updated**: 2025-11-09 20:25:56 UTC (Phase 35 - Length Constraint Removal)
-**Total Phases Documented**: 28 major phases
+**Last Updated**: 2026-01-22 UTC (Phase 36 - Test Consolidation)
+**Total Phases Documented**: 29 major phases
 **Maintained By**: rdoc contributors
 **Purpose**: Technical reference for understanding rdoc's evolution
-
----
-
-## Phase 35: Removal of Length Constraint Support
-
-**Date**: 2025-11-09
-**Effort**: 1 day
-**Status**: ✅ Complete (1026 tests passing)
-
-### Design Decision: Remove Scalar/Length Constraint Syntax
-
-**Problem**: The `[N]` syntax for length constraints (e.g., `numeric[1]` for scalars) fought against R's vectorized nature and created user confusion.
-
-**Solution**: Removed all length constraint support, keeping only element type constraints `<type>` for generics.
-
-**Rationale**:
-- **R is fundamentally vectorized**: Fighting this creates friction with R's core design philosophy
-- **Incomplete implementation**: Static analysis couldn't reliably check length for constructed vectors (`c(1, 2)`)
-- **Implementation complexity**: Required `@length_constraint` property, `actual_length` parameter threading, and special-case logic throughout the codebase
-- **User confusion**: Scalars work for literals but not expressions - inconsistent behavior is worse than no behavior
-- **Not truly R-like**: R doesn't distinguish scalars from length-1 vectors at the type level
-
-**What Was Removed**:
-- `[N]` syntax for length constraints (e.g., `numeric[1]`, `character[5]`)
-- `@length_constraint` property from `type_ref` S7 class
-- `check_length_constraint()` function
-- `actual_length` parameter from `types_compatible()`
-- All length constraint parsing logic from `parse_type_constraints()`
-- 22+ test files updated, `test-linter-bracket-syntax.R` → `test-element-types.R`
-
-**What Was Kept**:
-- Element type constraints: `list<integer>` for generic types
-- All other type system features (unions, external types, NULL safety, etc.)
-
-**Key Insight**: Sometimes removing a feature makes the system better. R's vectorization is a core strength - type checking should embrace it, not fight it. Accept imprecision on vector lengths rather than provide inconsistent behavior.
-
-**What This Enabled**:
-- Cleaner, simpler type system aligned with R's philosophy
-- Removed 500+ lines of constraint-checking code
-- Reduced cognitive load for users (one less syntax to learn)
-- Better alignment with how R developers actually think about types
-
-**Migration Path**: Users should:
-- Remove `[N]` from all type annotations
-- Accept that `numeric` means "numeric vector of any length"
-- Use prose documentation for scalar requirements (just like base R)
-- Rely on runtime checks for length validation when needed
-
----
