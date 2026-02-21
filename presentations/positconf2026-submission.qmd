@@ -1,0 +1,177 @@
+---
+title: "rdoc"
+subtitle: "Static Type Checking for R"
+author: "Samuel Calderon"
+format:
+  revealjs:
+    theme: default
+    slide-number: true
+    code-line-numbers: false
+    highlight-style: github
+---
+
+## The Problem
+
+```r
+calculate_mean <- function(x) {
+
+
+  mean(x)
+
+}
+
+calculate_mean("hello")
+#> Warning: argument is not numeric or logical
+#> [1] NA
+```
+
+::: {.notes}
+R has no static type checking.
+
+You write a function expecting numbers. Someone passes text. You only find out at runtime - or worse, in production.
+
+In large codebases, these bugs are hard to trace. The error message points to mean(), not to the real problem: the wrong argument was passed.
+:::
+
+---
+
+## The Solution: rdoc {auto-animate=true}
+
+```r
+#' Calculate the mean
+#'
+#' @param x A numeric vector
+#' @return The mean value
+calculate_mean <- function(x) mean(x)
+```
+
+::: {.notes}
+Here's standard roxygen2 documentation. The param and return tags describe arguments and return values, but types are implicit.
+:::
+
+## The Solution: rdoc {auto-animate=true}
+
+```r
+#' Calculate the mean
+#'
+#' @typedParam x {class_numeric} A numeric vector
+#' @typedReturn {class_numeric} The mean value
+calculate_mean <- function(x) mean(x)
+```
+
+Minimal changes to your roxygen2 syntax.
+
+::: {.notes}
+With rdoc, just change param to typedParam, return to typedReturn, and add the type in braces.
+
+The key difference: these annotations are enforced by the linter.
+:::
+
+---
+
+## Catch Errors Before Runtime
+
+```r
+calculate_mean("hello")
+#
+# Linter warning:
+# Argument 'x' expects class_numeric, got class_character
+```
+
+::: {.notes}
+When someone calls your function with the wrong type, the linter catches it immediately - before the code ever runs.
+
+This integrates with lintr and the R language server. You see the error right in your editor, as you type.
+:::
+
+---
+
+## Expressive Type Syntax
+
+```r
+#' @typedParam x {NULL | class_numeric}
+#'   Optional numeric vector
+#'
+#' @typedParam callback {class_function}
+#'   Function to apply
+#'
+#' @typedParam ... {class_any}
+#'   Additional arguments
+```
+
+::: {.notes}
+The type syntax is expressive. You can declare nullable types, union types, and typed ellipsis.
+
+This covers the patterns R developers actually use.
+:::
+
+---
+
+## Built on S7
+
+```r
+# Define your own S7 class
+person <- S7::new_class("person",
+  properties = list(
+    name = S7::class_character,
+    age = S7::class_integer
+  )
+)
+
+#' @typedParam x {person} A person object
+greet <- function(x) {
+
+  paste0("Hello, ", x@name)
+}
+```
+
+::: {.notes}
+Under the hood, rdoc is built on S7.
+
+S7 class objects are the source of truth - not string matching. This means the type system understands class hierarchies. And your custom S7 classes are supported out of the box.
+
+rdoc builds on roxygen2, lintr, and S7 - tools the R community already uses.
+:::
+
+---
+
+## Getting Started
+
+```yaml
+# .lintr
+linters: lintr::linters_with_defaults(
+    type_consistency = rdoc::type_consistency_linter()
+  )
+```
+
+Packages can also export type metadata for their functions.
+
+::: {.notes}
+Getting started is simple. Add rdoc's linter to your .lintr configuration file.
+
+Once configured, type checking works automatically with lintr and the R language server.
+
+Package authors can also export type metadata, so users get type checking when calling your package functions.
+:::
+
+---
+
+## rdoc
+
+Static type checking for R.
+
+Catch type errors before runtime.
+
+Works with scripts, packages, and box modules.
+
+<br>
+
+github.com/calderonsamuel/rdoc
+
+::: {.notes}
+rdoc brings static type checking to R.
+
+It works with standalone scripts, R packages, and box modules. It integrates with the tools you already use. And it catches type errors before they become runtime surprises.
+
+Thank you.
+:::
