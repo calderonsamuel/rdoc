@@ -1150,6 +1150,34 @@ Interaction Contract:
 <hr></div>
 </div>
 <div class="section level2">
+<h2 id="phase-35-removal-of-length-constraint-support">Phase 35: Removal of Length Constraint Support<a class="anchor" aria-label="anchor" href="#phase-35-removal-of-length-constraint-support"></a></h2>
+<p><strong>Date</strong>: 2025-11-09 <strong>Effort</strong>: 1 day <strong>Status</strong>: ✅ Complete (1026 tests passing)</p>
+<div class="section level3">
+<h3 id="design-decision-remove-scalarlength-constraint-syntax">Design Decision: Remove Scalar/Length Constraint Syntax<a class="anchor" aria-label="anchor" href="#design-decision-remove-scalarlength-constraint-syntax"></a></h3>
+<p><strong>Problem</strong>: The <code>[N]</code> syntax for length constraints (e.g., <code>numeric[1]</code> for scalars) fought against R’s vectorized nature and created user confusion.</p>
+<p><strong>Solution</strong>: Removed all length constraint support, keeping only element type constraints <code>&lt;type&gt;</code> for generics.</p>
+<p><strong>Rationale</strong>: - <strong>R is fundamentally vectorized</strong>: Fighting this creates friction with R’s core design philosophy - <strong>Incomplete implementation</strong>: Static analysis couldn’t reliably check length for constructed vectors (<code>c(1, 2)</code>) - <strong>Implementation complexity</strong>: Required <code>@length_constraint</code> property, <code>actual_length</code> parameter threading, and special-case logic throughout the codebase - <strong>User confusion</strong>: Scalars work for literals but not expressions - inconsistent behavior is worse than no behavior - <strong>Not truly R-like</strong>: R doesn’t distinguish scalars from length-1 vectors at the type level</p>
+<p><strong>What Was Removed</strong>: - <code>[N]</code> syntax for length constraints (e.g., <code>numeric[1]</code>, <code>character[5]</code>) - <code>@length_constraint</code> property from <code>type_ref</code> S7 class - <code>check_length_constraint()</code> function - <code>actual_length</code> parameter from <code><a href="reference/types_compatible.html">types_compatible()</a></code> - All length constraint parsing logic from <code><a href="reference/parse_type_constraints.html">parse_type_constraints()</a></code> - 22+ test files updated, <code>test-linter-bracket-syntax.R</code> → <code>test-element-types.R</code></p>
+<p><strong>What Was Kept</strong>: - Element type constraints: <code>list&lt;integer&gt;</code> for generic types - All other type system features (unions, external types, NULL safety, etc.)</p>
+<p><strong>Key Insight</strong>: Sometimes removing a feature makes the system better. R’s vectorization is a core strength - type checking should embrace it, not fight it. Accept imprecision on vector lengths rather than provide inconsistent behavior.</p>
+<p><strong>What This Enabled</strong>: - Cleaner, simpler type system aligned with R’s philosophy - Removed 500+ lines of constraint-checking code - Reduced cognitive load for users (one less syntax to learn) - Better alignment with how R developers actually think about types</p>
+<p><strong>Migration Path</strong>: Users should: - Remove <code>[N]</code> from all type annotations - Accept that <code>numeric</code> means “numeric vector of any length” - Use prose documentation for scalar requirements (just like base R) - Rely on runtime checks for length validation when needed</p>
+<hr></div>
+</div>
+<div class="section level2">
+<h2 id="phase-36-test-consolidation">Phase 36: Test Consolidation<a class="anchor" aria-label="anchor" href="#phase-36-test-consolidation"></a></h2>
+<p><strong>Date</strong>: 2026-01-22 <strong>Effort</strong>: 30 minutes <strong>Status</strong>: ✅ Complete (1026 tests passing)</p>
+<div class="section level3">
+<h3 id="design-decision-merge-tiny-test-files">Design Decision: Merge Tiny Test Files<a class="anchor" aria-label="anchor" href="#design-decision-merge-tiny-test-files"></a></h3>
+<p><strong>Problem</strong>: Test suite had grown to 25 files, with 4 very small files (1-4 tests each) that added organizational overhead without clear benefit.</p>
+<p><strong>Solution</strong>: Merged tiny test files into their logical parent files.</p>
+<p><strong>Merges Performed</strong>: - <code>test-linter.R</code> (1 test) → <code>test-linter-modes.R</code> - <code>test-linter-extract.R</code> (2 tests) → <code>test-linter-check.R</code> - <code>test-bracket-edge-cases.R</code> (4 tests) → <code>test-type-constraints.R</code> - <code>test-element-types.R</code> (4 tests) → <code>test-type-constraints.R</code></p>
+<p><strong>Result</strong>: 25 → 21 test files, 0 tests lost, cleaner organization.</p>
+<p><strong>Key Insight</strong>: Test organization should balance discoverability with overhead. A file with 1 test is harder to find than a well-commented section in a related file. Group tests by the functionality they exercise, not by the specific edge case they cover.</p>
+<p><strong>What This Enabled</strong>: - Easier navigation (fewer files to scan) - Related tests are co-located (bracket edge cases near other constraint tests) - Reduced cognitive overhead when running/maintaining tests</p>
+<hr></div>
+</div>
+<div class="section level2">
 <h2 id="cross-cutting-insights">Cross-Cutting Insights<a class="anchor" aria-label="anchor" href="#cross-cutting-insights"></a></h2>
 <div class="section level3">
 <h3 id="id_1-leverage-existing-infrastructure">1. Leverage Existing Infrastructure<a class="anchor" aria-label="anchor" href="#id_1-leverage-existing-infrastructure"></a></h3>
@@ -1304,22 +1332,7 @@ Interaction Contract:
 </div>
 <div class="section level2">
 <h2 id="document-metadata">Document Metadata<a class="anchor" aria-label="anchor" href="#document-metadata"></a></h2>
-<p><strong>Created</strong>: January 2025 <strong>Last Updated</strong>: 2025-11-09 20:25:56 UTC (Phase 35 - Length Constraint Removal) <strong>Total Phases Documented</strong>: 28 major phases <strong>Maintained By</strong>: rdoc contributors <strong>Purpose</strong>: Technical reference for understanding rdoc’s evolution</p>
-<hr></div>
-<div class="section level2">
-<h2 id="phase-35-removal-of-length-constraint-support">Phase 35: Removal of Length Constraint Support<a class="anchor" aria-label="anchor" href="#phase-35-removal-of-length-constraint-support"></a></h2>
-<p><strong>Date</strong>: 2025-11-09 <strong>Effort</strong>: 1 day <strong>Status</strong>: ✅ Complete (1026 tests passing)</p>
-<div class="section level3">
-<h3 id="design-decision-remove-scalarlength-constraint-syntax">Design Decision: Remove Scalar/Length Constraint Syntax<a class="anchor" aria-label="anchor" href="#design-decision-remove-scalarlength-constraint-syntax"></a></h3>
-<p><strong>Problem</strong>: The <code>[N]</code> syntax for length constraints (e.g., <code>numeric[1]</code> for scalars) fought against R’s vectorized nature and created user confusion.</p>
-<p><strong>Solution</strong>: Removed all length constraint support, keeping only element type constraints <code>&lt;type&gt;</code> for generics.</p>
-<p><strong>Rationale</strong>: - <strong>R is fundamentally vectorized</strong>: Fighting this creates friction with R’s core design philosophy - <strong>Incomplete implementation</strong>: Static analysis couldn’t reliably check length for constructed vectors (<code>c(1, 2)</code>) - <strong>Implementation complexity</strong>: Required <code>@length_constraint</code> property, <code>actual_length</code> parameter threading, and special-case logic throughout the codebase - <strong>User confusion</strong>: Scalars work for literals but not expressions - inconsistent behavior is worse than no behavior - <strong>Not truly R-like</strong>: R doesn’t distinguish scalars from length-1 vectors at the type level</p>
-<p><strong>What Was Removed</strong>: - <code>[N]</code> syntax for length constraints (e.g., <code>numeric[1]</code>, <code>character[5]</code>) - <code>@length_constraint</code> property from <code>type_ref</code> S7 class - <code>check_length_constraint()</code> function - <code>actual_length</code> parameter from <code><a href="reference/types_compatible.html">types_compatible()</a></code> - All length constraint parsing logic from <code><a href="reference/parse_type_constraints.html">parse_type_constraints()</a></code> - 22+ test files updated, <code>test-linter-bracket-syntax.R</code> → <code>test-element-types.R</code></p>
-<p><strong>What Was Kept</strong>: - Element type constraints: <code>list&lt;integer&gt;</code> for generic types - All other type system features (unions, external types, NULL safety, etc.)</p>
-<p><strong>Key Insight</strong>: Sometimes removing a feature makes the system better. R’s vectorization is a core strength - type checking should embrace it, not fight it. Accept imprecision on vector lengths rather than provide inconsistent behavior.</p>
-<p><strong>What This Enabled</strong>: - Cleaner, simpler type system aligned with R’s philosophy - Removed 500+ lines of constraint-checking code - Reduced cognitive load for users (one less syntax to learn) - Better alignment with how R developers actually think about types</p>
-<p><strong>Migration Path</strong>: Users should: - Remove <code>[N]</code> from all type annotations - Accept that <code>numeric</code> means “numeric vector of any length” - Use prose documentation for scalar requirements (just like base R) - Rely on runtime checks for length validation when needed</p>
-<hr></div>
+<p><strong>Created</strong>: January 2025 <strong>Last Updated</strong>: 2026-01-22 UTC (Phase 36 - Test Consolidation) <strong>Total Phases Documented</strong>: 29 major phases <strong>Maintained By</strong>: rdoc contributors <strong>Purpose</strong>: Technical reference for understanding rdoc’s evolution</p>
 </div>
 </div>
 

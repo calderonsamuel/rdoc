@@ -46,70 +46,41 @@
 <p><strong>rdoc</strong> enables static type checking for R functions using JSDoc-style annotations, similar to TypeScript. Type annotations use S7 as the foundation - S7 class objects are the source of truth, not type strings.</p>
 <p>This project is still in development, not even reaching public beta. There is no stable internal implementation yet. No refactoring needs to consider backward compatibility.</p>
 <div class="section level3">
-<h3 id="goal">Goal<a class="anchor" aria-label="anchor" href="#goal"></a></h3>
-<p>Provide type annotations for R functions that IDEs (especially VSCode) can use to lint code and catch type errors before runtime.</p>
-</div>
-<div class="section level3">
 <h3 id="how-it-works">How It Works<a class="anchor" aria-label="anchor" href="#how-it-works"></a></h3>
-<p><strong>Two-part system:</strong> 1. <strong>Custom roxygen2 tags</strong> - <code>@typedParam</code> and <code>@typedReturn</code> with JSDoc-like <code>{type}</code> syntax (replaces <code>@param</code>/<code>@return</code>) 2. <strong>Custom lintr linter</strong> - Integrates with <a href="https://github.com/REditorSupport/languageserver/" class="external-link">languageserver</a> to validate function calls</p>
-<p><strong>For R Scripts:</strong> - Linter reads type annotations directly from roxygen comments - Validates function calls against type signatures - Infers types from literals, constructors, and function calls - Reports mismatches to VSCode via <a href="https://github.com/REditorSupport/languageserver/" class="external-link">languageserver</a> + <a href="https://lintr.r-lib.org" class="external-link">lintr</a></p>
-<p><strong>For R Packages:</strong> - Custom roclet generates <code>inst/types.rds</code> during <code>devtools::document()</code> - Type metadata gets installed with the package - Users get type checking automatically with <code>.lintr</code> config</p>
+<p><strong>Two-part system:</strong> 1. <strong>Custom roxygen2 tags</strong> - <code>@typedParam</code> and <code>@typedReturn</code> with JSDoc-like <code>{type}</code> syntax 2. <strong>Custom lintr linter</strong> - Integrates with <a href="https://github.com/REditorSupport/languageserver/" class="external-link">languageserver</a> to validate function calls</p>
+<p><strong>For R Packages:</strong> Custom roclet generates <code>inst/types.rds</code> during <code>devtools::document()</code>.</p>
 </div>
 <div class="section level3">
 <h3 id="type-notation">Type Notation<a class="anchor" aria-label="anchor" href="#type-notation"></a></h3>
-<p><strong>Basic types:</strong> - <code>numeric</code>, <code>character</code>, <code>logical</code>, <code>integer</code> - S7 base types - <code>numeric[1]</code> - scalar (length 1) - <code>numeric[5]</code> - exactly 5 elements - <code>list&lt;integer&gt;</code> - list with integer elements - <code>list&lt;integer&gt;[3]</code> - list of exactly 3 integers - <code>NULL | character</code> - optional types (NULL must be first) - <code>integer | character</code> - union types</p>
-<p><strong>External types (Phase 24.1 ✅):</strong> - <code><a href="https://roxygen2.r-lib.org/reference/roclet.html" class="external-link">roxygen2::roclet</a></code> - type from external package - <code>NULL | roxygen2::roclet</code> - optional external type - <code>list&lt;roxygen2::roclet&gt;</code> - list of external types - <code>roxygen2::roclet | lintr::Linter</code> - union of external types</p>
-<p><strong>Ellipsis (variadic arguments):</strong> - <code>... {class_any} description</code> - must explicitly specify <code>{class_any}</code> - Ellipsis annotations are optional (not required even in strict mode) - Only <code>class_any</code> is supported; other types produce lint errors - Used for forwarding arguments or collecting variadic inputs</p>
-<p><strong>Constraint syntax:</strong> - <code>[]</code> for length constraints - <code>&lt;&gt;</code> for element type constraints (generics) - <code>|</code> for union types (NULL must be first if present) - <code>::</code> for external package types</p>
+<pre><code>class_numeric, class_character, class_logical, class_integer   # S7 base types
+class_list&lt;class_integer&gt;                                      # element type constraint
+NULL | class_character                                         # optional (NULL must be first)
+class_integer | class_character                                # union types
+roxygen2::roclet                                               # external package types
+... {class_any}                                                # ellipsis (only class_any allowed)</code></pre>
 </div>
 <div class="section level3">
 <h3 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a></h3>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co">#' Calculate mean of numeric vector</span></span>
-<span><span class="co">#' @typedParam x {numeric} vector of values</span></span>
-<span><span class="co">#' @typedParam trim {numeric[1]} proportion to trim (0-0.5)</span></span>
-<span><span class="co">#' @typedParam na.rm {logical[1]} remove NA values?</span></span>
-<span><span class="co">#' @typedReturn {numeric[1]} the mean value</span></span>
-<span><span class="va">calculate_mean</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">trim</span> <span class="op">=</span> <span class="fl">0</span>, <span class="va">na.rm</span> <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span>, trim <span class="op">=</span> <span class="va">trim</span>, na.rm <span class="op">=</span> <span class="va">na.rm</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="co"># Variable type inference catches errors</span></span>
-<span><span class="va">my_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span>  <span class="co"># Inferred as type "list"</span></span>
-<span><span class="fu">calculate_mean</span><span class="op">(</span><span class="va">my_data</span><span class="op">)</span>    <span class="co"># ✅ Lint: expects 'numeric' but got 'list'</span></span>
-<span></span>
-<span><span class="co"># Ellipsis example (variadic arguments)</span></span>
-<span><span class="co">#' Wrapper that forwards arguments</span></span>
-<span><span class="co">#' @typedParam x {numeric} data vector</span></span>
-<span><span class="co">#' @typedParam ... {class_any} additional arguments passed to mean()</span></span>
-<span><span class="co">#' @typedReturn {numeric[1]} mean value</span></span>
-<span><span class="va">mean_wrapper</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="fu">mean_wrapper</span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">10</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>  <span class="co"># Forward na.rm to mean()</span></span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#' @typedParam x {class_numeric} vector of values</span></span>
+<span><span class="co">#' @typedReturn {class_numeric} the mean value</span></span>
+<span><span class="va">calculate_mean</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
 <h2 id="development-commands">Development Commands<a class="anchor" aria-label="anchor" href="#development-commands"></a></h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Standard package development workflow</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">install_dev_deps</span><span class="op">(</span><span class="op">)</span>  <span class="co"># Install dependencies</span></span>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">test</span><span class="op">(</span><span class="op">)</span>              <span class="co"># Run tests</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">check</span><span class="op">(</span><span class="op">)</span>             <span class="co"># R CMD check</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">build_readme</span><span class="op">(</span><span class="op">)</span>      <span class="co"># Build README from README.Rmd</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">test</span><span class="op">(</span><span class="op">)</span>              <span class="co"># Run tests</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">load_all</span><span class="op">(</span><span class="op">)</span>          <span class="co"># Load package</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">document</span><span class="op">(</span><span class="op">)</span>          <span class="co"># Update documentation</span></span></code></pre></div>
-<p><strong>Testing</strong>: 989 passing tests, 2 skipped, 0 failures</p>
-<p><strong>CI/CD</strong>: R-CMD-check on macOS, Windows, Ubuntu (multiple R versions), Codecov coverage</p>
 </div>
 <div class="section level2">
 <h2 id="package-structure">Package Structure<a class="anchor" aria-label="anchor" href="#package-structure"></a></h2>
 <div class="section level3">
 <h3 id="core-files">Core Files<a class="anchor" aria-label="anchor" href="#core-files"></a></h3>
 <ul><li>
-<code>R/tags.R</code> - roxygen2 tag parsers for <code>@typedParam</code>/<code>@typedReturn</code>
-</li>
+<code>R/tags.R</code> - roxygen2 tag parsers</li>
 <li>
 <code>R/roclet-types.R</code> - roclet that generates <code>inst/types.rds</code>
 </li>
@@ -118,243 +89,64 @@
 <li>
 <code>R/type-parser.R</code> - build AST from tokens</li>
 <li>
-<code>R/type-syntax-validator.R</code> - validate syntax</li>
-<li>
 <code>R/s7-types.R</code> - S7 type resolution and compatibility</li>
 <li>
-<code>R/linter.R</code> - main linter orchestration (multi-pass caching)</li>
+<code>R/linter.R</code> - main linter orchestration</li>
 <li>
 <code>R/linter-extract.R</code> - type extraction from roxygen/XML</li>
 <li>
-<code>R/linter-inference.R</code> - type inference (literals, variables, constructors)</li>
+<code>R/linter-inference.R</code> - type inference</li>
 <li>
-<code>R/linter-check.R</code> - function call validation, package types</li>
+<code>R/linter-check.R</code> - function call validation</li>
 <li>
 <code>R/linter-validate.R</code> - return value validation</li>
-</ul></div>
-<div class="section level3">
-<h3 id="generated-files">Generated Files<a class="anchor" aria-label="anchor" href="#generated-files"></a></h3>
-<ul><li>
-<code>inst/types.rds</code> - type metadata (installed with package)</li>
 </ul></div>
 </div>
 <div class="section level2">
 <h2 id="architecture">Architecture<a class="anchor" aria-label="anchor" href="#architecture"></a></h2>
 <div class="section level3">
 <h3 id="type-resolution-s7-first">Type Resolution (S7-First)<a class="anchor" aria-label="anchor" href="#type-resolution-s7-first"></a></h3>
-<p><strong>Core principle</strong>: S7 class objects are the source of truth.</p>
+<p>S7 class objects are the source of truth:</p>
 <pre><code>{integer} → type_string_to_s7_class() → S7::class_integer → s7_class_compatible()</code></pre>
 <p>Fallback to string-based checking only for non-S7 types (data.frame, matrix, etc).</p>
-<p><strong>Key functions:</strong> 1. <code><a href="reference/type_string_to_s7_class.html">type_string_to_s7_class()</a></code> - Maps type strings to S7 class objects 2. <code><a href="reference/s7_class_compatible.html">s7_class_compatible()</a></code> - Uses S7 metadata for compatibility checking (handles inheritance, unions) 3. <code><a href="reference/types_compatible.html">types_compatible()</a></code> - S7-first, falls back to string matching for non-S7 types</p>
-<p><strong>External types</strong>: Use <code><a href="reference/resolve_external_type.html">resolve_external_type()</a></code> to create S7 wrappers for <code>package::class</code> syntax. Uses exact string matching in Phase 24.1.</p>
 </div>
 <div class="section level3">
 <h3 id="linter-multi-pass-strategy">Linter Multi-Pass Strategy<a class="anchor" aria-label="anchor" href="#linter-multi-pass-strategy"></a></h3>
-<p>Lintr processes code in multiple passes: 1. <strong>Accumulate</strong> comments and variable assignments in cache 2. <strong>Extract</strong> types from accumulated comments when function definition found 3. <strong>Validate</strong> function calls using cached types and variables</p>
-<p><strong>Variable type inference:</strong> - Literals: <code>a &lt;- "text"</code> → character - Constructors: <code>a &lt;- list()</code> → list, <code>a &lt;- data.frame()</code> → data.frame - Function calls: <code>a &lt;- get_number()</code> → looks up <code>@typedReturn</code> from registry - Returns “unknown” for untyped functions (enables strict mode warnings)</p>
-<p><strong>Return value validation:</strong> - Validates <code>@typedReturn</code> matches implementation - Handles simple cases (explicit returns, implicit returns, literals, constructors) - Skips complex control flow (multiple returns, if/else, loops)</p>
-<p><strong>Critical implementation detail</strong>: In <code><a href="reference/infer_argument_type.html">infer_argument_type()</a></code>, function call checks (c(), list(), data.frame(), matrix()) MUST come BEFORE literal checks. Otherwise <code>list(1, 2)</code> would incorrectly infer as “numeric” from its arguments.</p>
-</div>
-<div class="section level3">
-<h3 id="three-level-mode-system">Three-Level Mode System<a class="anchor" aria-label="anchor" href="#three-level-mode-system"></a></h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># .lintr configuration</span></span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>linters<span class="sc">:</span> <span class="fu">with_defaults</span>(</span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="co"># Lenient (default) - check typed code only</span></span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="at">type_consistency =</span> rdoc<span class="sc">::</span><span class="fu">type_consistency_linter</span>()</span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a></span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="co"># Exported (recommended for packages) - require types on @export functions</span></span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  <span class="at">type_consistency =</span> rdoc<span class="sc">::</span><span class="fu">type_consistency_linter</span>(<span class="at">mode =</span> <span class="st">"exported"</span>)</span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a></span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  <span class="co"># Strict (maximum safety) - require types on all functions + warn on unknown</span></span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  <span class="at">type_consistency =</span> rdoc<span class="sc">::</span><span class="fu">type_consistency_linter</span>(<span class="at">mode =</span> <span class="st">"strict"</span>)</span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>)</span></code></pre></div>
-<p><strong>Exported mode detection</strong>: Uses <code>grepl("@export\\b", comments)</code> to detect exported functions. Works with roxygen2 and {box} modules.</p>
-</div>
+<ol style="list-style-type: decimal"><li>
+<strong>Accumulate</strong> comments and variable assignments in cache</li>
+<li>
+<strong>Extract</strong> types from accumulated comments when function definition found</li>
+<li>
+<strong>Validate</strong> function calls using cached types and variables</li>
+</ol></div>
 <div class="section level3">
 <h3 id="public-api">Public API<a class="anchor" aria-label="anchor" href="#public-api"></a></h3>
-<p><strong>Exported functions (2):</strong> - <code>type_consistency_linter(mode)</code> - linter integration - <code><a href="reference/roclet_types.html">roclet_types()</a></code> - roclet for type metadata generation</p>
-<p><strong>S3 methods (5):</strong> Required by roxygen2/lintr infrastructure - <code>roxy_tag_parse.roxy_tag_typedParam</code> - <code>roxy_tag_parse.roxy_tag_typedReturn</code> - <code>roclet_process.roclet_types</code> - <code>roclet_output.roclet_types</code> - <code>roclet_tags.roclet_types</code></p>
-<p>Internal utilities accessible via <code>:::</code> but not part of public API.</p>
-</div>
-<div class="section level3">
-<h3 id="r6-usage">R6 Usage<a class="anchor" aria-label="anchor" href="#r6-usage"></a></h3>
-<p>rdoc uses R6 internally for stateful objects (e.g., ParserState) while using S7 for data structures. R6 provides the right semantics for mutable state machines.</p>
-<p><strong>Architecture</strong>: Hybrid R6+S7 design - <strong>S7 for data</strong>: Immutable value types (token, call_argument, variable_assignment, function_signature, AST nodes) - <strong>R6 for state machines</strong>: Mutable objects that manage internal state (ParserState, future: LinterFileCache) - <strong>Type-safe boundaries</strong>: R6 constructors validate S7 inputs, R6 methods return S7 outputs</p>
-<p><strong>Why this hybrid?</strong> - S7 excels at immutable data structures with value semantics - R6 excels at mutable state machines with reference semantics - Forcing S7 onto mutable state creates awkward designs (performance overhead, complexity) - Using the right tool for each problem is more important than architectural purity</p>
-<p><strong>Example</strong> (ParserState): - Stores list of S7 <code>token</code> objects - Mutates position during parsing (advance() called 15-20 times) - Returns S7 tokens from current() method - Validates S7 inputs on construction, provides bounds checking</p>
-<p><strong>Future</strong>: R6 method typing support planned for 2.0, pending user demand. Current focus is typing regular R functions (95% of use cases).</p>
+<p><strong>Exported functions (2):</strong> - <code>type_consistency_linter(mode)</code> - linter integration (modes: lenient/exported/strict) - <code><a href="reference/roclet_types.html">roclet_types()</a></code> - roclet for type metadata generation</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="test-coverage">Test Coverage<a class="anchor" aria-label="anchor" href="#test-coverage"></a></h2>
-<p><strong>989 passing tests, 2 skipped, 0 failures</strong></p>
-<div class="section level3">
-<h3 id="test-files">Test Files<a class="anchor" aria-label="anchor" href="#test-files"></a></h3>
-<ul><li>
-<code>test-tags.R</code> - Tag parsing (25 tests)</li>
-<li>
-<code>test-parse-types.R</code> - Type utilities (46 tests)</li>
-<li>
-<code>test-roclet.R</code> - Roclet output (22 tests)</li>
-<li>
-<code>test-type-parser.R</code> - Parser (170 tests)</li>
-<li>
-<code>test-s7-types.R</code>, <code>test-s7-base-types.R</code> - S7 system (179 tests)</li>
-<li>
-<code>test-null-safety.R</code> - NULL unions (18 tests)</li>
-<li>
-<code>test-type-constraints.R</code> - Bracket syntax (42 tests)</li>
-<li>
-<code>test-bracket-edge-cases.R</code> - Edge cases (39 tests)</li>
-<li>
-<code>test-linter-modes.R</code> - Mode system (60 tests)</li>
-<li>
-<code>test-linter-*.R</code> - Linter functionality (110 tests)</li>
-<li>
-<code>test-box-*.R</code> - Box module support (160 tests)</li>
-<li>
-<code>test-external-types.R</code> - External types (79 tests)</li>
-<li>
-<code>tests/manual/</code> - VSCode integration (manual verification)</li>
-</ul></div>
+<h2 id="logbookmd">LOGBOOK.md<a class="anchor" aria-label="anchor" href="#logbookmd"></a></h2>
+<p>Update after completing any implementation phase:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">## Phase X: [Feature Name]</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>**Date**: Timestamp in UTC</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>**Status**: ✅ Complete (<span class="co">[</span><span class="ot">N</span><span class="co">]</span> tests passing)</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="fu">### Design Decision: [Key Decision Made]</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>**Problem**: <span class="co">[</span><span class="ot">What problem were we solving?</span><span class="co">]</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>**Solution**: <span class="co">[</span><span class="ot">What approach did we take?</span><span class="co">]</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>**Rationale**:</span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">Why this approach?</span><span class="co">]</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What alternatives were considered?</span><span class="co">]</span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What tradeoffs were made?</span><span class="co">]</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a>**Key Insight**: <span class="co">[</span><span class="ot">Main lesson learned - 1-2 sentences</span><span class="co">]</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a>**What This Enabled**: <span class="co">[</span><span class="ot">What can users now do that they couldn't before?</span><span class="co">]</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="user-workflows">User Workflows<a class="anchor" aria-label="anchor" href="#user-workflows"></a></h2>
-<div class="section level3">
-<h3 id="package-authors">Package Authors<a class="anchor" aria-label="anchor" href="#package-authors"></a></h3>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># 1. Add type annotations</span></span>
-<span><span class="co">#' @typedParam x {numeric} input values</span></span>
-<span><span class="co">#' @typedReturn {numeric} output</span></span>
-<span></span>
-<span><span class="co"># 2. Generate type metadata</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">document</span><span class="op">(</span><span class="op">)</span>  <span class="co"># Creates inst/types.rds</span></span>
-<span></span>
-<span><span class="co"># 3. Configure linter (recommended: exported mode)</span></span>
-<span><span class="co"># .lintr:</span></span>
-<span><span class="va">linters</span><span class="op">:</span> <span class="fu">with_defaults</span><span class="op">(</span></span>
-<span>  type_consistency <span class="op">=</span> <span class="fu">rdoc</span><span class="fu">::</span><span class="fu"><a href="reference/type_consistency_linter.html">type_consistency_linter</a></span><span class="op">(</span>mode <span class="op">=</span> <span class="st">"exported"</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># 4. Install/publish package (types.rds included)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="package-users">Package Users<a class="anchor" aria-label="anchor" href="#package-users"></a></h3>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># 1. Configure .lintr (choose mode based on needs)</span></span>
-<span><span class="va">linters</span><span class="op">:</span> <span class="fu">with_defaults</span><span class="op">(</span></span>
-<span>  type_consistency <span class="op">=</span> <span class="fu">rdoc</span><span class="fu">::</span><span class="fu"><a href="reference/type_consistency_linter.html">type_consistency_linter</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># or "exported", "strict"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># 2. VSCode automatically lints using type info from installed packages</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">yourpkg</span><span class="op">)</span></span>
-<span><span class="va">my_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span></span>
-<span><span class="fu">foo</span><span class="op">(</span><span class="va">my_df</span><span class="op">)</span>  <span class="co"># Shows lint error if foo expects different type</span></span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="current-status">Current Status<a class="anchor" aria-label="anchor" href="#current-status"></a></h2>
-<p><strong>Production Ready</strong>: Core functionality complete with comprehensive test coverage (989 passing tests)</p>
-<p><strong>Complete features:</strong> - ✅ JSDoc-style type annotations (<code>@typedParam</code>, <code>@typedReturn</code>) - ✅ Roxygen2 integration (generates <code>.Rd</code> documentation) - ✅ Static type checking via lintr - ✅ Three-level mode system (lenient/exported/strict) - ✅ S7-first type system (all 25 S7 base types) - ✅ NULL safety (optional types with <code>NULL | Type</code>) - ✅ Type inference (literals, constructors, function calls) - ✅ Return value validation - ✅ Named and positional argument matching - ✅ Package type metadata export/import - ✅ Box module integration - ✅ External type support (<code>package::class</code> syntax) - ✅ Dogfooding (rdoc processes its own types)</p>
-<p><strong>Known limitations:</strong> - File-level scope only (no cross-file analysis) - Return validation skips complex control flow - No type narrowing from conditionals - Constructor inference limited to common types (c, list, data.frame, matrix)</p>
-</div>
-<div class="section level2">
-<h2 id="code-style">Code Style<a class="anchor" aria-label="anchor" href="#code-style"></a></h2>
-<p>Follow the <a href="https://style.tidyverse.org" class="external-link">tidyverse style guide</a>: - Use styler package for formatting - Only restyle code relevant to your changes - Documentation uses roxygen2 with Markdown - User-facing changes go in <code>NEWS.md</code></p>
-</div>
-<div class="section level2">
-<h2 id="testing-guidelines">Testing Guidelines<a class="anchor" aria-label="anchor" href="#testing-guidelines"></a></h2>
-<div class="section level3">
-<h3 id="s7-object-equality-pattern">S7 Object Equality Pattern<a class="anchor" aria-label="anchor" href="#s7-object-equality-pattern"></a></h3>
-<p>rdoc uses S7 objects throughout. Tests should leverage S7’s built-in equality semantics instead of property-by-property assertions.</p>
-<p><strong>✅ PREFERRED (declarative, complete):</strong></p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Token example</span></span>
-<span><span class="fu">expect_equal</span><span class="op">(</span><span class="va">tokens</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="fu"><a href="reference/token.html">token</a></span><span class="op">(</span></span>
-<span>  type <span class="op">=</span> <span class="st">"IDENTIFIER"</span>,</span>
-<span>  value <span class="op">=</span> <span class="st">"class_numeric"</span>,</span>
-<span>  position <span class="op">=</span> <span class="fl">1L</span></span>
-<span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># call_argument example</span></span>
-<span><span class="fu">expect_equal</span><span class="op">(</span><span class="va">args</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="fu"><a href="reference/call_argument.html">call_argument</a></span><span class="op">(</span></span>
-<span>  node <span class="op">=</span> <span class="va">expected_node</span>,</span>
-<span>  type <span class="op">=</span> <span class="st">"class_double"</span>,</span>
-<span>  position <span class="op">=</span> <span class="fl">1L</span>,</span>
-<span>  name <span class="op">=</span> <span class="st">"x"</span></span>
-<span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># function_signature example</span></span>
-<span><span class="fu">expect_equal</span><span class="op">(</span><span class="va">result</span>, <span class="fu"><a href="reference/function_signature.html">function_signature</a></span><span class="op">(</span></span>
-<span>  params <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="reference/param_type.html">param_type</a></span><span class="op">(</span>type <span class="op">=</span> <span class="st">"class_numeric"</span>, description <span class="op">=</span> <span class="st">"input"</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  return <span class="op">=</span> <span class="fu"><a href="reference/return_type.html">return_type</a></span><span class="op">(</span>type <span class="op">=</span> <span class="st">"class_numeric"</span>, description <span class="op">=</span> <span class="st">"output"</span><span class="op">)</span></span>
-<span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><strong>⚠️ USE SPARINGLY (when only checking 1-2 specific fields):</strong></p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">expect_equal</span><span class="op">(</span><span class="va">tokens</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">@</span><span class="va">type</span>, <span class="st">"IDENTIFIER"</span><span class="op">)</span>  <span class="co"># Only care about type, not value/position</span></span></code></pre></div>
-<p><strong>Benefits:</strong> - <strong>Declarative</strong>: Shows complete expected state at a glance - <strong>Robust</strong>: Catches if properties are added/removed/changed - <strong>Self-documenting</strong>: Clear what the complete object should be - <strong>Better diffs</strong>: testthat shows full object diff on failure - <strong>Type-safe</strong>: Can’t forget to assert a property</p>
-<p><strong>Real example</strong>: When refactoring test-type-parser.R to use object equality, the tests caught incorrect position values that property-based tests had never checked. This prevented silent bugs in position tracking.</p>
-<p><strong>When to use property assertions:</strong> - Checking only type/class of object (e.g., <code>@type</code> for EOF tokens where value/position don’t matter) - Testing one specific field in isolation - Objects with complex fields that are hard to construct (e.g., XML nodes)</p>
-<p><strong>Going forward</strong>: All new S7 tests should use object equality by default. Property assertions should be justified with comments.</p>
-</div>
-</div>
-<div class="section level2">
-<h2 id="contributing-workflow">Contributing Workflow<a class="anchor" aria-label="anchor" href="#contributing-workflow"></a></h2>
-<ol style="list-style-type: decimal"><li>Fork and create branch: <code>usethis::pr_init("brief-description")</code>
-</li>
-<li>Ensure <code>devtools::check()</code> passes cleanly</li>
-<li>Add bullet to <code>NEWS.md</code> for user-facing changes</li>
-<li>Push PR: <code>usethis::pr_push()</code>
-</li>
-</ol></div>
-<div class="section level2">
-<h2 id="documentation-files">Documentation Files<a class="anchor" aria-label="anchor" href="#documentation-files"></a></h2>
-<div class="section level3">
-<h3 id="core-documentation">Core Documentation<a class="anchor" aria-label="anchor" href="#core-documentation"></a></h3>
-<ul><li>
-<strong>README.Rmd</strong> - Source file for README.md (always edit .Rmd, not .md)</li>
-<li>
-<strong>CLAUDE.md</strong> - This file - AI assistant instructions and architecture overview</li>
-<li>
-<strong>IMPLEMENTATION_PLAN.md</strong> - Detailed technical specifications and phase planning</li>
-<li>
-<strong>LOGBOOK.md</strong> - Key learnings and design decisions from each phase (living document)</li>
-</ul></div>
-<div class="section level3">
-<h3 id="logbookmd---living-document">LOGBOOK.md - Living Document<a class="anchor" aria-label="anchor" href="#logbookmd---living-document"></a></h3>
-<p><strong>Purpose</strong>: Technical reference documenting key learnings, design decisions, and insights from each implementation phase.</p>
-<p><strong>When to update</strong>: After completing ANY new implementation phase, add an entry to LOGBOOK.md.</p>
-<p><strong>Entry template</strong>:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">## Phase X: [Feature Name]</span></span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a></span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>**Date**: Timestamp in UTC</span>
-<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>**Status**: ✅ Complete (<span class="co">[</span><span class="ot">N</span><span class="co">]</span> tests passing)</span>
-<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a></span>
-<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="fu">### Design Decision: [Key Decision Made]</span></span>
-<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a></span>
-<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>**Problem**: <span class="co">[</span><span class="ot">What problem were we solving?</span><span class="co">]</span></span>
-<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a></span>
-<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>**Solution**: <span class="co">[</span><span class="ot">What approach did we take?</span><span class="co">]</span></span>
-<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a></span>
-<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a>**Rationale**:</span>
-<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">Why this approach?</span><span class="co">]</span></span>
-<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What alternatives were considered?</span><span class="co">]</span></span>
-<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">What tradeoffs were made?</span><span class="co">]</span></span>
-<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a></span>
-<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a>**Key Insight**: <span class="co">[</span><span class="ot">Main lesson learned - 1-2 sentences</span><span class="co">]</span></span>
-<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a></span>
-<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a>**What This Enabled**: <span class="co">[</span><span class="ot">What can users now do that they couldn't before?</span><span class="co">]</span></span></code></pre></div>
-<p><strong>Current coverage</strong>: 16 phases documented (Phases 1, 4, 5, 6.5, 7, 7.2, 10, 11, 12.1, 12.5, 13.4, 14, 15.5, 21, 22, 23, 24.1)</p>
-<p><strong>Audience</strong>: Blog posts, case studies, future contributors, technical retrospectives</p>
-</div>
-</div>
-<div class="section level2">
-<h2 id="notes">Notes<a class="anchor" aria-label="anchor" href="#notes"></a></h2>
-<ul><li>Package uses pkgdown for documentation site</li>
-<li>Leverages existing <a href="https://lintr.r-lib.org" class="external-link">lintr</a> + <a href="https://github.com/REditorSupport/languageserver/" class="external-link">languageserver</a> ecosystem (no custom LSP)</li>
-<li>Tag names use camelCase (<code>@typedParam</code>) - roxygen2 doesn’t allow hyphens</li>
-<li>S7 is the type system - type strings resolve to S7 class objects</li>
-</ul></div>
 </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
